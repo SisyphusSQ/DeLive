@@ -414,6 +414,7 @@ export function normalizeTranscriptSession(session: Partial<TranscriptSession>):
     transcript: getString(session.transcript) || '',
     translatedTranscript: normalizeTranslationData(session.translatedTranscript),
     duration: getNumber(session.duration),
+    audioRecordingId: getString(session.audioRecordingId),
     topicId: getString(session.topicId)?.trim() || undefined,
     tagIds: normalizeStringArray(session.tagIds),
     tokens: tokens && tokens.length > 0 ? tokens : undefined,

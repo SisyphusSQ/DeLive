@@ -1,0 +1,20 @@
+{
+  "status": "PASS",
+  "machine": "sqmc04",
+  "electron": "40.0.0",
+  "source": "synthetic 440/880 Hz oscillators; mediaDevices test doubles; network denied",
+  "blocks": 6,
+  "durationMs": 4997.966666857402,
+  "checks": [
+    "local-only UI",
+    "dual-source WAV persistence",
+    "source ended",
+    "device change",
+    "stop flush",
+    "reload",
+    "ASR unavailable",
+    "quota failure",
+    "renderer crash recovery",
+    "no network"
+  ]
+}

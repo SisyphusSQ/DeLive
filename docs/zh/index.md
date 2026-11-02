@@ -316,3 +316,6 @@ features:
     <a href="https://github.com/XimilalaXiang/DeLive/releases/latest"><img src="https://img.shields.io/badge/Linux-下载-FCC624?style=for-the-badge&logo=linux&logoColor=black" alt="Linux" /></a>
   </div>
 </div>
+
+
+[会议双来源录音与原音资产说明](./development/recording-assets)
