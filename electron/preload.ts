@@ -10,6 +10,15 @@ import type {
 } from '../shared/electronApi'
 
 const electronAPI: ElectronAPI = {
+  fileTasks: {
+    settings: () => ipcRenderer.invoke('file-tasks:settings'),
+    configure: config => ipcRenderer.invoke('file-tasks:configure', config),
+    list: () => ipcRenderer.invoke('file-tasks:list'),
+    start: (sessionId, recordingId, credentials, enableDdc) => ipcRenderer.invoke('file-tasks:start', sessionId, recordingId, credentials, enableDdc),
+    query: (id, credentials) => ipcRenderer.invoke('file-tasks:query', id, credentials),
+    cleanup: id => ipcRenderer.invoke('file-tasks:cleanup', id),
+    cancel: id => ipcRenderer.invoke('file-tasks:cancel', id),
+  },
   recording: {
     begin: id => ipcRenderer.invoke('recording:begin', id),
     append: (id, packet) => ipcRenderer.invoke('recording:append', id, packet),

@@ -1,3 +1,4 @@
+import { registerFileTaskIpc } from './fileTranscription/fileTaskIpc'
 import { app, BrowserWindow, dialog, ipcMain, session, Tray, globalShortcut } from 'electron'
 import { registerRecordingIpc } from './recordingIpc'
 import { registerAppIpc } from './appIpc'
@@ -252,7 +253,8 @@ registerDiagnosticsIpc({
   getMainWindow: () => mainWindow,
 })
 
-registerRecordingIpc(ipcMain)
+const recordingStorage = registerRecordingIpc(ipcMain)
+registerFileTaskIpc(ipcMain, recordingStorage.owner)
 registerSafeStorageIpc(ipcMain)
 registerCloudBackupIpc(ipcMain)
 

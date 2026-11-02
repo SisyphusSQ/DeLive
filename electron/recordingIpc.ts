@@ -70,4 +70,5 @@ export function registerRecordingIpc(ipc: IpcMain) {
     })
   }
   app.on('before-quit', interrupt)
+  return { owner }
 }

@@ -172,6 +172,8 @@ export interface CaptionStyle {
 
 // 转录会话类型
 export interface TranscriptSession {
+  versions?: import('../../../shared/fileTranscription').TranscriptVersion[]
+  selectedVersionId?: string
   realtime?: import('./realtime').RealtimeRecognition[]
   audioRecordingId?: string
   id: string

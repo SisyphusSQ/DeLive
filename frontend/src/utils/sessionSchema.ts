@@ -1,3 +1,4 @@
+import { normalizeVersions } from './versionSchema'
 import { parseVolcSnapshot } from './volcTranscript'
 import type {
   CorrectionIssue,
@@ -18,7 +19,7 @@ import type {
 } from '../types'
 import { formatDate, formatTime, generateId } from './storageUtils'
 
-export const CURRENT_SESSION_SCHEMA_VERSION = 3
+export const CURRENT_SESSION_SCHEMA_VERSION = 4
 const DEFAULT_SESSION_STATUS: TranscriptSessionStatus = 'completed'
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -406,7 +407,10 @@ export function normalizeTranscriptSession(session: Partial<TranscriptSession>):
     ? session.status
     : DEFAULT_SESSION_STATUS
 
+  const versions = normalizeVersions(session.versions)
   return {
+    versions,
+    selectedVersionId: versions?.some(v => v.id === session.selectedVersionId) ? session.selectedVersionId : versions?.[0]?.id,
     id: getString(session.id)?.trim() || generateId(),
     schemaVersion: CURRENT_SESSION_SCHEMA_VERSION,
     title,

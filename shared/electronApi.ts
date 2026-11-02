@@ -256,6 +256,7 @@ export interface CloudBackupIpcFileInfo {
 // ─── Core types ───
 
 export interface ElectronAPI {
+  fileTasks: import('./fileTranscription').FileTasksAPI
   recording: import('./recording').RecordingAPI
   getAppVersion: () => Promise<string>
   minimizeToTray: () => Promise<void>

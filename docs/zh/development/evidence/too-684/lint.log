@@ -1,0 +1,38 @@
+
+> delive@2.3.0-beta.2 lint:frontend
+> cd frontend && npm run lint
+
+
+> desktop-live-frontend@1.0.0 lint
+> eslint .
+
+
+/Users/suqing/coding/app/DeLive/frontend/src/components/BundledRuntimeSetupGuide.tsx
+  105:6  warning  React Hook useCallback has missing dependencies: 't.bundledRuntime.getStatusFailed' and 't.bundledRuntime.noRuntimeId'. Either include them or remove the dependency array  react-hooks/exhaustive-deps
+  123:6  warning  React Hook useCallback has a missing dependency: 't.bundledRuntime'. Either include it or remove the dependency array                                                       react-hooks/exhaustive-deps
+  137:6  warning  React Hook useCallback has a missing dependency: 't.bundledRuntime.getModelListFailed'. Either include it or remove the dependency array                                    react-hooks/exhaustive-deps
+  186:6  warning  React Hook useEffect has a missing dependency: 't.bundledRuntime'. Either include it or remove the dependency array                                                         react-hooks/exhaustive-deps
+
+/Users/suqing/coding/app/DeLive/frontend/src/components/CommandPalette.tsx
+  51:6  warning  React Hook useCallback has a missing dependency: 'setOpen'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+  67:6  warning  React Hook useEffect has a missing dependency: 'setOpen'. Either include it or remove the dependency array    react-hooks/exhaustive-deps
+
+/Users/suqing/coding/app/DeLive/frontend/src/components/icons/ProviderLogos.tsx
+  314:17  warning  Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components  react-refresh/only-export-components
+
+/Users/suqing/coding/app/DeLive/frontend/src/components/review/CorrectionTab.tsx
+  130:6  warning  React Hook useCallback has a missing dependency: 'language'. Either include it or remove the dependency array                   react-hooks/exhaustive-deps
+  149:6  warning  React Hook useCallback has a missing dependency: 't.localModel.detectFailed'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+  171:6  warning  React Hook useCallback has a missing dependency: 'language'. Either include it or remove the dependency array                   react-hooks/exhaustive-deps
+
+/Users/suqing/coding/app/DeLive/frontend/src/components/settings/AiPostProcessPanel.tsx
+  55:9  warning  The 'selected' logical expression could make the dependencies of useCallback Hook (at line 90) change on every render. To fix this, wrap the initialization of 'selected' in its own useMemo() Hook   react-hooks/exhaustive-deps
+  55:9  warning  The 'selected' logical expression could make the dependencies of useCallback Hook (at line 101) change on every render. To fix this, wrap the initialization of 'selected' in its own useMemo() Hook  react-hooks/exhaustive-deps
+
+/Users/suqing/coding/app/DeLive/frontend/src/components/settings/CloudBackupPanel.tsx
+  105:9  warning  The 's3' logical expression could make the dependencies of useCallback Hook (at line 112) change on every render. To fix this, wrap the initialization of 's3' in its own useMemo() Hook          react-hooks/exhaustive-deps
+  106:9  warning  The 'webdav' logical expression could make the dependencies of useCallback Hook (at line 118) change on every render. To fix this, wrap the initialization of 'webdav' in its own useMemo() Hook  react-hooks/exhaustive-deps
+  155:6  warning  React Hook useCallback has a missing dependency: 'handleLoadFiles'. Either include it or remove the dependency array                                                                              react-hooks/exhaustive-deps
+
+✖ 15 problems (0 errors, 15 warnings)
+

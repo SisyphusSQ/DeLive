@@ -1,3 +1,4 @@
+import { ingestFileTasks } from './utils/volcFileApi'
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { AlertTriangle, Settings } from 'lucide-react'
 import { useUIStore } from './stores/uiStore'
@@ -120,6 +121,10 @@ function App() {
       loadTags()
       loadTopics()
       await loadSessions()
+      if (window.electronAPI?.fileTasks) {
+        try { await ingestFileTasks(await window.electronAPI.fileTasks.list()) }
+        catch { addToast('error', '会后任务读取或保存失败，请打开文件转写查看并重试') }
+      }
 
       if (!cancelled) {
         setIsInitialized(true)
@@ -129,7 +134,7 @@ function App() {
     return () => {
       cancelled = true
     }
-  }, [initTheme, loadSettings, loadSessions, loadTags])
+  }, [initTheme, loadSettings, loadSessions, loadTags, loadTopics, addToast])
 
   // 初始化完成后同步字幕样式到主进程，确保字幕窗口使用用户保存的样式
   useEffect(() => {

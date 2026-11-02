@@ -59,7 +59,7 @@ export function getFileTranscriptionConfigError(
         ? null
         : { key: 'cloudflareCredentialsNotConfigured', args: [] }
     case 'volc':
-      return readText(providerConfig, 'appKey') && readText(providerConfig, 'accessKey')
+      return readText(providerConfig, 'apiKey') || (readText(providerConfig, 'appKey') && readText(providerConfig, 'accessKey'))
         ? null
         : { key: 'volcCredentialsNotConfigured', args: [] }
     case 'local_openai':

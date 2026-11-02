@@ -49,8 +49,8 @@ export class VolcProvider extends BaseASRProvider {
           acceptedFileKinds: ['audio'],
         },
         fileTranscription: {
-          availability: 'unsupported',
-          executionMode: 'single-request',
+          availability: 'implemented',
+          executionMode: 'native-job',
           inputSources: ['file'],
           acceptedFileKinds: ['audio'],
         },
