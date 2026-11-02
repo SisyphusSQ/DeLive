@@ -51,6 +51,8 @@ export interface TranscriptSpeaker {
 }
 
 export interface TranscriptSegment {
+  id?: string
+  recognitionId?: string
   text: string
   translatedText?: string
   startMs?: number
@@ -170,6 +172,7 @@ export interface CaptionStyle {
 
 // 转录会话类型
 export interface TranscriptSession {
+  realtime?: import('./realtime').RealtimeRecognition[]
   audioRecordingId?: string
   id: string
   schemaVersion?: number

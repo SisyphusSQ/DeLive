@@ -126,6 +126,7 @@ export const sessionRepository = {
       interruptedSessionIds.push(session.id)
       return {
         ...session,
+        realtime: session.realtime?.map(r => r.status === 'streaming' ? { ...r, status: 'incomplete' as const, errorCode: 'APP_INTERRUPTED' } : r),
         status: 'interrupted',
         wasInterrupted: true,
         updatedAt: now,
@@ -183,6 +184,7 @@ export const sessionRepository = {
   saveProgress(sessionId: string, snapshot: SessionProgressSnapshot): TranscriptSession[] {
     const now = Date.now()
     const sessions = updateSessionCollection(getCachedSessions(), sessionId, {
+      realtime: snapshot.realtime,
       transcript: snapshot.transcript,
       tokens: snapshot.tokens,
       providerId: snapshot.providerId,
@@ -201,6 +203,7 @@ export const sessionRepository = {
   completeSession(sessionId: string, snapshot: SessionProgressSnapshot): TranscriptSession[] {
     const now = Date.now()
     const sessions = updateSessionCollection(getCachedSessions(), sessionId, {
+      realtime: snapshot.realtime,
       transcript: snapshot.transcript,
       tokens: snapshot.tokens,
       providerId: snapshot.providerId,

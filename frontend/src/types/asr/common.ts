@@ -158,6 +158,7 @@ export interface BaseProviderConfig {
 export type ProviderState = 'idle' | 'connecting' | 'connected' | 'recording' | 'processing' | 'error'
 
 export interface ASREventCallbacks {
+  onRealtime?: (snapshot: import('../realtime').RealtimeRecognition) => void
   onToken?: (token: TranscriptToken) => void
   onTokens?: (tokens: TranscriptToken[]) => void
   onPartial?: (text: string) => void

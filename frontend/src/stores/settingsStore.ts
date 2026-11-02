@@ -1,3 +1,4 @@
+import { storeVolcSecrets } from '../utils/secretStorage'
 import { create } from 'zustand'
 import type {
   AiPostProcessConfig,
@@ -31,6 +32,7 @@ const defaultCaptionStyle: CaptionStyle = {
 }
 
 export interface SettingsState {
+  credentialError?: string
   settings: AppSettings
   loadSettings: () => void
   updateSettings: (settings: Partial<AppSettings>) => void
@@ -40,7 +42,7 @@ export interface SettingsState {
 
   availableProviders: ASRProviderInfo[]
   setCurrentVendor: (vendorId: string) => void
-  updateProviderConfig: (vendorId: string, config: Partial<ProviderConfigData>) => void
+  updateProviderConfig: (vendorId: string, config: Partial<ProviderConfigData>) => Promise<void>
   getProviderConfig: (vendorId: string) => ProviderConfigData | undefined
 }
 
@@ -114,7 +116,8 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
     }
 
     void (async () => {
-      await migrateApiKeysToSafeStorage()
+      try { await migrateApiKeysToSafeStorage(get().settings) }
+      catch (error) { set({ credentialError: (error as Error).message }) }
       const resolved = await resolveApiKeysFromSafeStorage(get().settings)
       set({ settings: resolved })
     })()
@@ -202,7 +205,8 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
     saveSettings(newSettings)
     set({ settings: newSettings })
   },
-  updateProviderConfig: (vendorId, config) => {
+  updateProviderConfig: async (vendorId, config) => {
+    if (vendorId === 'volc') { await storeVolcSecrets(config); set({ credentialError: undefined }) }
     const { settings } = get()
     const currentConfig = settings.providerConfigs?.[vendorId] || { apiKey: '' }
     const providerInfo = providerRegistry.getInfo(vendorId as ASRVendor)

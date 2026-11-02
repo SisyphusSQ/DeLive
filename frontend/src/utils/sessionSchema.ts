@@ -1,3 +1,4 @@
+import { parseVolcSnapshot } from './volcTranscript'
 import type {
   CorrectionIssue,
   TranscriptAskTurn,
@@ -91,6 +92,8 @@ function normalizeSegment(value: unknown): TranscriptSegment | null {
 
   return {
     text,
+    id: getString(value.id),
+    recognitionId: getString(value.recognitionId),
     translatedText: getString(value.translatedText),
     startMs: getNumber(value.startMs),
     endMs: getNumber(value.endMs),
@@ -411,6 +414,14 @@ export function normalizeTranscriptSession(session: Partial<TranscriptSession>):
     time: getString(session.time)?.trim() || formatTime(createdAt),
     createdAt,
     updatedAt,
+    realtime: Array.isArray(session.realtime) ? session.realtime.flatMap(r => {
+      try {
+        if (!r || typeof r.id !== 'string' || !Number.isFinite(r.offsetMs) || r.offsetMs < 0) return []
+        const clean = parseVolcSnapshot({ result: r.response }, r.id, r.offsetMs, r.revision, r.status === 'complete', r.sequence)
+        return [{ ...clean, status: r.status === 'incomplete' ? 'incomplete' as const : clean.status,
+          errorCode: typeof r.errorCode === 'string' ? r.errorCode : undefined }]
+      } catch { return [] }
+    }) : undefined,
     transcript: getString(session.transcript) || '',
     translatedTranscript: normalizeTranslationData(session.translatedTranscript),
     duration: getNumber(session.duration),

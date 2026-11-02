@@ -77,6 +77,12 @@ export function useASR(options: UseASROptions = {}) {
   // ── Provider 事件 → Store + 字幕 ──────────────────
 
   const buildProviderCallbacks = useCallback(() => ({
+    onRealtime(snapshot: import('../types/realtime').RealtimeRecognition) {
+      applyTranscriptEvent({ type: 'realtime', snapshot })
+      const state = useSessionStore.getState()
+      captionRef.current.update(state.currentTranscript, '', '', '')
+      if (snapshot.status === 'incomplete') useRecordingStore.getState().update({ asrStatus: '转写未完成；原音保留，可重新连接' })
+    },
     onTokens(tokens: import('../types/asr').TranscriptToken[]) {
       applyTranscriptEvent({ type: 'tokens', tokens })
 
@@ -118,7 +124,7 @@ export function useASR(options: UseASROptions = {}) {
         return
       }
       options.onError?.(`${error.code}: ${error.message}`)
-      useRecordingStore.getState().update({ asrStatus: '转写失败；本地原音继续保存' })
+      useRecordingStore.getState().update({ asrStatus: currentState === 'stopping' ? '转写未完成；原音已保留' : '转写失败；本地原音继续保存' })
       void providerSessionRef.current.disconnect()
     },
 
@@ -144,7 +150,7 @@ export function useASR(options: UseASROptions = {}) {
         try {
           const psm = providerSessionRef.current
           const setup = psm.resolveSetup(vendor, useSettingsStore.getState().settings)
-          await psm.reconnect(vendor, setup.connectConfig, buildProviderCallbacks())
+          await psm.reconnect(vendor, { ...setup.connectConfig, timelineOffsetMs: () => captureRef.current.elapsedMs }, buildProviderCallbacks())
           await capture.switchPipeline(setup.providerInfo.capabilities)
         } catch (error) {
           await providerSessionRef.current.disconnect()
@@ -200,7 +206,7 @@ export function useASR(options: UseASROptions = {}) {
       if (!config.localOnly) {
         try {
           const setup = psm.resolveSetup(vendorId, settings)
-          await psm.connect(vendorId, setup.connectConfig, buildProviderCallbacks())
+          await psm.connect(vendorId, { ...setup.connectConfig, timelineOffsetMs: () => captureRef.current.elapsedMs }, buildProviderCallbacks())
           if (useSessionStore.getState().recordingState !== 'recording') { await psm.disconnect(); return }
           await capture.switchPipeline(setup.providerInfo.capabilities)
           selectedVendorRef.current = vendorId
@@ -228,7 +234,7 @@ export function useASR(options: UseASROptions = {}) {
     try {
       setRecordingState('switching')
 
-      useSettingsStore.getState().updateProviderConfig(vendorId, configPatch)
+      await useSettingsStore.getState().updateProviderConfig(vendorId, configPatch)
 
       const newSettings = useSettingsStore.getState().settings
       const psm = providerSessionRef.current
@@ -239,7 +245,7 @@ export function useASR(options: UseASROptions = {}) {
       // 关键：先停止 MediaRecorder 的数据产出，防止旧数据（无 WebM 头）被发到新连接
       captureRef.current.pauseRecorder()
 
-      await psm.reconnect(vendorId, setup.connectConfig, buildProviderCallbacks())
+      await psm.reconnect(vendorId, { ...setup.connectConfig, timelineOffsetMs: () => captureRef.current.elapsedMs }, buildProviderCallbacks())
 
       // reconnect 完成后再重启 MediaRecorder，生成新的 WebM 文件头
       captureRef.current.restartRecorder(setup.providerInfo.capabilities)
@@ -250,7 +256,8 @@ export function useASR(options: UseASROptions = {}) {
       console.error('[useASR] 配置热切换失败:', error)
 
       if (previousConfig) {
-        useSettingsStore.getState().updateProviderConfig(vendorId, previousConfig)
+        const currentSettings = useSettingsStore.getState().settings
+        useSettingsStore.setState({ settings: { ...currentSettings, providerConfigs: { ...currentSettings.providerConfigs, [vendorId]: previousConfig } } })
       }
 
       try {
@@ -259,7 +266,7 @@ export function useASR(options: UseASROptions = {}) {
         const fallbackSetup = psm.resolveSetup(vendorId, fallbackSettings)
 
         captureRef.current.pauseRecorder()
-        await psm.reconnect(vendorId, fallbackSetup.connectConfig, buildProviderCallbacks())
+        await psm.reconnect(vendorId, { ...fallbackSetup.connectConfig, timelineOffsetMs: () => captureRef.current.elapsedMs }, buildProviderCallbacks())
         captureRef.current.restartRecorder(fallbackSetup.providerInfo.capabilities)
 
         setRecordingState('recording')
@@ -301,7 +308,7 @@ export function useASR(options: UseASROptions = {}) {
 
       captureRef.current.pauseRecorder()
 
-      await psm.reconnect(newVendorId, newSetup.connectConfig, buildProviderCallbacks())
+      await psm.reconnect(newVendorId, { ...newSetup.connectConfig, timelineOffsetMs: () => captureRef.current.elapsedMs }, buildProviderCallbacks())
 
       await captureRef.current.switchPipeline(newSetup.providerInfo.capabilities)
 
@@ -318,7 +325,7 @@ export function useASR(options: UseASROptions = {}) {
         const fallbackSetup = psm.resolveSetup(oldVendorId, fallbackSettings)
 
         captureRef.current.pauseRecorder()
-        await psm.reconnect(oldVendorId, fallbackSetup.connectConfig, buildProviderCallbacks())
+        await psm.reconnect(oldVendorId, { ...fallbackSetup.connectConfig, timelineOffsetMs: () => captureRef.current.elapsedMs }, buildProviderCallbacks())
         await captureRef.current.switchPipeline(fallbackSetup.providerInfo.capabilities)
 
         selectedVendorRef.current = oldVendorId
@@ -333,6 +340,25 @@ export function useASR(options: UseASROptions = {}) {
     }
   }, [setRecordingState, applyTranscriptEvent, buildProviderCallbacks, options])
 
+  const reconnectTranscription = useCallback(async () => {
+    if (useSessionStore.getState().recordingState !== 'recording') return
+    setRecordingState('switching')
+    const psm = providerSessionRef.current
+    try {
+      const vendor = useSettingsStore.getState().settings.currentVendor as ASRVendor
+      const setup = psm.resolveSetup(vendor, useSettingsStore.getState().settings)
+      captureRef.current.pauseRecorder()
+      await psm.reconnect(vendor, { ...setup.connectConfig, timelineOffsetMs: () => captureRef.current.elapsedMs }, buildProviderCallbacks())
+      await captureRef.current.switchPipeline(setup.providerInfo.capabilities)
+      selectedVendorRef.current = vendor
+      useRecordingStore.getState().update({ asrStatus: '转写已重新连接；说话人编号独立，断线期间请使用会后稿补全' })
+    } catch (error) {
+      await psm.disconnect()
+      options.onError?.((error as Error).message)
+      useRecordingStore.getState().update({ asrStatus: '转写重连失败；本地原音继续保存' })
+    } finally { setRecordingState('recording') }
+  }, [buildProviderCallbacks, options, setRecordingState])
+
   const getMediaStream = useCallback(() => captureRef.current.currentStream, [])
 
   return {
@@ -341,5 +367,6 @@ export function useASR(options: UseASROptions = {}) {
     switchConfig,
     switchProvider,
     getMediaStream,
+    reconnectTranscription,
   }
 }

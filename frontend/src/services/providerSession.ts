@@ -23,6 +23,7 @@ import type {
 import type { AppSettings, ProviderConfigData } from '../types'
 
 export interface ProviderSessionCallbacks {
+  onRealtime?: (snapshot: import('../types/realtime').RealtimeRecognition) => void
   onTokens: (tokens: TranscriptToken[]) => void
   onPartial: (text: string) => void
   onFinal: (text: string) => void
@@ -103,13 +104,12 @@ export class ProviderSessionManager {
     this.provider = null
 
     if (oldProvider) {
-      // 先移除监听器，防止旧连接断开过程中的错误事件触发回调（如 408 超时）
-      oldProvider.removeAllListeners()
+      // 保留监听器直到最终响应或明确的未完成状态已经持久化。
       try {
         await oldProvider.disconnect()
       } catch (error) {
         console.warn('[ProviderSession] 旧连接断开失败（忽略）:', error)
-      }
+      } finally { oldProvider.removeAllListeners() }
     }
 
     this.callbacks = callbacks
@@ -151,6 +151,7 @@ export class ProviderSessionManager {
   // ── 内部实现 ──────────────────────────────────────────
 
   private bindListeners(provider: ASRProvider): void {
+    provider.on('onRealtime', snapshot => this.callbacks?.onRealtime?.(snapshot))
     provider.on('onTokens', (tokens: TranscriptToken[]) => {
       console.log('[ProviderSession] 收到 tokens:', tokens.length)
       this.callbacks?.onTokens(tokens)

@@ -11,6 +11,7 @@ import type { TranscriptToken } from '../types/asr'
 import { hasPostProcessContent, type TranscriptRuntimeState } from './transcriptState'
 
 export interface TranscriptPersistenceSnapshot {
+  realtime?: import('../types/realtime').RealtimeRecognition[]
   transcript: string
   tokens?: TranscriptTokenData[]
   providerId?: string
@@ -23,7 +24,8 @@ export interface TranscriptPersistenceSnapshot {
 
 export function hasPersistenceSnapshotContent(snapshot: TranscriptPersistenceSnapshot): boolean {
   return Boolean(
-    snapshot.transcript
+    snapshot.realtime?.length
+    || snapshot.transcript
     || snapshot.tokens?.length
     || snapshot.translatedTranscript?.text
     || hasPostProcessContent(snapshot.postProcess),
@@ -138,6 +140,7 @@ export function buildSessionSnapshot(options: {
 
   return {
     transcript,
+    realtime: runtimeState.realtime,
     translatedTranscript: buildTranslatedTranscript(translatedText, {
       displayMode: captionDisplayMode,
       targetLanguage: translationTargetLanguage,

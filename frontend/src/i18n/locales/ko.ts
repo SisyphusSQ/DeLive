@@ -258,6 +258,9 @@ export const ko: Translations = {
     // Volc-specific
     fieldVolcAppId: 'APP ID',
     fieldVolcAppIdPlaceholder: 'APP ID를 입력하세요',
+    fieldVolcDdc: '간투사 정리',
+    fieldVolcDdcDesc: '기본값은 꺼짐이며 활성화하면 일부 간투사와 반복을 제거합니다.',
+    fieldVolcApiKeyDesc: '새 콘솔 API Key 또는 기존 APP ID와 Access Token을 입력하세요.',
     fieldVolcAppIdDesc: '볼케이노 엔진 콘솔에서 확인하세요',
     fieldVolcAccessToken: 'Access Token',
     fieldVolcAccessTokenPlaceholder: 'Access Token을 입력하세요',

@@ -147,11 +147,15 @@ export interface SessionState {
   correctionStreamingText: Record<string, string>
   clearCorrectionStreamingText: (sessionId: string) => void
 
+  realtime?: import('../types/realtime').RealtimeRecognition[]
   finalTokens: TranscriptToken[]
 }
 
 export const useSessionStore = create<SessionState>((set, get) => {
   const buildCurrentSessionSnapshot = (overrides?: {
+    realtime?: import('../types/realtime').RealtimeRecognition[]
+    currentSegments?: TranscriptSegment[]
+    currentSpeakers?: TranscriptSpeaker[]
     finalTokens?: TranscriptToken[]
     finalTranscript?: string
     nonFinalTranscript?: string
@@ -171,8 +175,8 @@ export const useSessionStore = create<SessionState>((set, get) => {
     return buildSessionSnapshot({
       runtimeState: {
         ...state,
-        currentSegments: buildSegmentsFromTokens(state.finalTokens),
-        currentSpeakers: buildSpeakersFromTokens(state.finalTokens),
+        currentSegments: state.realtime?.length ? state.currentSegments : buildSegmentsFromTokens(state.finalTokens),
+        currentSpeakers: state.realtime?.length ? state.currentSpeakers : buildSpeakersFromTokens(state.finalTokens),
       },
       providerId,
       providerMode: resolveProviderMode(providerId),
@@ -184,6 +188,9 @@ export const useSessionStore = create<SessionState>((set, get) => {
   }
 
   const syncCurrentSessionInMemory = (overrides?: {
+    realtime?: import('../types/realtime').RealtimeRecognition[]
+    currentSegments?: TranscriptSegment[]
+    currentSpeakers?: TranscriptSpeaker[]
     finalTokens?: TranscriptToken[]
     finalTranscript?: string
     nonFinalTranscript?: string
@@ -198,6 +205,7 @@ export const useSessionStore = create<SessionState>((set, get) => {
 
     const snapshot = buildCurrentSessionSnapshot(overrides)
     return updateSessionInCollection(state.sessions, state.currentSessionId, {
+      realtime: snapshot.realtime,
       transcript: snapshot.transcript,
       translatedTranscript: snapshot.translatedTranscript,
       tokens: snapshot.tokens,
@@ -295,6 +303,9 @@ export const useSessionStore = create<SessionState>((set, get) => {
       )
 
       const sessions = syncCurrentSessionInMemory({
+        realtime: nextTranscriptState.realtime,
+        currentSegments: nextTranscriptState.currentSegments,
+        currentSpeakers: nextTranscriptState.currentSpeakers,
         finalTokens: nextTranscriptState.finalTokens,
         finalTranscript: nextTranscriptState.finalTranscript,
         nonFinalTranscript: nextTranscriptState.nonFinalTranscript,

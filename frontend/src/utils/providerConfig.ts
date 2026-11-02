@@ -8,7 +8,7 @@ interface LegacyProviderFallback {
 
 function hasConfiguredValue(value: unknown): boolean {
   if (typeof value === 'string') {
-    return value.trim().length > 0
+    return value.trim().length > 0 && value !== '{{SAFE_STORAGE}}'
   }
   if (Array.isArray(value)) {
     return value.length > 0
@@ -52,6 +52,7 @@ export function getMissingRequiredConfigKeys(
   providerConfig: ProviderConfigData | undefined
 ): string[] {
   if (!provider) return []
+  if (provider.id === 'volc') return hasConfiguredValue(providerConfig?.apiKey) || (hasConfiguredValue(providerConfig?.appKey) && hasConfiguredValue(providerConfig?.accessKey)) ? [] : ['apiKey']
   return provider.requiredConfigKeys.filter((key) => !hasConfiguredValue(providerConfig?.[key]))
 }
 

@@ -257,6 +257,9 @@ export const zh = {
     // 火山引擎专用
     fieldVolcAppId: 'APP ID',
     fieldVolcAppIdPlaceholder: '输入你的 APP ID',
+    fieldVolcDdc: '语气词规整',
+    fieldVolcDdcDesc: '默认关闭；开启会删除部分语气词与重复内容',
+    fieldVolcApiKeyDesc: '新版控制台 API Key，或填写旧版 APP ID 与 Access Token',
     fieldVolcAppIdDesc: '从火山引擎控制台获取',
     fieldVolcAccessToken: 'Access Token',
     fieldVolcAccessTokenPlaceholder: '输入你的 Access Token',

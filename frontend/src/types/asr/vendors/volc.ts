@@ -17,6 +17,7 @@ export interface VolcUtterance {
   start_time: number
   end_time: number
   definite: boolean
+  additions?: { speaker_id?: string; source?: string }
   words?: VolcWord[]
 }
 
@@ -28,8 +29,9 @@ export interface VolcWord {
 
 // 火山引擎配置
 export interface VolcProviderConfig {
-  appKey: string
-  accessKey: string
+  apiKey?: string
+  appKey?: string
+  accessKey?: string
   language?: string
   // 高级选项
   enableItn?: boolean

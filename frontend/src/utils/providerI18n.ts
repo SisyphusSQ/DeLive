@@ -58,6 +58,8 @@ const FIELD_LABEL_MAP: Record<string, Record<string, keyof ProviderStrings>> = {
     languageHints: 'fieldLanguageHints',
   },
   volc: {
+    apiKey: 'fieldApiKey',
+    enableDdc: 'fieldVolcDdc',
     appKey: 'fieldVolcAppId',
     accessKey: 'fieldVolcAccessToken',
     languageHints: 'fieldLanguageHints',
@@ -136,6 +138,8 @@ const FIELD_DESC_MAP: Record<string, Record<string, keyof ProviderStrings>> = {
     languageHints: 'fieldLanguageHintsDesc',
   },
   volc: {
+    apiKey: 'fieldVolcApiKeyDesc',
+    enableDdc: 'fieldVolcDdcDesc',
     appKey: 'fieldVolcAppIdDesc',
     accessKey: 'fieldVolcAccessTokenDesc',
     languageHints: 'fieldLanguageHintsDescVolc',
