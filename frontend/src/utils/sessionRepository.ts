@@ -151,6 +151,7 @@ export const sessionRepository = {
 
       return Boolean(
         session.transcript
+        || session.audioRecordingId
         || session.tokens?.length
         || session.translatedTranscript?.text
         || hasPostProcessContent(session.postProcess),

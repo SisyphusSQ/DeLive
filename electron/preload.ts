@@ -10,6 +10,18 @@ import type {
 } from '../shared/electronApi'
 
 const electronAPI: ElectronAPI = {
+  recording: {
+    begin: id => ipcRenderer.invoke('recording:begin', id),
+    append: (id, packet) => ipcRenderer.invoke('recording:append', id, packet),
+    event: (id, event) => ipcRenderer.invoke('recording:event', id, event),
+    finish: (id, interrupted) => ipcRenderer.invoke('recording:finish', id, interrupted),
+    list: () => ipcRenderer.invoke('recording:list'),
+    read: id => ipcRenderer.invoke('recording:read', id),
+    readBlock: (id, index, track) => ipcRenderer.invoke('recording:readBlock', id, index, track),
+    remove: id => ipcRenderer.invoke('recording:remove', id),
+    settings: () => ipcRenderer.invoke('recording:settings'),
+    configure: (quota, pick) => ipcRenderer.invoke('recording:configure', quota, pick),
+  },
   getAppVersion: () => ipcRenderer.invoke('get-app-version'),
   minimizeToTray: () => ipcRenderer.invoke('minimize-to-tray'),
   windowMinimize: (source?: string) => ipcRenderer.invoke('window-minimize', source),

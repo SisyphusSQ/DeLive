@@ -1,3 +1,4 @@
+import { RecordingStorage } from './RecordingStorage'
 import { useState } from 'react'
 import { Mic, Square, Loader2, Settings2, RefreshCw } from 'lucide-react'
 import { useUIStore } from '../stores/uiStore'
@@ -28,7 +29,7 @@ interface RecordingControlsProps {
   switchProvider?: (newVendorId: ASRVendor) => Promise<void>
 }
 
-export function RecordingControls({ onError, startRecording, stopRecording, switchConfig, switchProvider }: RecordingControlsProps) {
+export function RecordingControls({ startRecording, stopRecording, switchConfig, switchProvider }: RecordingControlsProps) {
   const { t } = useUIStore()
   const { settings, availableProviders } = useSettingsStore()
   const { recordingState, currentTranscript } = useSessionStore()
@@ -64,10 +65,6 @@ export function RecordingControls({ onError, startRecording, stopRecording, swit
 
   const handleClick = () => {
     if (isIdle) {
-      if (!hasApiKey) {
-        onError(t.recording.configureApiFirst)
-        return
-      }
       startRecording()
     } else if (isRecording) {
       stopRecording()
@@ -105,6 +102,7 @@ export function RecordingControls({ onError, startRecording, stopRecording, swit
 
   return (
     <div className="space-y-3">
+      <RecordingStorage />
       <div className={`flex ${isIdle ? 'flex-col items-center gap-3' : 'items-center gap-5'}`}>
         <div className="flex items-center gap-2">
           <button

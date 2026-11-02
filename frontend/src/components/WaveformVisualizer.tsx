@@ -69,6 +69,10 @@ export function WaveformVisualizer({
 
       const dpr = window.devicePixelRatio || 1
       const rect = canvas.getBoundingClientRect()
+      if (rect.width <= 0 || rect.height <= 0) {
+        animationRef.current = requestAnimationFrame(draw)
+        return
+      }
       canvas.width = rect.width * dpr
       canvas.height = rect.height * dpr
       ctx.scale(dpr, dpr)
@@ -79,7 +83,7 @@ export function WaveformVisualizer({
 
       const totalBars = barCount
       const gap = 2
-      const barWidth = (rect.width - (totalBars - 1) * gap) / totalBars
+      const barWidth = Math.max(0, (rect.width - (totalBars - 1) * gap) / totalBars)
       const maxBarHeight = rect.height * 0.85
       const minBarHeight = 2
 

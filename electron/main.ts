@@ -1,4 +1,5 @@
 import { app, BrowserWindow, dialog, ipcMain, session, Tray, globalShortcut } from 'electron'
+import { registerRecordingIpc } from './recordingIpc'
 import { registerAppIpc } from './appIpc'
 import { setupAutoUpdater } from './autoUpdater'
 import { registerCaptionIpc } from './captionIpc'
@@ -251,6 +252,7 @@ registerDiagnosticsIpc({
   getMainWindow: () => mainWindow,
 })
 
+registerRecordingIpc(ipcMain)
 registerSafeStorageIpc(ipcMain)
 registerCloudBackupIpc(ipcMain)
 

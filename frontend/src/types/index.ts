@@ -170,6 +170,7 @@ export interface CaptionStyle {
 
 // 转录会话类型
 export interface TranscriptSession {
+  audioRecordingId?: string
   id: string
   schemaVersion?: number
   title: string

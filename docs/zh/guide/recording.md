@@ -53,3 +53,8 @@ idle → starting → recording → stopping → completed
 |--------|------|
 | `Ctrl+Shift+D` / `Cmd+Shift+D` | 显示/隐藏主窗口 |
 | `Ctrl+Shift+R` / `Cmd+Shift+R` | 切换录制 |
+
+
+## 双来源原音录音
+
+本 fork 的双来源、仅录音、原音路径、配额、显式删除与中断恢复见[原音资产说明](../development/recording-assets)。正式真实验收留待 TOO-686。

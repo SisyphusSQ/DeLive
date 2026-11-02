@@ -177,7 +177,7 @@ export const useSessionStore = create<SessionState>((set, get) => {
       providerId,
       providerMode: resolveProviderMode(providerId),
       platform: window.electronAPI?.platform ?? 'unknown',
-      captureMode: 'system-audio',
+      captureMode: get().sessions.find(s => s.id === get().currentSessionId)?.sourceMeta?.captureMode ?? 'system-audio',
       translationTargetLanguage: getTranslationTargetLanguage(),
       captionDisplayMode,
     })
@@ -354,7 +354,7 @@ export const useSessionStore = create<SessionState>((set, get) => {
       clearSessionAutosaveTimer()
       const { currentSessionId } = get()
       const snapshot = buildCurrentSessionSnapshot()
-      const hasContent = hasPersistenceSnapshotContent(snapshot)
+      const hasContent = hasPersistenceSnapshotContent(snapshot) || get().sessions.some(s => s.id === currentSessionId && s.audioRecordingId)
 
       if (currentSessionId && hasContent) {
         const sessions = sessionRepository.completeSession(currentSessionId, snapshot)
@@ -391,7 +391,25 @@ export const useSessionStore = create<SessionState>((set, get) => {
     sessions: [],
     loadSessions: async () => {
       const { sessions, recoverableSession } = await sessionRepository.loadForLaunch()
-      set({ sessions, recoverySession: recoverableSession })
+      if (window.electronAPI?.recording) {
+        const recordings = await window.electronAPI.recording.list()
+        for (const audio of recordings) {
+          if (audio.error) continue
+          const existing = sessions.find(s => s.id === audio.sessionId)
+          const metadata = { audioRecordingId: audio.sessionId, duration: audio.durationMs,
+            ...(audio.status === 'interrupted' ? { status: 'interrupted' as const, wasInterrupted: true } : {}) }
+          if (existing) {
+            Object.assign(existing, metadata)
+            sessionRepository.updateMetadata(existing.id, metadata)
+          } else if (audio.status === 'interrupted') {
+            const recovered = { ...createDraftSession({ now: audio.createdAt, title: '恢复的原音录音' }), id: audio.sessionId, ...metadata, status: audio.status }
+            sessionRepository.createDraft(recovered)
+            sessionRepository.updateMetadata(recovered.id, { status: audio.status })
+            sessions.unshift(recovered)
+          }
+        }
+      }
+      set({ sessions, recoverySession: recoverableSession || sessions.find(s => s.status === 'interrupted' && s.audioRecordingId) || null })
     },
     updateSessionTitle: (id, title) => {
       const { sessions, recoverySession, currentSessionId, currentSpeakers, currentPostProcess } = get()
