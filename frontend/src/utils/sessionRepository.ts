@@ -181,6 +181,14 @@ export const sessionRepository = {
     return persistSingleSession(sessionId, sessions)
   },
 
+  async updateMetadataDurable(sessionId: string, updates: Partial<TranscriptSession>): Promise<TranscriptSession[]> {
+    const current = getCachedSessions().find(session => session.id === sessionId)
+    if (!current) throw new Error('会话不存在')
+    const next = normalizeSession({ ...current, ...updates, updatedAt: Date.now() })
+    await upsertSession(next)
+    return updateCachedSessions(getCachedSessions().map(session => session.id === sessionId ? next : session))
+  },
+
   saveProgress(sessionId: string, snapshot: SessionProgressSnapshot): TranscriptSession[] {
     const now = Date.now()
     const sessions = updateSessionCollection(getCachedSessions(), sessionId, {

@@ -54,11 +54,7 @@ import {
   type AssemblyAIWord,
   type AssemblyAIUtterance,
 } from '../utils/assemblyaiFileApi'
-import {
-  transcribeFile as volcTranscribeFile,
-  type VolcWord,
-  type VolcUtterance,
-} from '../utils/volcFileApi'
+import { importVolcFile } from '../utils/volcFileApi'
 import {
   LOCAL_OPENAI_DEFAULT_BASE_URL,
   LOCAL_OPENAI_DEFAULT_MODEL,
@@ -944,91 +940,6 @@ async function executeAssemblyAI(
   return { transcript, tokens, segments, speakers, durationMs }
 }
 
-/* ─── Volcengine result conversion ──────────────────────────── */
-
-function volcWordsToTokens(words: VolcWord[]): TranscriptTokenData[] {
-  return words.map((w) => ({
-    text: w.text,
-    isFinal: true as const,
-    startMs: w.start_time,
-    endMs: w.end_time,
-    confidence: w.confidence,
-  }))
-}
-
-function volcUtterancesToSegments(utterances: VolcUtterance[]): TranscriptSegment[] {
-  return utterances.map((u) => ({
-    text: u.text,
-    startMs: u.start_time,
-    endMs: u.end_time,
-    isFinal: true as const,
-    speakerId: u.speaker,
-  }))
-}
-
-function volcExtractSpeakers(utterances: VolcUtterance[]): TranscriptSpeaker[] {
-  const speakerSet = new Set<string>()
-  for (const u of utterances) {
-    if (u.speaker) speakerSet.add(u.speaker)
-  }
-  return Array.from(speakerSet)
-    .sort()
-    .map((id) => ({ id, label: `Speaker ${id}` }))
-}
-
-async function executeVolc(
-  file: File,
-  config: FileTranscriptionConfig,
-  appKey: string,
-  accessKey: string,
-  jobId: string,
-  updateJob: (id: string, u: Record<string, unknown>) => void,
-  signal: AbortSignal,
-): Promise<TranscriptionResult> {
-  updateJob(jobId, { status: 'uploading', progress: 20 })
-
-  updateJob(jobId, { status: 'transcribing', progress: 40 })
-
-  const response = await volcTranscribeFile(
-    appKey,
-    accessKey,
-    file,
-    {
-      enableSpeakerInfo: config.enableSpeakerDiarization,
-      enableItn: true,
-      enablePunc: true,
-      enableDdc: true,
-    },
-    signal,
-  )
-
-  updateJob(jobId, { progress: 90 })
-
-  const transcript = response.result.text ?? ''
-  const utterances = response.result.utterances ?? []
-  const durationMs = response.audio_info.duration ?? 0
-
-  console.debug('[Volcengine] Transcript length:', transcript.length, 'Utterances:', utterances.length, 'Duration:', durationMs)
-
-  if (!transcript && utterances.length === 0) {
-    console.warn('[Volcengine] Empty transcription result. Full response:', JSON.stringify(response))
-    throwUserError('volcEmptyTranscript')
-  }
-
-  const allWords = utterances.flatMap((u) => u.words ?? [])
-  const tokens: TranscriptTokenData[] = allWords.length > 0
-    ? volcWordsToTokens(allWords)
-    : [{ text: transcript, isFinal: true as const, startMs: 0, endMs: durationMs }]
-
-  const segments: TranscriptSegment[] = utterances.length > 0
-    ? volcUtterancesToSegments(utterances)
-    : [{ text: transcript.trim(), startMs: 0, endMs: durationMs, isFinal: true as const }]
-
-  const speakers = volcExtractSpeakers(utterances)
-
-  return { transcript, tokens, segments, speakers, durationMs }
-}
-
 /* ─── Local whisper.cpp runtime ────────────────────────────── */
 
 async function executeWhisperCpp(
@@ -1212,6 +1123,7 @@ export function useFileTranscription() {
 
   const submitFile = useCallback(async (file: File, config: FileTranscriptionConfig) => {
     const providerId = config.provider
+    if (providerId === 'volc') return importVolcFile(file)
     const settingsState = useSettingsStore.getState()
     const providerInfo = settingsState.availableProviders.find((p) => p.id === providerId)
     const providerConfig: ProviderConfigData = buildProviderConnectConfig(
@@ -1267,10 +1179,6 @@ export function useFileTranscription() {
           result = await executeDeepgram(file, config, apiKey!, jobId, updateJob, controller.signal)
         } else if (providerId === 'assemblyai') {
           result = await executeAssemblyAI(file, config, apiKey!, jobId, updateJob, controller.signal)
-        } else if (providerId === 'volc') {
-          const volcAppKey = providerConfig?.appKey as string
-          const volcAccessKey = providerConfig?.accessKey as string
-          result = await executeVolc(file, config, volcAppKey, volcAccessKey, jobId, updateJob, controller.signal)
         } else if (providerId === 'local_openai' || providerId === 'sensevoice') {
           const rawBaseUrl = providerConfig?.baseUrl as string | undefined
           const defaultBase = providerId === 'sensevoice' ? 'http://127.0.0.1:8000' : LOCAL_OPENAI_DEFAULT_BASE_URL

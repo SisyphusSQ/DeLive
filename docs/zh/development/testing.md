@@ -57,9 +57,9 @@ cd frontend && npx vitest
 ### 未测试
 
 - **React 组件** — 无 `.test.tsx` 文件（node 环境，无 jsdom）
-- **Electron 主进程** — 不在 Vitest 下
+- **Electron 主进程** — 录音资产和文件任务核心由 Vitest 验证，桌面 IPC/UI 由独立集成脚本验证
 - **MCP 服务器** — 独立包，不在 CI 中
-- **集成测试** — 无端到端 API 测试
+- **真实云端集成** — 未执行火山和对象存储真实调用，见 TOO-686
 
 ## 编写测试
 
@@ -83,3 +83,11 @@ describe('yourFunction', () => {
 ## CI 集成
 
 测试作为 `npm run check` 的一部分在 **CI 管线**（push/PR 时）和 **发布管线**（构建前）中运行。
+
+## DeLive 会议开发证据
+
+- [原音存储与恢复](./recording-assets.md) / [TOO-682 证据](./evidence-too-682.md)
+- [火山实时 2.0](./volc-realtime.md) / [TOO-683 证据](./evidence-too-683.md)
+- [标准文件转写与临时存储](./volc-file.md) / [TOO-684 证据](./evidence-too-684.md)
+
+隔离 Electron 脚本使用合成音频和服务替身，不代表真实计费服务或正式硬件会议通过。

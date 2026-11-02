@@ -1,3 +1,4 @@
+import { FileTaskPanel } from './FileTaskPanel'
 import { useCallback, useMemo, useState, useEffect } from 'react'
 import { FileAudio, ChevronDown, Check, Cloud, HardDrive, X } from 'lucide-react'
 import { createPortal } from 'react-dom'
@@ -30,6 +31,8 @@ export function FileTranscriptionView() {
     if (fileProviders.length > 0) return fileProviders[0].id
     return 'soniox'
   })
+  const [nativeError, setNativeError] = useState('')
+  const [importing, setImporting] = useState(false)
   const [isOpen, setIsOpen] = useState(false)
 
   const selectedProvider = fileProviders.find((p) => p.id === selectedProviderId) ?? fileProviders[0]
@@ -73,11 +76,13 @@ export function FileTranscriptionView() {
       translationTargetLanguage: (providerConfig?.translationTargetLanguage as string) || 'en',
     }
 
-    for (const file of files) {
-      submitFile(file, config).catch((err) => {
-        console.error('[FileTranscription] Submit failed:', err)
-      })
-    }
+    setNativeError(''); setImporting(true)
+    void (async () => {
+      for (const file of files) {
+        try { await submitFile(file, config) }
+        catch (err) { setNativeError((err as Error).message); break }
+      }
+    })().finally(() => setImporting(false))
   }, [submitFile, providerConfig, selectedProviderId])
 
   const getExecutionModeBadge = (provider: ASRProviderInfo): { label: string; className: string } | null => {
@@ -287,10 +292,13 @@ export function FileTranscriptionView() {
           </div>
         )}
 
+        {selectedProviderId === 'volc' && <FileTaskPanel />}
+        {nativeError && <p role="alert" className="text-red-600">{nativeError}</p>}
+        {importing && <p>正在导入本地音频，请等待完成；尚未创建云端任务时不会计费。</p>}
         {/* Drop Zone */}
         <FileDropZone
           onFilesSelected={handleFilesSelected}
-          disabled={!hasApiKey || isProcessing}
+          disabled={!hasApiKey || isProcessing || importing}
         />
 
         {/* Job Progress */}

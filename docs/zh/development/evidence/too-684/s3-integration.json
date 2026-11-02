@@ -1,0 +1,24 @@
+{
+  "status": "PASS",
+  "fixture": "loopback HTTP, fake keys, 17 MiB synthetic bytes",
+  "checks": [
+    "SDK multipart upload/progress",
+    "24-hour SigV4 URL without persistence",
+    "abort orphan multipart",
+    "delete then HEAD 404",
+    "reject versioned buckets"
+  ],
+  "requests": [
+    "GET versioning",
+    "POST multipart-list-or-start",
+    "PUT multipart-part-or-finish",
+    "PUT multipart-part-or-finish",
+    "PUT multipart-part-or-finish",
+    "POST multipart-part-or-finish",
+    "GET multipart-list-or-start",
+    "DELETE multipart-part-or-finish",
+    "DELETE task/audio.wav",
+    "HEAD task/audio.wav",
+    "GET versioning"
+  ]
+}
