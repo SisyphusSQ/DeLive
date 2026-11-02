@@ -58,3 +58,5 @@ idle → starting → recording → stopping → completed
 ## 双来源原音录音
 
 本 fork 的双来源、仅录音、原音路径、配额、显式删除与中断恢复见[原音资产说明](../development/recording-assets)。正式真实验收留待 TOO-686。
+
+火山实时稿的临时/稳定标签、独立识别段、手动重连和安全配置见[实时 2.0 说明](../development/volc-realtime)。

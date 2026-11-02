@@ -147,6 +147,12 @@ export function getSettings(): AppSettings {
 }
 
 export function saveSettings(settings: AppSettings): void {
+  // Resolved Volc credentials only live in memory; provider save encrypts them first.
+  if (settings.providerConfigs?.volc) {
+    const volc = { ...settings.providerConfigs.volc }
+    for (const key of ['apiKey', 'appKey', 'accessKey']) if (volc[key]) volc[key] = '{{SAFE_STORAGE}}'
+    settings = { ...settings, providerConfigs: { ...settings.providerConfigs, volc } }
+  }
   writeJsonToLocalStorage(
     STORAGE_KEYS.SETTINGS,
     settings,

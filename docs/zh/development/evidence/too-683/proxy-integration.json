@@ -1,0 +1,1 @@
+{"status":"PASS","checks":["authentication message only","real 2.0 request","binary audio discrimination","structured response forwarding","single end marker","final without sequence","protocol failure closes explicitly"],"source":"synthetic in-memory transport, no cloud calls"}

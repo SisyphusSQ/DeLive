@@ -1,0 +1,151 @@
+
+> delive@2.3.0-beta.2 test:frontend
+> cd frontend && npm run test
+
+
+> desktop-live-frontend@1.0.0 test
+> vitest run
+
+
+ RUN  v4.0.18 /Users/suqing/coding/app/DeLive/frontend
+
+ ✓ src/utils/captionLineWrap.test.ts (7 tests) 9ms
+ ✓ src/utils/__tests__/whisperCppFileApi.test.ts (7 tests) 29ms
+ ✓ src/utils/__tests__/sixtydbFileApi.test.ts (9 tests) 34ms
+ ✓ src/components/phase5.test.ts (11 tests) 58ms
+ ✓ src/components/review/reviewPhase4.test.ts (9 tests) 58ms
+ ✓ src/utils/sessionRepository.test.ts (5 tests) 77ms
+ ✓ src/services/captureManager.test.ts (4 tests) 59ms
+ ✓ src/providers/implementations/VolcProvider.test.ts (5 tests) 43ms
+ ✓ src/services/recordingStore.test.ts (6 tests) 116ms
+stderr | src/providers/__tests__/base.test.ts > BaseASRProvider > event system > listener errors are caught and do not propagate
+[soniox] Error in onFinal callback: Error: listener crash
+    at /Users/suqing/coding/app/DeLive/frontend/src/providers/__tests__/base.test.ts:194:39
+    at Mock (file:///Users/suqing/coding/app/DeLive/frontend/node_modules/@vitest/spy/dist/index.js:285:34)
+    at /Users/suqing/coding/app/DeLive/frontend/src/providers/base.ts:94:11
+    at Set.forEach (<anonymous>)
+    at TestProvider.emit (/Users/suqing/coding/app/DeLive/frontend/src/providers/base.ts:91:17)
+    at TestProvider.emitFinal (/Users/suqing/coding/app/DeLive/frontend/src/providers/base.ts:119:10)
+    at TestProvider.testEmitFinal (/Users/suqing/coding/app/DeLive/frontend/src/providers/__tests__/base.test.ts:44:10)
+    at /Users/suqing/coding/app/DeLive/frontend/src/providers/__tests__/base.test.ts:198:29
+    at Proxy.assertThrows (file:///Users/suqing/coding/app/DeLive/frontend/node_modules/chai/index.js:2798:5)
+    at Proxy.methodWrapper (file:///Users/suqing/coding/app/DeLive/frontend/node_modules/chai/index.js:1700:25)
+
+ ✓ src/providers/__tests__/base.test.ts (15 tests) 8ms
+ ✓ src/hooks/useApiIpcResponder.test.ts (18 tests) 3ms
+ ✓ src/utils/cloudBackup.test.ts (8 tests) 2ms
+ ✓ src/utils/volcProtocol.test.ts (4 tests) 13ms
+ ✓ src/utils/hypothesisBuffer.test.ts (15 tests) 4ms
+ ✓ src/utils/backupStorage.test.ts (2 tests) 6ms
+stderr | src/providers/__tests__/windowedBatch.test.ts > WindowedBatchTranscriptionProvider > can retry non-final failures without emitting an error
+[groq] 转录失败: Error: temporary failure
+    at /Users/suqing/coding/app/DeLive/frontend/src/providers/__tests__/windowedBatch.test.ts:135:27
+    at file:///Users/suqing/coding/app/DeLive/frontend/node_modules/@vitest/runner/dist/index.js:145:11
+    at file:///Users/suqing/coding/app/DeLive/frontend/node_modules/@vitest/runner/dist/index.js:915:26
+    at file:///Users/suqing/coding/app/DeLive/frontend/node_modules/@vitest/runner/dist/index.js:1243:20
+    at new Promise (<anonymous>)
+    at runWithTimeout (file:///Users/suqing/coding/app/DeLive/frontend/node_modules/@vitest/runner/dist/index.js:1209:10)
+    at file:///Users/suqing/coding/app/DeLive/frontend/node_modules/@vitest/runner/dist/index.js:1653:37
+    at Traces.$ (file:///Users/suqing/coding/app/DeLive/frontend/node_modules/vitest/dist/chunks/traces.CCmnQaNT.js:142:27)
+    at trace (file:///Users/suqing/coding/app/DeLive/frontend/node_modules/vitest/dist/chunks/test.B8ej_ZHS.js:239:21)
+    at runTest (file:///Users/suqing/coding/app/DeLive/frontend/node_modules/@vitest/runner/dist/index.js:1653:12)
+
+ ✓ src/providers/__tests__/windowedBatch.test.ts (8 tests) 19ms
+ ✓ src/utils/__tests__/storage.test.ts (15 tests) 5ms
+ ✓ src/utils/sessionLifecycle.test.ts (4 tests) 10ms
+ ✓ src/utils/__tests__/pendingRequests.test.ts (5 tests) 3ms
+ ✓ src/utils/__tests__/openApiToken.test.ts (4 tests) 10ms
+ ✓ src/utils/subtitleExport.test.ts (17 tests) 4ms
+ ✓ src/utils/providerConfig.test.ts (18 tests) 5ms
+ ✓ src/services/aiCorrection.test.ts (19 tests) 8ms
+ ✓ src/components/settings/settingsPanels.test.ts (9 tests) 7ms
+ ✓ src/utils/storage.test.ts (13 tests) 5ms
+ ✓ src/utils/__tests__/providerConfig.test.ts (19 tests) 3ms
+ ✓ src/utils/transcriptState.test.ts (6 tests) 6ms
+ ✓ src/utils/__tests__/localServiceCors.test.ts (7 tests) 2ms
+ ✓ src/services/aiPostProcess.test.ts (15 tests) 5ms
+ ✓ src/utils/volcTranscript.test.ts (3 tests) 8ms
+ ✓ src/hooks/useCaptionToggle.test.ts (7 tests) 3ms
+ ✓ src/utils/transcriptStabilizer.test.ts (13 tests) 3ms
+ ✓ src/types/asr/vendors/__tests__/elevenlabs.test.ts (3 tests) 3ms
+ ✓ src/utils/__tests__/subtitleExport.test.ts (17 tests) 3ms
+ ✓ src/hooks/useSidebarState.test.ts (10 tests) 2ms
+ ✓ src/utils/__tests__/transcriptStabilizer.test.ts (12 tests) 2ms
+ ✓ src/utils/sessionMetadata.test.ts (3 tests) 4ms
+ ✓ src/utils/pcmWav.test.ts (8 tests) 3ms
+ ✓ src/utils/volcSecrets.test.ts (2 tests) 6ms
+ ✓ src/types/asr/vendors/__tests__/sensevoiceModel.test.ts (3 tests) 2ms
+ ✓ src/utils/rollingAudioBuffer.test.ts (5 tests) 4ms
+ ✓ src/utils/sessionSnapshot.test.ts (2 tests) 2ms
+ ✓ src/utils/userErrors.test.ts (3 tests) 4ms
+ ✓ src/utils/windowedTranscript.test.ts (8 tests) 2ms
+stdout | src/stores/__tests__/sessionAutosave.test.ts
+[ProviderRegistry] Registered provider: Soniox V5
+[ProviderRegistry] Registered provider: 火山引擎
+[ProviderRegistry] Registered provider: ElevenLabs
+[ProviderRegistry] Registered provider: Mistral AI
+[ProviderRegistry] Registered provider: Gladia
+[ProviderRegistry] Registered provider: Deepgram
+[ProviderRegistry] Registered provider: AssemblyAI
+[ProviderRegistry] Registered provider: Cloudflare Workers AI
+[ProviderRegistry] Registered provider: 硅基流动
+[ProviderRegistry] Registered provider: Groq
+[ProviderRegistry] Registered provider: 本地 OpenAI 兼容
+[ProviderRegistry] Registered provider: 本地 whisper.cpp
+[ProviderRegistry] Registered provider: 60db
+[ProviderRegistry] Registered provider: FunASR / SenseVoice
+
+stdout | src/utils/__tests__/fileTranscriptionRouting.test.ts
+[ProviderRegistry] Registered provider: Soniox V5
+[ProviderRegistry] Registered provider: 火山引擎
+[ProviderRegistry] Registered provider: ElevenLabs
+[ProviderRegistry] Registered provider: Mistral AI
+[ProviderRegistry] Registered provider: Gladia
+[ProviderRegistry] Registered provider: Deepgram
+[ProviderRegistry] Registered provider: AssemblyAI
+[ProviderRegistry] Registered provider: Cloudflare Workers AI
+[ProviderRegistry] Registered provider: 硅基流动
+[ProviderRegistry] Registered provider: Groq
+[ProviderRegistry] Registered provider: 本地 OpenAI 兼容
+[ProviderRegistry] Registered provider: 本地 whisper.cpp
+[ProviderRegistry] Registered provider: 60db
+[ProviderRegistry] Registered provider: FunASR / SenseVoice
+
+ ✓ src/types/asr/common.test.ts (2 tests) 2ms
+ ✓ src/utils/sessionSchema.test.ts (2 tests) 2ms
+ ✓ src/utils/__tests__/fileTranscriptionRouting.test.ts (6 tests) 2ms
+ ✓ src/utils/__tests__/localApiGuard.test.ts (4 tests) 3ms
+stdout | src/stores/__tests__/sessionAutosave.test.ts > current session autosave > saves at least every SESSION_AUTOSAVE_MAX_WAIT_MS while events keep arriving
+[SessionStore] 会话已保存, 文本长度: 610
+
+stdout | src/stores/__tests__/sessionAutosave.test.ts > current session autosave > still saves once shortly after speech pauses
+[SessionStore] 会话已保存, 文本长度: 4
+
+ ✓ src/stores/__tests__/sessionAutosave.test.ts (2 tests) 7ms
+ ✓ src/utils/__tests__/audioFileToWav.test.ts (3 tests) 1ms
+ ✓ src/utils/whatsNew.test.ts (2 tests) 1ms
+ ✓ src/types/asr/vendors/__tests__/gladia.test.ts (3 tests) 1ms
+stdout | src/utils/providerI18n.test.ts
+[ProviderRegistry] Registered provider: Soniox V5
+[ProviderRegistry] Registered provider: 火山引擎
+[ProviderRegistry] Registered provider: ElevenLabs
+[ProviderRegistry] Registered provider: Mistral AI
+[ProviderRegistry] Registered provider: Gladia
+[ProviderRegistry] Registered provider: Deepgram
+[ProviderRegistry] Registered provider: AssemblyAI
+[ProviderRegistry] Registered provider: Cloudflare Workers AI
+[ProviderRegistry] Registered provider: 硅基流动
+[ProviderRegistry] Registered provider: Groq
+[ProviderRegistry] Registered provider: 本地 OpenAI 兼容
+[ProviderRegistry] Registered provider: 本地 whisper.cpp
+[ProviderRegistry] Registered provider: 60db
+[ProviderRegistry] Registered provider: FunASR / SenseVoice
+
+ ✓ src/utils/providerI18n.test.ts (2 tests) 2ms
+ ✓ src/utils/__tests__/sixtydbProxyHandshake.test.ts (3 tests) 1ms
+
+ Test Files  54 passed (54)
+      Tests  412 passed (412)
+   Start at  17:46:52
+   Duration  1.40s (transform 2.04s, setup 0ms, import 3.15s, tests 684ms, environment 3ms)
+

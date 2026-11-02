@@ -1,0 +1,24 @@
+{
+  "status": "PASS",
+  "kind": "synthetic media / protocol replay, no cloud or physical capture",
+  "checks": [
+    "provisional unknown labels",
+    "full snapshot revisions/duplicates",
+    "network error keeps raw audio",
+    "manual reconnect identity scope and timeline",
+    "stop waits for final",
+    "safe-storage unavailable: plaintext removed and warning visible",
+    "IndexedDB persistence and reload"
+  ],
+  "audioBlocks": 4,
+  "recognitions": [
+    {
+      "status": "incomplete",
+      "offsetMs": 46.90000009536743
+    },
+    {
+      "status": "complete",
+      "offsetMs": 2033.5
+    }
+  ]
+}

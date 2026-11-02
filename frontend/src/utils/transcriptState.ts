@@ -1,3 +1,4 @@
+import type { RealtimeRecognition } from '../types/realtime'
 import type {
   TranscriptPostProcess,
   TranscriptSegment,
@@ -6,6 +7,7 @@ import type {
 import type { TranscriptToken } from '../types/asr'
 
 export interface TranscriptRuntimeState {
+  realtime?: RealtimeRecognition[]
   finalTokens: TranscriptToken[]
   /** Text accumulated from non-token sources (final-text, config-change) before a token-based provider takes over */
   transcriptPrefix: string
@@ -22,6 +24,7 @@ export interface TranscriptRuntimeState {
 
 export type TranscriptRuntimeStateShape = Pick<
   TranscriptRuntimeState,
+  | 'realtime'
   | 'finalTokens'
   | 'transcriptPrefix'
   | 'finalTranscript'
@@ -36,6 +39,7 @@ export type TranscriptRuntimeStateShape = Pick<
 >
 
 export type TranscriptEvent =
+  | { type: 'realtime'; snapshot: RealtimeRecognition }
   | { type: 'tokens'; tokens: TranscriptToken[] }
   | { type: 'partial-text'; text: string }
   | { type: 'final-text'; text: string }
@@ -44,6 +48,7 @@ export type TranscriptEvent =
 
 export function createEmptyTranscriptRuntimeState(): TranscriptRuntimeState {
   return {
+    realtime: [],
     finalTokens: [],
     transcriptPrefix: '',
     finalTranscript: '',
@@ -60,6 +65,7 @@ export function createEmptyTranscriptRuntimeState(): TranscriptRuntimeState {
 
 export function selectTranscriptRuntimeState(source: TranscriptRuntimeStateShape): TranscriptRuntimeState {
   return {
+    realtime: source.realtime,
     finalTokens: source.finalTokens,
     transcriptPrefix: source.transcriptPrefix,
     finalTranscript: source.finalTranscript,
@@ -171,6 +177,31 @@ export function applyTranscriptEvent(
   event: TranscriptEvent,
 ): TranscriptRuntimeState {
   switch (event.type) {
+    case 'realtime': {
+      const snapshot = event.snapshot
+      const previous = state.realtime ?? []
+      const old = previous.find(item => item.id === snapshot.id)
+      if (old && snapshot.revision <= old.revision) return state
+      const realtime = old ? previous.map(item => item.id === snapshot.id ? snapshot : item) : [...previous, snapshot]
+      const prefix = old ? state.transcriptPrefix : state.currentTranscript
+      const currentSegments = [...state.currentSegments.filter(segment => segment.recognitionId !== snapshot.id), ...snapshot.segments]
+      const ids = [...new Set(currentSegments.map(s => s.speakerId).filter((id): id is string => Boolean(id)))]
+      const currentSpeakers = ids.map(id => {
+        const known = state.currentSpeakers.find(s => s.id === id)
+        if (known) return known
+        const connection = realtime.findIndex(r => r.segments.some(s => s.speakerId === id))
+        const peers = ids.filter(peer => peer.startsWith(realtime[connection]?.id + ':speaker:'))
+        const label = '说话人 ' + (peers.indexOf(id) + 1) + ' · 识别段 ' + (connection + 1)
+        return { id, label, displayName: label }
+      })
+      const stable = snapshot.segments.filter(s => s.isFinal).map(s => s.text).join('')
+      const provisional = snapshot.segments.filter(s => !s.isFinal).map(s => s.text).join('')
+      return { ...state, realtime, transcriptPrefix: prefix,
+        finalTokens: currentSegments.map(s => ({ text: s.text, startMs: s.startMs, endMs: s.endMs, speaker: s.speakerId, isFinal: s.isFinal === true })),
+        currentSegments, currentSpeakers, currentTranscript: prefix + snapshot.text,
+        finalTranscript: prefix + stable, nonFinalTranscript: snapshot.segments.length ? provisional : snapshot.text }
+    }
+
     case 'tokens': {
       const newFinalTokens = [...state.finalTokens]
       let nonFinalText = ''
@@ -264,6 +295,7 @@ export function applyTranscriptEvent(
     }
 
     case 'config-change': {
+      if (state.realtime?.length) return state // Recognition boundaries carry configuration changes; text markers would duplicate late full snapshots.
       const marker = `\n\n--- ${event.description} ---\n\n`
       const snapshotBase = state.currentTranscript || state.finalTranscript
       const finalTranscript = snapshotBase + marker

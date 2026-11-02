@@ -258,6 +258,9 @@ export const en: Translations = {
     // Volc-specific
     fieldVolcAppId: 'APP ID',
     fieldVolcAppIdPlaceholder: 'Enter your APP ID',
+    fieldVolcDdc: 'Disfluency removal',
+    fieldVolcDdcDesc: 'Off by default; removes some filler words and repetitions.',
+    fieldVolcApiKeyDesc: 'New console API Key, or legacy APP ID and Access Token.',
     fieldVolcAppIdDesc: 'Get from Volcengine Console',
     fieldVolcAccessToken: 'Access Token',
     fieldVolcAccessTokenPlaceholder: 'Enter your Access Token',

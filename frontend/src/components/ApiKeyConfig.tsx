@@ -226,7 +226,8 @@ export function ApiKeyConfig({ isOpen, onClose, mode = 'modal', onViewChangelog 
       setTestMessage(`Please fill: ${missingLabels.join(', ')}`)
       return
     }
-    updateProviderConfig(currentVendor, providerConfig)
+    try { await updateProviderConfig(currentVendor, providerConfig) }
+    catch (error) { setTestStatus('error'); setTestMessage((error as Error).message); return }
     const shouldSyncLegacyApiKey = currentProvider?.requiredConfigKeys.includes('apiKey')
     updateSettings({
       apiKey: shouldSyncLegacyApiKey && typeof providerConfig.apiKey === 'string'

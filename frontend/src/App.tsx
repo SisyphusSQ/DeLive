@@ -36,7 +36,7 @@ function App() {
   const [toasts, setToasts] = useState<ToastMessage[]>([])
   const [isInitialized, setIsInitialized] = useState(false)
   const { initTheme, t, currentView, setView, backToLive } = useUIStore()
-  const { loadSettings, settings, availableProviders } = useSettingsStore()
+  const { loadSettings, settings, availableProviders, credentialError } = useSettingsStore()
   const { collapsed: sidebarCollapsed, toggle: toggleSidebar } = useSidebarState()
   const { enabled: captionEnabled, toggle: toggleCaption } = useCaptionToggle()
   const {
@@ -86,10 +86,12 @@ function App() {
     addToast('error', message)
   }, [addToast])
 
+  useEffect(() => { if (credentialError) handleError(credentialError) }, [credentialError, handleError])
+
   useApiIpcResponder()
 
   // ASR — lifted to App so global shortcut can reach it
-  const { startRecording, stopRecording, switchConfig, switchProvider, getMediaStream } = useASR({
+  const { startRecording, stopRecording, switchConfig, switchProvider, getMediaStream, reconnectTranscription } = useASR({
     onError: handleError,
     onStarted: () => console.log('[App] Recording started'),
   })
@@ -348,7 +350,7 @@ function App() {
 
               <div className="workspace-panel p-6 animate-reveal-up delay-2 space-y-4">
                 {recordingState === 'idle' && <TopicPicker />}
-                <RecordingControls onError={handleError} startRecording={startRecording} stopRecording={stopRecording} switchConfig={switchConfig} switchProvider={switchProvider} />
+                <RecordingControls onError={handleError} startRecording={startRecording} stopRecording={stopRecording} switchConfig={switchConfig} switchProvider={switchProvider} reconnectTranscription={reconnectTranscription} />
                 <WaveformVisualizer
                   getStream={getMediaStream}
                   isActive={recordingState === 'recording'}

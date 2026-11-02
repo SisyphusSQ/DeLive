@@ -7,12 +7,24 @@ function safeStorageKeyFor(path: string): string {
   return `provider_secret_${path}`
 }
 
-export async function migrateApiKeysToSafeStorage(): Promise<void> {
+export async function migrateApiKeysToSafeStorage(source?: AppSettings): Promise<void> {
+  const settings = source ? structuredClone(source) : getSettings()
+  const volc = settings.providerConfigs?.volc
+  if (volc && ['apiKey', 'appKey', 'accessKey'].some(k => typeof volc[k] === 'string' && volc[k] && volc[k] !== SAFE_STORAGE_PLACEHOLDER)) {
+    try {
+      await storeVolcSecrets(volc)
+      for (const key of ['apiKey', 'appKey', 'accessKey']) if (volc[key]) volc[key] = SAFE_STORAGE_PLACEHOLDER
+      saveSettings(settings)
+    } catch {
+      for (const key of ['apiKey', 'appKey', 'accessKey']) if (volc[key] !== SAFE_STORAGE_PLACEHOLDER) volc[key] = ''
+      saveSettings(settings)
+      throw new Error('火山旧凭据无法加密：已移除磁盘明文，仅当前运行可用；请在系统安全存储恢复后重新保存配置')
+    }
+  }
   if (!window.electronAPI?.safeStorageAvailable) return
   const available = await window.electronAPI.safeStorageAvailable()
   if (!available) return
 
-  const settings = getSettings()
   let changed = false
 
   if (settings.apiKey && settings.apiKey !== SAFE_STORAGE_PLACEHOLDER) {
@@ -123,8 +135,8 @@ export async function resolveApiKeysFromSafeStorage(
     for (const [vendorId, config] of Object.entries(resolved.providerConfigs)) {
       if (config.apiKey === SAFE_STORAGE_PLACEHOLDER) {
         const value = await window.electronAPI.safeStorageGet(safeStorageKeyFor(vendorId))
-        if (value) {
-          resolved.providerConfigs[vendorId] = { ...config, apiKey: value }
+        if (value || vendorId === 'volc') {
+          resolved.providerConfigs[vendorId] = { ...config, apiKey: value || '' }
         }
       }
     }
@@ -160,6 +172,14 @@ export async function resolveApiKeysFromSafeStorage(
     }
   }
 
+  const volc = resolved.providerConfigs?.volc
+  if (volc) {
+    const next = { ...volc }
+    for (const key of ['appKey', 'accessKey'] as const) {
+      if (next[key] === SAFE_STORAGE_PLACEHOLDER) next[key] = await window.electronAPI.safeStorageGet(safeStorageKeyFor('volc_' + key)) || ''
+    }
+    resolved.providerConfigs = { ...resolved.providerConfigs, volc: next }
+  }
   return resolved
 }
 
@@ -178,4 +198,13 @@ export async function encryptApiKeyForStorage(
     apiKey,
   )
   return stored ? SAFE_STORAGE_PLACEHOLDER : apiKey
+}
+
+export async function storeVolcSecrets(config: Record<string, unknown>): Promise<void> {
+  const entries = ['apiKey', 'appKey', 'accessKey'].filter(key => typeof config[key] === 'string' && config[key] !== SAFE_STORAGE_PLACEHOLDER)
+  if (!entries.length) return
+  if (!window.electronAPI?.safeStorageSet || !await window.electronAPI.safeStorageAvailable()) throw new Error('系统安全存储不可用，火山凭据未保存')
+  for (const key of entries) {
+    if (!await window.electronAPI.safeStorageSet(safeStorageKeyFor(key === 'apiKey' ? 'volc' : 'volc_' + key), config[key] as string)) throw new Error('火山凭据加密保存失败，请重试')
+  }
 }

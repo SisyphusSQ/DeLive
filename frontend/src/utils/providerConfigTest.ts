@@ -106,84 +106,15 @@ const providerConfigTesters: Partial<Record<ASRVendor, ProviderConfigTester>> = 
     })
   },
   volc: async (config) => {
-    const appKey = typeof config.appKey === 'string' ? config.appKey.trim() : ''
-    const accessKey = typeof config.accessKey === 'string' ? config.accessKey.trim() : ''
-
-    if (!appKey) {
-      throwUserError('enterAppId')
-    }
-    if (!accessKey) {
-      throwUserError('enterAccessToken')
-    }
-
-    const volcBaseUrl = await getProxyWsUrl('/ws/volc')
-    await new Promise<void>((resolve, reject) => {
-      const params = new URLSearchParams({
-        appKey,
-        accessKey,
-        modelV2: 'true',
-        bidiStreaming: 'true',
-        enableDdc: 'true',
-      })
-      const proxyUrl = `${volcBaseUrl}?${params.toString()}`
-      let ws: WebSocket | null = null
-      let lastProxyErrorMessage = ''
-
-      const timeout = setTimeout(() => {
-        ws?.close()
-        reject(new Error('连接超时，请检查网络或确保服务器已启动'))
-      }, 15000)
-
-      try {
-        ws = new WebSocket(proxyUrl)
-      } catch {
-        clearTimeout(timeout)
-        reject(new Error('无法连接到代理服务器，请确保服务器已启动 (npm run dev:server)'))
-        return
-      }
-
-      ws.onmessage = (event) => {
-        try {
-          const msg = JSON.parse(event.data) as {
-            type?: string
-            message?: string
-          }
-
-          if (msg.type === 'ready' || msg.type === 'final') {
-            clearTimeout(timeout)
-            ws?.send(JSON.stringify({ type: 'audio_end' }))
-            setTimeout(() => {
-              ws?.close(1000, 'test complete')
-              resolve()
-            }, 500)
-            return
-          }
-
-          if (msg.type === 'error') {
-            clearTimeout(timeout)
-            lastProxyErrorMessage = msg.message || ''
-            ws?.close()
-            reject(new Error(lastProxyErrorMessage || '火山引擎连接失败'))
-          }
-        } catch {
-          // ignore invalid payload
-        }
-      }
-
-      ws.onerror = () => {
-        clearTimeout(timeout)
-        reject(new Error('无法连接到代理服务器，请确保后端服务已启动 (cd server && npm run dev)'))
-      }
-
-      ws.onclose = (event) => {
-        clearTimeout(timeout)
-        if (event.code === 4001) {
-          reject(new Error('缺少 APP ID 或 Access Token'))
-        } else if (event.code === 4002) {
-          reject(new Error(lastProxyErrorMessage || '火山引擎连接失败，请检查网络、DNS、代理设置以及 APP ID / Access Token'))
-        }
-      }
-    })
+    const { VolcProvider } = await import('../providers/implementations/VolcProvider')
+    const provider = new VolcProvider()
+    let failure: string | undefined
+    provider.on('onError', error => { failure = error.message })
+    try {
+      await provider.connect(config)
+      await provider.disconnect()
+      if (failure) throw new Error(failure)
+    } finally { await provider.disconnect(); provider.removeAllListeners() }
   },
   mistral: async (config) => {
     const apiKey = typeof config.apiKey === 'string' ? config.apiKey.trim() : ''

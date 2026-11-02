@@ -319,3 +319,5 @@ features:
 
 
 [会议双来源录音与原音资产说明](./development/recording-assets)
+
+[火山实时 2.0 与匿名说话人](./development/volc-realtime)

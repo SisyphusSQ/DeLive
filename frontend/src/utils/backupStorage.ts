@@ -227,7 +227,7 @@ export async function exportAllData(): Promise<void> {
     exportedAt: new Date().toISOString(),
     sessions: normalizeTranscriptSessions(await getSessions()),
     tags: getTags(),
-    settings: getSettings(),
+    settings: withoutVolcCredentials(getSettings()),
     topics: getTopics(),
   }
 
@@ -324,4 +324,11 @@ export async function importDataMerge(
     newTags: newTags.length,
     newTopics: newTopicsArr.length,
   }
+}
+
+export function withoutVolcCredentials(settings: AppSettings): AppSettings {
+  if (!settings.providerConfigs?.volc) return settings
+  const volc = { ...settings.providerConfigs.volc }
+  for (const key of ['apiKey', 'appKey', 'accessKey']) delete volc[key]
+  return { ...settings, providerConfigs: { ...settings.providerConfigs, volc } }
 }

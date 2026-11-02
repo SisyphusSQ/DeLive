@@ -10,11 +10,6 @@ interface TranscriptDisplayProps {
   contentHeightClassName?: string
 }
 
-function getSpeakerLabel(speakerId: string | undefined): string {
-  if (!speakerId) return 'Speaker'
-  return speakerId
-}
-
 const LIVE_SPEAKER_COLORS = [
   { bg: 'bg-blue-500', text: 'text-white', label: 'text-blue-600 dark:text-blue-400' },
   { bg: 'bg-emerald-500', text: 'text-white', label: 'text-emerald-600 dark:text-emerald-400' },
@@ -46,6 +41,8 @@ export function TranscriptDisplay({
     finalTranslatedTranscript,
     nonFinalTranslatedTranscript,
     currentSegments,
+    currentSpeakers,
+    realtime,
     recordingState,
     transcriptPrefix,
   } = useSessionStore()
@@ -99,7 +96,7 @@ export function TranscriptDisplay({
   const translatedText = finalTranslatedTranscript + nonFinalTranslatedTranscript
   const showSource = captionDisplayMode !== 'translated' || translatedText.length === 0
   const showTranslated = captionDisplayMode !== 'source' && translatedText.length > 0
-  const speakerDiarizationEnabled = currentVendor === 'soniox'
+  const speakerDiarizationEnabled = Boolean(realtime?.length) || currentVendor === 'soniox'
     && Boolean(settings.providerConfigs?.soniox?.enableSpeakerDiarization)
     && Boolean(currentProvider?.capabilities.supportsSpeakerDiarization)
     && currentSegments.some((segment) => segment.speakerId)
@@ -198,7 +195,8 @@ export function TranscriptDisplay({
             {showSource && (
               speakerDiarizationEnabled ? (
                 <div className="space-y-3">
-                  {transcriptPrefix && (
+                  {realtime?.length && !currentSegments.length ? <p>{finalTranscript}{nonFinalTranscript} · 待分句</p> : null}
+                  {transcriptPrefix && !realtime?.length && (
                     <p className="text-base leading-relaxed whitespace-pre-wrap text-foreground/90 font-medium">
                       {transcriptPrefix}
                     </p>
@@ -223,9 +221,14 @@ export function TranscriptDisplay({
                             )}
                           </div>
                           <div className="min-w-0 flex-1">
+                            {segment.recognitionId && <div className="text-xs text-muted-foreground">
+                              {((segment.startMs ?? 0) / 1000).toFixed(1)}s–{((segment.endMs ?? 0) / 1000).toFixed(1)}s · {segment.isFinal ? '稳定' : '临时'}
+                              {!segment.speakerId && ' · 未知说话人'}
+                              {realtime?.find(r => r.id === segment.recognitionId)?.status === 'incomplete' && ' · 该识别段未完成'}
+                            </div>}
                             {!isSameSpeaker && segment.speakerId && (
                               <div className={`text-xs font-semibold mb-0.5 ${colors.label}`}>
-                                {getSpeakerLabel(segment.speakerId)}
+                                {currentSpeakers.find(s => s.id === segment.speakerId)?.displayName || segment.speakerId || '未知说话人'}
                               </div>
                             )}
                             <p className="text-base leading-relaxed whitespace-pre-wrap text-foreground/90 font-medium m-0">
@@ -236,7 +239,7 @@ export function TranscriptDisplay({
                       )
                     })
                   })()}
-                  {nonFinalTranscript && (
+                  {nonFinalTranscript && !realtime?.length && (
                     <p className="text-base leading-relaxed whitespace-pre-wrap text-muted-foreground transition-colors duration-300">
                       {nonFinalTranscript}
                       {isRecording && (

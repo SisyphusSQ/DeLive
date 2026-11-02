@@ -22,6 +22,7 @@ const TRANSLATION_OPTIONS = [
 ]
 
 interface RecordingControlsProps {
+  reconnectTranscription?: () => Promise<void>
   onError: (message: string) => void
   startRecording: () => void
   stopRecording: () => void
@@ -29,7 +30,7 @@ interface RecordingControlsProps {
   switchProvider?: (newVendorId: ASRVendor) => Promise<void>
 }
 
-export function RecordingControls({ startRecording, stopRecording, switchConfig, switchProvider }: RecordingControlsProps) {
+export function RecordingControls({ startRecording, stopRecording, switchConfig, switchProvider, reconnectTranscription }: RecordingControlsProps) {
   const { t } = useUIStore()
   const { settings, availableProviders } = useSettingsStore()
   const { recordingState, currentTranscript } = useSessionStore()
@@ -49,7 +50,7 @@ export function RecordingControls({ startRecording, stopRecording, switchConfig,
   const isLoading = isStarting || isStopping || isSwitching
 
   const supportsTranslation = currentProvider?.capabilities.supportsTranslation ?? false
-  const supportsDiarization = currentProvider?.capabilities.supportsSpeakerDiarization ?? false
+  const supportsDiarization = currentVendor !== 'volc' && (currentProvider?.capabilities.supportsSpeakerDiarization ?? false)
 
   const configuredProviders = availableProviders.filter(p => {
     const cfg = settings.providerConfigs?.[p.id]
@@ -102,6 +103,7 @@ export function RecordingControls({ startRecording, stopRecording, switchConfig,
 
   return (
     <div className="space-y-3">
+      {isRecording && reconnectTranscription && <button type="button" className="text-sm underline" onClick={() => void reconnectTranscription()}>重新连接转写（原音继续保存）</button>}
       <RecordingStorage />
       <div className={`flex ${isIdle ? 'flex-col items-center gap-3' : 'items-center gap-5'}`}>
         <div className="flex items-center gap-2">

@@ -47,6 +47,7 @@ export function buildRuntimeStateFromSession(session: TranscriptSession): Transc
 
   return {
     ...createEmptyTranscriptRuntimeState(),
+    realtime: session.realtime,
     finalTokens: restoredTokens,
     finalTranscript: restoredTranscript,
     nonFinalTranscript: '',
