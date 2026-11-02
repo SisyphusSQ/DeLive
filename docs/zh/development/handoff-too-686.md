@@ -11,7 +11,7 @@
 | TOO-682 | [PR #1](https://github.com/SisyphusSQ/DeLive/pull/1)，b0d680841c8e2404114ee3213d17c196d720658a | [证据](./evidence-too-682.md)、[原音契约](./recording-assets.md) |
 | TOO-683 | [PR #2](https://github.com/SisyphusSQ/DeLive/pull/2)，fd1d9ae249de3ec77c8d0491cdf12e09e8d5e918 | [证据](./evidence-too-683.md)、[实时配置](./volc-realtime.md) |
 | TOO-684 | [PR #3](https://github.com/SisyphusSQ/DeLive/pull/3)，ddccfd4e8477b58b21eaa88e49e3534338f8109b | [证据](./evidence-too-684.md)、[文件与存储配置](./volc-file.md) |
-| TOO-685 | 本文件所在开发 PR；准确 PR 与最终合并 SHA 在 [TOO-685](https://linear.app/sisyphus-sq/issue/TOO-685) 和 [TOO-686](https://linear.app/sisyphus-sq/issue/TOO-686) 最终交接回写 | [证据](./evidence-too-685.md)、[回放/版本/导出](./review-playback.md) |
+| TOO-685 | [PR #4](https://github.com/SisyphusSQ/DeLive/pull/4)；最终合并 SHA 在 [TOO-685](https://linear.app/sisyphus-sq/issue/TOO-685) 和 [TOO-686](https://linear.app/sisyphus-sq/issue/TOO-686) 最终交接回写 | [证据](./evidence-too-685.md)、[回放/版本/导出](./review-playback.md) |
 
 环境快照：macOS 27.0.1 / Node 25.9.0 / npm 11.12.1 / Electron 40.0.0。开发测试数据为合成 PCM/振荡器与协议样例/替身；真实云端、真实录音设备和正式打包应用未验收。实际实现默认使用真实官方 HTTP/WebSocket 和 S3 SDK，测试替身仅在测试/脚本中。
 
