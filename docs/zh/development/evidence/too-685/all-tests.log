@@ -1,0 +1,154 @@
+
+> delive@2.3.0-beta.2 test:frontend
+> cd frontend && npm run test
+
+
+> desktop-live-frontend@1.0.0 test
+> vitest run
+
+
+[1m[46m RUN [49m[22m [36mv4.0.18 [39m[90m/Users/suqing/coding/app/DeLive/frontend[39m
+
+ [32m✓[39m src/utils/__tests__/whisperCppFileApi.test.ts [2m([22m[2m7 tests[22m[2m)[22m[32m 26[2mms[22m[39m
+ [32m✓[39m src/utils/__tests__/sixtydbFileApi.test.ts [2m([22m[2m9 tests[22m[2m)[22m[32m 27[2mms[22m[39m
+ [32m✓[39m src/components/phase5.test.ts [2m([22m[2m11 tests[22m[2m)[22m[32m 49[2mms[22m[39m
+ [32m✓[39m src/components/review/reviewPhase4.test.ts [2m([22m[2m9 tests[22m[2m)[22m[32m 55[2mms[22m[39m
+ [32m✓[39m src/services/captureManager.test.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 43[2mms[22m[39m
+ [32m✓[39m src/utils/sessionRepository.test.ts [2m([22m[2m7 tests[22m[2m)[22m[32m 82[2mms[22m[39m
+ [32m✓[39m src/providers/implementations/VolcProvider.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 35[2mms[22m[39m
+ [32m✓[39m src/services/recordingStore.test.ts [2m([22m[2m6 tests[22m[2m)[22m[32m 123[2mms[22m[39m
+ [32m✓[39m src/utils/reviewVersions.test.ts [2m([22m[2m6 tests[22m[2m)[22m[32m 17[2mms[22m[39m
+ [32m✓[39m src/utils/__tests__/pendingRequests.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 4[2mms[22m[39m
+[90mstderr[2m | src/providers/__tests__/base.test.ts[2m > [22m[2mBaseASRProvider[2m > [22m[2mevent system[2m > [22m[2mlistener errors are caught and do not propagate
+[22m[39m[soniox] Error in onFinal callback: Error: listener crash
+    at [90m/Users/suqing/coding/app/DeLive/frontend/[39msrc/providers/__tests__/base.test.ts:194:39
+    at Mock [90m(file:///Users/suqing/coding/app/DeLive/frontend/[39mnode_modules/[4m@vitest/spy[24m/dist/index.js:285:34[90m)[39m
+    at [90m/Users/suqing/coding/app/DeLive/frontend/[39msrc/providers/base.ts:94:11
+    at Set.forEach (<anonymous>)
+    at TestProvider.emit [90m(/Users/suqing/coding/app/DeLive/frontend/[39msrc/providers/base.ts:91:17[90m)[39m
+    at TestProvider.emitFinal [90m(/Users/suqing/coding/app/DeLive/frontend/[39msrc/providers/base.ts:119:10[90m)[39m
+    at TestProvider.testEmitFinal [90m(/Users/suqing/coding/app/DeLive/frontend/[39msrc/providers/__tests__/base.test.ts:44:10[90m)[39m
+    at [90m/Users/suqing/coding/app/DeLive/frontend/[39msrc/providers/__tests__/base.test.ts:198:29
+    at Proxy.assertThrows [90m(file:///Users/suqing/coding/app/DeLive/frontend/[39mnode_modules/[4mchai[24m/index.js:2798:5[90m)[39m
+    at Proxy.methodWrapper [90m(file:///Users/suqing/coding/app/DeLive/frontend/[39mnode_modules/[4mchai[24m/index.js:1700:25[90m)[39m
+
+ [32m✓[39m src/utils/captionLineWrap.test.ts [2m([22m[2m7 tests[22m[2m)[22m[32m 9[2mms[22m[39m
+ [32m✓[39m src/providers/__tests__/base.test.ts [2m([22m[2m15 tests[22m[2m)[22m[32m 7[2mms[22m[39m
+ [32m✓[39m src/services/aiCorrection.test.ts [2m([22m[2m19 tests[22m[2m)[22m[32m 7[2mms[22m[39m
+[90mstderr[2m | src/providers/__tests__/windowedBatch.test.ts[2m > [22m[2mWindowedBatchTranscriptionProvider[2m > [22m[2mcan retry non-final failures without emitting an error
+[22m[39m[groq] 转录失败: Error: temporary failure
+    at [90m/Users/suqing/coding/app/DeLive/frontend/[39msrc/providers/__tests__/windowedBatch.test.ts:135:27
+    at [90mfile:///Users/suqing/coding/app/DeLive/frontend/[39mnode_modules/[4m@vitest/runner[24m/dist/index.js:145:11
+    at [90mfile:///Users/suqing/coding/app/DeLive/frontend/[39mnode_modules/[4m@vitest/runner[24m/dist/index.js:915:26
+    at [90mfile:///Users/suqing/coding/app/DeLive/frontend/[39mnode_modules/[4m@vitest/runner[24m/dist/index.js:1243:20
+    at new Promise (<anonymous>)
+    at runWithTimeout [90m(file:///Users/suqing/coding/app/DeLive/frontend/[39mnode_modules/[4m@vitest/runner[24m/dist/index.js:1209:10[90m)[39m
+    at [90mfile:///Users/suqing/coding/app/DeLive/frontend/[39mnode_modules/[4m@vitest/runner[24m/dist/index.js:1653:37
+    at Traces.$ [90m(file:///Users/suqing/coding/app/DeLive/frontend/[39mnode_modules/[4mvitest[24m/dist/chunks/traces.CCmnQaNT.js:142:27[90m)[39m
+    at trace [90m(file:///Users/suqing/coding/app/DeLive/frontend/[39mnode_modules/[4mvitest[24m/dist/chunks/test.B8ej_ZHS.js:239:21[90m)[39m
+    at runTest [90m(file:///Users/suqing/coding/app/DeLive/frontend/[39mnode_modules/[4m@vitest/runner[24m/dist/index.js:1653:12[90m)[39m
+
+ [32m✓[39m src/providers/__tests__/windowedBatch.test.ts [2m([22m[2m8 tests[22m[2m)[22m[32m 13[2mms[22m[39m
+ [32m✓[39m src/utils/transcriptState.test.ts [2m([22m[2m6 tests[22m[2m)[22m[32m 10[2mms[22m[39m
+ [32m✓[39m src/utils/volcTranscript.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 5[2mms[22m[39m
+ [32m✓[39m src/utils/volcProtocol.test.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 17[2mms[22m[39m
+ [32m✓[39m src/utils/volcSecrets.test.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 3[2mms[22m[39m
+ [32m✓[39m src/utils/sessionLifecycle.test.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 6[2mms[22m[39m
+ [32m✓[39m src/utils/__tests__/providerConfig.test.ts [2m([22m[2m19 tests[22m[2m)[22m[32m 5[2mms[22m[39m
+ [32m✓[39m src/utils/subtitleExport.test.ts [2m([22m[2m17 tests[22m[2m)[22m[32m 4[2mms[22m[39m
+ [32m✓[39m src/utils/storage.test.ts [2m([22m[2m13 tests[22m[2m)[22m[32m 5[2mms[22m[39m
+ [32m✓[39m src/utils/__tests__/openApiToken.test.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 10[2mms[22m[39m
+ [32m✓[39m src/hooks/useCaptionToggle.test.ts [2m([22m[2m7 tests[22m[2m)[22m[32m 3[2mms[22m[39m
+ [32m✓[39m src/utils/fileTranscriptionNative.test.ts [2m([22m[2m16 tests[22m[2m)[22m[33m 534[2mms[22m[39m
+ [32m✓[39m src/utils/pcmWav.test.ts [2m([22m[2m8 tests[22m[2m)[22m[32m 4[2mms[22m[39m
+ [32m✓[39m src/audio/recordingPlayer.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 14[2mms[22m[39m
+ [32m✓[39m src/components/settings/settingsPanels.test.ts [2m([22m[2m9 tests[22m[2m)[22m[32m 4[2mms[22m[39m
+ [32m✓[39m src/utils/__tests__/localServiceCors.test.ts [2m([22m[2m7 tests[22m[2m)[22m[32m 4[2mms[22m[39m
+ [32m✓[39m src/utils/__tests__/transcriptStabilizer.test.ts [2m([22m[2m12 tests[22m[2m)[22m[32m 4[2mms[22m[39m
+ [32m✓[39m src/utils/cloudBackup.test.ts [2m([22m[2m8 tests[22m[2m)[22m[32m 2[2mms[22m[39m
+ [32m✓[39m src/utils/sessionSnapshot.test.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 2[2mms[22m[39m
+[90mstdout[2m | src/stores/__tests__/sessionAutosave.test.ts
+[22m[39m[ProviderRegistry] Registered provider: Soniox V5
+[ProviderRegistry] Registered provider: 火山引擎
+[ProviderRegistry] Registered provider: ElevenLabs
+[ProviderRegistry] Registered provider: Mistral AI
+[ProviderRegistry] Registered provider: Gladia
+[ProviderRegistry] Registered provider: Deepgram
+[ProviderRegistry] Registered provider: AssemblyAI
+[ProviderRegistry] Registered provider: Cloudflare Workers AI
+[ProviderRegistry] Registered provider: 硅基流动
+[ProviderRegistry] Registered provider: Groq
+[ProviderRegistry] Registered provider: 本地 OpenAI 兼容
+[ProviderRegistry] Registered provider: 本地 whisper.cpp
+[ProviderRegistry] Registered provider: 60db
+[ProviderRegistry] Registered provider: FunASR / SenseVoice
+
+ [32m✓[39m src/utils/hypothesisBuffer.test.ts [2m([22m[2m15 tests[22m[2m)[22m[32m 5[2mms[22m[39m
+ [32m✓[39m src/utils/transcriptStabilizer.test.ts [2m([22m[2m13 tests[22m[2m)[22m[32m 2[2mms[22m[39m
+ [32m✓[39m src/utils/sessionMetadata.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 4[2mms[22m[39m
+[90mstdout[2m | src/stores/__tests__/sessionAutosave.test.ts[2m > [22m[2mcurrent session autosave[2m > [22m[2msaves at least every SESSION_AUTOSAVE_MAX_WAIT_MS while events keep arriving
+[22m[39m[SessionStore] 会话已保存, 文本长度: [33m610[39m
+
+[90mstdout[2m | src/stores/__tests__/sessionAutosave.test.ts[2m > [22m[2mcurrent session autosave[2m > [22m[2mstill saves once shortly after speech pauses
+[22m[39m[SessionStore] 会话已保存, 文本长度: [33m4[39m
+
+ [32m✓[39m src/stores/__tests__/sessionAutosave.test.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 9[2mms[22m[39m
+ [32m✓[39m src/utils/__tests__/storage.test.ts [2m([22m[2m15 tests[22m[2m)[22m[32m 5[2mms[22m[39m
+ [32m✓[39m src/hooks/useApiIpcResponder.test.ts [2m([22m[2m18 tests[22m[2m)[22m[32m 7[2mms[22m[39m
+ [32m✓[39m src/utils/userErrors.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 3[2mms[22m[39m
+ [32m✓[39m src/types/asr/vendors/__tests__/sensevoiceModel.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 6[2mms[22m[39m
+ [32m✓[39m src/utils/backupStorage.test.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 6[2mms[22m[39m
+ [32m✓[39m src/utils/providerConfig.test.ts [2m([22m[2m18 tests[22m[2m)[22m[32m 2[2mms[22m[39m
+ [32m✓[39m src/utils/__tests__/localApiGuard.test.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 3[2mms[22m[39m
+ [32m✓[39m src/utils/__tests__/subtitleExport.test.ts [2m([22m[2m17 tests[22m[2m)[22m[32m 6[2mms[22m[39m
+ [32m✓[39m src/services/aiPostProcess.test.ts [2m([22m[2m15 tests[22m[2m)[22m[32m 6[2mms[22m[39m
+ [32m✓[39m src/types/asr/common.test.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 3[2mms[22m[39m
+ [32m✓[39m src/types/asr/vendors/__tests__/elevenlabs.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 3[2mms[22m[39m
+ [32m✓[39m src/utils/sessionSchema.test.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 2[2mms[22m[39m
+ [32m✓[39m src/utils/rollingAudioBuffer.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 2[2mms[22m[39m
+ [32m✓[39m src/utils/windowedTranscript.test.ts [2m([22m[2m8 tests[22m[2m)[22m[32m 2[2mms[22m[39m
+ [32m✓[39m src/hooks/useSidebarState.test.ts [2m([22m[2m10 tests[22m[2m)[22m[32m 2[2mms[22m[39m
+ [32m✓[39m src/utils/__tests__/audioFileToWav.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 1[2mms[22m[39m
+ [32m✓[39m src/utils/whatsNew.test.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 2[2mms[22m[39m
+[90mstdout[2m | src/utils/__tests__/fileTranscriptionRouting.test.ts
+[22m[39m[ProviderRegistry] Registered provider: Soniox V5
+[ProviderRegistry] Registered provider: 火山引擎
+[ProviderRegistry] Registered provider: ElevenLabs
+[ProviderRegistry] Registered provider: Mistral AI
+[ProviderRegistry] Registered provider: Gladia
+[ProviderRegistry] Registered provider: Deepgram
+[ProviderRegistry] Registered provider: AssemblyAI
+[ProviderRegistry] Registered provider: Cloudflare Workers AI
+[ProviderRegistry] Registered provider: 硅基流动
+[ProviderRegistry] Registered provider: Groq
+[ProviderRegistry] Registered provider: 本地 OpenAI 兼容
+[ProviderRegistry] Registered provider: 本地 whisper.cpp
+[ProviderRegistry] Registered provider: 60db
+[ProviderRegistry] Registered provider: FunASR / SenseVoice
+
+[90mstdout[2m | src/utils/providerI18n.test.ts
+[22m[39m[ProviderRegistry] Registered provider: Soniox V5
+[ProviderRegistry] Registered provider: 火山引擎
+[ProviderRegistry] Registered provider: ElevenLabs
+[ProviderRegistry] Registered provider: Mistral AI
+[ProviderRegistry] Registered provider: Gladia
+[ProviderRegistry] Registered provider: Deepgram
+[ProviderRegistry] Registered provider: AssemblyAI
+[ProviderRegistry] Registered provider: Cloudflare Workers AI
+[ProviderRegistry] Registered provider: 硅基流动
+[ProviderRegistry] Registered provider: Groq
+[ProviderRegistry] Registered provider: 本地 OpenAI 兼容
+[ProviderRegistry] Registered provider: 本地 whisper.cpp
+[ProviderRegistry] Registered provider: 60db
+[ProviderRegistry] Registered provider: FunASR / SenseVoice
+
+ [32m✓[39m src/utils/__tests__/fileTranscriptionRouting.test.ts [2m([22m[2m6 tests[22m[2m)[22m[32m 2[2mms[22m[39m
+ [32m✓[39m src/utils/providerI18n.test.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 1[2mms[22m[39m
+ [32m✓[39m src/types/asr/vendors/__tests__/gladia.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 1[2mms[22m[39m
+ [32m✓[39m src/utils/__tests__/sixtydbProxyHandshake.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 1[2mms[22m[39m
+
+[2m Test Files [22m [1m[32m57 passed[39m[22m[90m (57)[39m
+[2m      Tests [22m [1m[32m441 passed[39m[22m[90m (441)[39m
+[2m   Start at [22m 18:36:44
+[2m   Duration [22m 1.47s[2m (transform 1.84s, setup 0ms, import 2.81s, tests 1.22s, environment 4ms)[22m
+

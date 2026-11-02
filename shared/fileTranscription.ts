@@ -16,6 +16,7 @@ export interface TranscriptVersion {
   text: string
   segments: Array<{ id?: string; text: string; startMs?: number; endMs?: number; speakerId?: string; isFinal?: boolean }>
   speakers: Array<{ id: string; label: string; displayName?: string }>
+  editNote?: string
   parentVersionId?: string
   sourceJobId?: string
   resource?: string

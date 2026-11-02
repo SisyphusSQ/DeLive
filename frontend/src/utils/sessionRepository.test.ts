@@ -111,6 +111,27 @@ describe('sessionRepository persistence strategy', () => {
     ])
   })
 
+  it('serializes simultaneous revision and machine-result writes against the latest session', async () => {
+    const { sessionRepository } = await import('./sessionRepository')
+    sessionRepository.createDraft(makeSession({id:'concurrent'}))
+    let release!: () => void
+    sessionStorageMock.upsertSession.mockImplementationOnce(() => new Promise<void>(resolve => {release=resolve}))
+    const one=sessionRepository.mutateDurable('concurrent', current=>({tagIds:[...(current.tagIds??[]),'manual']}))
+    await Promise.resolve();await Promise.resolve()
+    const two=sessionRepository.mutateDurable('concurrent', current=>({tagIds:[...(current.tagIds??[]),'machine']}))
+    release();await one
+    expect((await two)[0].tagIds).toEqual(['manual','machine'])
+  })
+
+  it('surfaces persistence failure without publishing a false saved state and permits retry', async () => {
+    const { sessionRepository } = await import('./sessionRepository')
+    sessionRepository.createDraft(makeSession({id:'failure',transcript:'original'}))
+    sessionStorageMock.upsertSession.mockRejectedValueOnce(new Error('disk full'))
+    await expect(sessionRepository.updateMetadataDurable('failure',{transcript:'unsaved'})).rejects.toThrow('disk full')
+    const saved=await sessionRepository.mutateDurable('failure', current=>({title:current.transcript}))
+    expect(saved[0].title).toBe('original')
+  })
+
   it('uses full replace only for replaceAllSessions', async () => {
     const { sessionRepository } = await import('./sessionRepository')
     const sessions = [

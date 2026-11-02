@@ -1,3 +1,4 @@
+import { reviewExport } from './reviewVersions'
 /**
  * 字幕导出工具
  * 支持 SRT 和 VTT 格式
@@ -333,6 +334,7 @@ export function generateSubtitleFromSession(
     translationDisplay?: SubtitleTranslationDisplay
   }
 ): string {
+  if (session.versions?.length) return reviewExport(session, format)
   const translationDisplay = resolveTranslationDisplayMode(session, options?.translationDisplay)
   const speakerNameMap = buildSpeakerNameMap(session)
   const translatedText = session.translatedTranscript?.text?.trim()

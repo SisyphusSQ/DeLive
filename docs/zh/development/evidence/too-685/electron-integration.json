@@ -1,0 +1,26 @@
+{
+  "status": "PASS",
+  "actualKeychain": false,
+  "kind": "synthetic dual-source capture; live WS/file HTTP/S3/keychain doubles; real AudioContext playback, native IPC, disk and IndexedDB",
+  "checks": [
+    "682 dual source/mix assets",
+    "683 final anonymous realtime snapshots",
+    "684 unknown submit same-ID resume",
+    "685 unknown speaker display",
+    "rename/text/attribution revision",
+    "TXT/MD/SRT match selected version",
+    "system track seek offset within 1 ms in scheduled buffer",
+    "missing file stops playback",
+    "version comparison",
+    "late post-meeting result preserves manual selection",
+    "explicit mapping creates new revision",
+    "reload preserves all versions",
+    "text-only legacy edit/reopen/TXT/MD",
+    "untimed SRT disabled until user supplies times"
+  ],
+  "recordingBlocks": 3,
+  "submits": 2,
+  "queries": 2,
+  "versions": 5,
+  "seekOffsetSeconds": 0.146
+}

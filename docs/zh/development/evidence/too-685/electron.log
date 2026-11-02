@@ -1,0 +1,19 @@
+Error occurred in handler for 'file-tasks:configure': Error: 系统安全存储不可用，对象存储凭据未保存
+    at configure (/Users/suqing/coding/app/DeLive/dist-electron/electron/fileTranscription/fileTaskIpc.js:53:23)
+    at /Users/suqing/coding/app/DeLive/dist-electron/electron/fileTranscription/fileTaskIpc.js:82:20
+    at Session.<anonymous> (node:electron/js2c/browser_init:2:110648)
+    at Session.emit (node:events:508:28)
+Error occurred in handler for 'recording:readBlock': Error: ENOENT: no such file or directory, lstat '/var/folders/jd/vjf89lqs25n38gnns2tcxq180000gn/T/delive-review-ui-f2HdH2/recordings/1793615895916-zulp9cjwt/0/system.wav'
+    at lstatSync (node:fs:1701:25)
+    at t.lstatSync (node:electron/js2c/node_init:2:4599)
+    at RecordingStore.readBlock (/Users/suqing/coding/app/DeLive/dist-electron/electron/recordingStore.js:209:97)
+    at readBlock (/Users/suqing/coding/app/DeLive/dist-electron/electron/recordingIpc.js:46:52)
+    at /Users/suqing/coding/app/DeLive/dist-electron/electron/recordingIpc.js:83:20
+    at Session.<anonymous> (node:electron/js2c/browser_init:2:110648)
+    at Session.emit (node:events:508:28) {
+  errno: -2,
+  code: 'ENOENT',
+  syscall: 'lstat',
+  path: '/var/folders/jd/vjf89lqs25n38gnns2tcxq180000gn/T/delive-review-ui-f2HdH2/recordings/1793615895916-zulp9cjwt/0/system.wav'
+}
+{"status":"PASS","actualKeychain":false,"kind":"synthetic dual-source capture; live WS/file HTTP/S3/keychain doubles; real AudioContext playback, native IPC, disk and IndexedDB","checks":["682 dual source/mix assets","683 final anonymous realtime snapshots","684 unknown submit same-ID resume","685 unknown speaker display","rename/text/attribution revision","TXT/MD/SRT match selected version","system track seek offset within 1 ms in scheduled buffer","missing file stops playback","version comparison","late post-meeting result preserves manual selection","explicit mapping creates new revision","reload preserves all versions","text-only legacy edit/reopen/TXT/MD","untimed SRT disabled until user supplies times"],"recordingBlocks":3,"submits":2,"queries":2,"versions":5,"seekOffsetSeconds":0.146}

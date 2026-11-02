@@ -91,3 +91,6 @@ describe('yourFunction', () => {
 - [标准文件转写与临时存储](./volc-file.md) / [TOO-684 证据](./evidence-too-684.md)
 
 隔离 Electron 脚本使用合成音频和服务替身，不代表真实计费服务或正式硬件会议通过。
+
+- [回放、版本与校对](./review-playback.md) / [TOO-685 证据](./evidence-too-685.md)
+- [TOO-686 正式验收交接](./handoff-too-686.md)（仅交接，未启动）

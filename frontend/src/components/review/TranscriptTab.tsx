@@ -1,182 +1,112 @@
-import { useMemo, useRef, useState, useCallback } from 'react'
-import { FileText, Languages, Play } from 'lucide-react'
+import { useState } from 'react'
 import type { TranscriptSession } from '../../types'
-import { useUIStore } from '../../stores/uiStore'
+import type { TranscriptVersion } from '../../../../shared/fileTranscription'
+import type { AudioTrack } from '../../../../shared/recording'
+import { useSessionStore } from '../../stores/sessionStore'
+import { sessionRepository } from '../../utils/sessionRepository'
+import { appendRevision, editedVersion, mapSpeakers, reviewVersions, selectedReviewVersion, timestamp, versionLabel } from '../../utils/reviewVersions'
+import { useRecordingPlayback } from '../../hooks/useRecordingPlayback'
 
-interface TranscriptTabProps {
-  session: TranscriptSession
+const input='rounded border border-border bg-background px-2 py-1 text-sm'
+export function TranscriptTab({session}:{session:TranscriptSession}) {
+  // Changing sessions remounts this editor; arriving machine results never reset its in-progress draft.
+  return <ReviewTranscript key={session.id} session={session}/>
 }
-
-function formatMs(ms: number): string {
-  const totalSeconds = Math.floor(ms / 1000)
-  const minutes = Math.floor(totalSeconds / 60)
-  const seconds = totalSeconds % 60
-  return `${minutes}:${seconds.toString().padStart(2, '0')}`
-}
-
-function getSpeakerLabel(
-  speakerId: string | undefined,
-  speakerNameMap: Record<string, string>,
-): string {
-  if (!speakerId) return 'Speaker'
-  return speakerNameMap[speakerId] || speakerId
-}
-
-function getSpeakerShortLabel(speakerId: string, speakerIds: string[]): string {
-  const index = speakerIds.indexOf(speakerId)
-  return `S${index + 1}`
-}
-
-const SPEAKER_BADGE_COLORS = [
-  { bg: 'bg-blue-500', text: 'text-white', border: 'border-blue-200 dark:border-blue-800', label: 'text-blue-700 dark:text-blue-300', highlight: 'bg-blue-50 dark:bg-blue-950/30' },
-  { bg: 'bg-emerald-500', text: 'text-white', border: 'border-emerald-200 dark:border-emerald-800', label: 'text-emerald-700 dark:text-emerald-300', highlight: 'bg-emerald-50 dark:bg-emerald-950/30' },
-  { bg: 'bg-amber-500', text: 'text-white', border: 'border-amber-200 dark:border-amber-800', label: 'text-amber-700 dark:text-amber-300', highlight: 'bg-amber-50 dark:bg-amber-950/30' },
-  { bg: 'bg-purple-500', text: 'text-white', border: 'border-purple-200 dark:border-purple-800', label: 'text-purple-700 dark:text-purple-300', highlight: 'bg-purple-50 dark:bg-purple-950/30' },
-  { bg: 'bg-rose-500', text: 'text-white', border: 'border-rose-200 dark:border-rose-800', label: 'text-rose-700 dark:text-rose-300', highlight: 'bg-rose-50 dark:bg-rose-950/30' },
-  { bg: 'bg-cyan-500', text: 'text-white', border: 'border-cyan-200 dark:border-cyan-800', label: 'text-cyan-700 dark:text-cyan-300', highlight: 'bg-cyan-50 dark:bg-cyan-950/30' },
-]
-
-function getSpeakerBadgeColor(speakerId: string, speakerIds: string[]) {
-  const index = speakerIds.indexOf(speakerId)
-  return SPEAKER_BADGE_COLORS[index % SPEAKER_BADGE_COLORS.length]
-}
-
-export function TranscriptTab({ session }: TranscriptTabProps) {
-  const { t } = useUIStore()
-  const [hoveredIndex, setHoveredIndex] = useState<number | null>(null)
-  const contentRef = useRef<HTMLDivElement>(null)
-  const translatedText = session.translatedTranscript?.text?.trim() || ''
-  const speakerSegments = useMemo(
-    () => (session.segments || []).filter((segment) => segment.speakerId && segment.text.trim()),
-    [session.segments],
-  )
-  const sessionSpeakers = useMemo(
-    () => (session.speakers || []).filter((speaker) => speaker.id.trim()),
-    [session.speakers],
-  )
-  const speakerNameMap = useMemo(
-    () =>
-      Object.fromEntries(
-        sessionSpeakers.map((speaker) => [
-          speaker.id,
-          speaker.displayName?.trim() || speaker.label?.trim() || speaker.id,
-        ]),
-      ),
-    [sessionSpeakers],
-  )
-  const speakerIds = useMemo(
-    () => [...new Set(speakerSegments.map((s) => s.speakerId).filter(Boolean) as string[])],
-    [speakerSegments],
-  )
-
-  const handleSegmentHover = useCallback((index: number | null) => {
-    setHoveredIndex(index)
-  }, [])
-
-  if (!session.transcript && !translatedText) {
-    return (
-      <div className="flex h-full flex-col items-center justify-center text-muted-foreground py-12">
-        <div className="bg-muted w-16 h-16 rounded-full flex items-center justify-center mb-4">
-          <FileText className="w-8 h-8 opacity-50" />
-        </div>
-        <p className="text-sm">{t.preview.noContent}</p>
-      </div>
-    )
+function ReviewTranscript({session}:{session:TranscriptSession}) {
+  const versions=reviewVersions(session),version=selectedReviewVersion(session)
+  const [compareId,setCompareId]=useState(''),[filter,setFilter]=useState('')
+  const [draft,setDraft]=useState<TranscriptVersion>(),[source,setSource]=useState<TranscriptVersion>()
+  const [mappingSource,setMappingSource]=useState(''),[pairs,setPairs]=useState<Record<string,string>>({})
+  const [error,setError]=useState(''),[notice,setNotice]=useState(''),[busy,setBusy]=useState(false)
+  const playback=useRecordingPlayback(session.audioRecordingId),compare=versions.find(v=>v.id===compareId)
+  const action=async(run:()=>Promise<void>)=>{setBusy(true);setError('');setNotice('');try{await run()}catch(e){setError((e as Error).message)}finally{setBusy(false)}}
+  const persist=async(update:(current:TranscriptSession)=>Partial<TranscriptSession>)=>{
+    const sessions=await sessionRepository.mutateDurable(session.id,update);useSessionStore.setState({sessions})
   }
-
-  return (
-    <div ref={contentRef} className="flex-1 overflow-y-auto">
-      <div className="mx-auto max-w-3xl px-6 py-6">
-        {speakerSegments.length > 0 ? (
-          <div className="space-y-0.5">
-            {speakerSegments.map((segment, index) => {
-              const prevSegment = index > 0 ? speakerSegments[index - 1] : null
-              const isSameSpeaker = prevSegment?.speakerId === segment.speakerId
-              const isHovered = hoveredIndex === index
-              const colors = segment.speakerId
-                ? getSpeakerBadgeColor(segment.speakerId, speakerIds)
-                : SPEAKER_BADGE_COLORS[0]
-
-              return (
-                <div
-                  key={`${segment.speakerId || 'speaker'}-${index}`}
-                  className={`group flex items-start gap-3 rounded-lg px-3 py-2 transition-colors ${
-                    isHovered ? colors.highlight : ''
-                  }`}
-                  onMouseEnter={() => handleSegmentHover(index)}
-                  onMouseLeave={() => handleSegmentHover(null)}
-                >
-                  {/* Speaker circle badge — shown on speaker change */}
-                  <div className="w-7 shrink-0 pt-0.5 flex justify-center">
-                    {!isSameSpeaker && segment.speakerId ? (
-                      <span className={`inline-flex h-6 w-6 items-center justify-center rounded-full text-[10px] font-semibold ${colors.bg} ${colors.text}`}>
-                        {getSpeakerShortLabel(segment.speakerId, speakerIds)}
-                      </span>
-                    ) : (
-                      <span className="h-6 w-6" />
-                    )}
-                  </div>
-
-                  {/* Speaker name + timestamp header */}
-                  <div className="min-w-0 flex-1">
-                    {!isSameSpeaker && segment.speakerId && (
-                      <div className="flex items-center gap-2 mb-1">
-                        <span className={`text-xs font-semibold ${colors.label}`}>
-                          {getSpeakerLabel(segment.speakerId, speakerNameMap)}
-                        </span>
-                        {segment.startMs != null && (
-                          <button
-                            className="inline-flex items-center gap-1 text-[10px] font-mono tabular-nums text-muted-foreground/60 hover:text-primary transition-colors"
-                            title={t.preview.jumpToTimestamp || 'Jump to timestamp'}
-                          >
-                            <Play className="h-2.5 w-2.5" />
-                            {formatMs(segment.startMs)}
-                          </button>
-                        )}
-                      </div>
-                    )}
-                    {isSameSpeaker && segment.startMs != null && (
-                      <button
-                        className={`mb-0.5 inline-flex items-center gap-1 text-[10px] font-mono tabular-nums transition-colors ${
-                          isHovered ? 'text-muted-foreground' : 'text-muted-foreground/30'
-                        } hover:text-primary`}
-                        title={t.preview.jumpToTimestamp || 'Jump to timestamp'}
-                      >
-                        <Play className="h-2.5 w-2.5" />
-                        {formatMs(segment.startMs)}
-                      </button>
-                    )}
-                    <p className="text-sm leading-relaxed whitespace-pre-wrap text-foreground/90 m-0">
-                      {segment.text}
-                    </p>
-                  </div>
-                </div>
-              )
-            })}
-          </div>
-        ) : session.transcript ? (
-          <p className="text-sm leading-relaxed whitespace-pre-wrap text-foreground/90">
-            {session.transcript}
-          </p>
-        ) : null}
-
-        {(session.transcript || speakerSegments.length > 0) && translatedText && (
-          <div className="my-6 flex items-center gap-3">
-            <div className="h-px flex-1 bg-border" />
-            <span className="inline-flex items-center gap-1.5 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
-              <Languages className="h-3 w-3" />
-              Translation
-            </span>
-            <div className="h-px flex-1 bg-border" />
-          </div>
-        )}
-
-        {translatedText && (
-          <p className="text-sm leading-relaxed whitespace-pre-wrap text-info/80 dark:text-info/70">
-            {translatedText}
-          </p>
-        )}
-      </div>
+  const select=async(id:string)=>{
+    if(draft&&!window.confirm('放弃尚未保存的校对内容并切换版本？'))return
+    await action(async()=>{await persist(current=>({versions:reviewVersions(current),selectedVersionId:id}));setDraft(undefined);setSource(undefined);setFilter('');setPairs({});setMappingSource('');playback.pause()})
+  }
+  const saveRevision=async(revision:TranscriptVersion,parent:TranscriptVersion)=>{
+    await persist(current=>{const next=appendRevision(current,revision,parent);return {versions:next.versions,selectedVersionId:next.selectedVersionId}})
+    setDraft(undefined);setSource(undefined);setPairs({});setMappingSource('');setNotice('已保存为独立修订版本，原稿保留')
+  }
+  const startEdit=()=>{
+    const copy=structuredClone(version)
+    if(!copy.segments.length && copy.text)copy.segments=[{id:copy.id+':text',text:copy.text}]
+    setSource(structuredClone(version));setDraft(copy);setError('')
+  }
+  const updateSegment=(index:number,patch:Partial<TranscriptVersion['segments'][number]>)=>setDraft(old=>old?{...old,segments:old.segments.map((s,i)=>i===index?{...s,...patch}:s)}:old)
+  const renderVersion=(value:TranscriptVersion,secondary=false)=>{
+    const names=new Map(value.speakers.map(s=>[s.id,s.displayName || s.label]))
+    const segments=value.segments.filter(s=>s.text.trim() && (secondary || !filter || (filter==='unknown'?!s.speakerId:s.speakerId===filter)))
+    return <div className="space-y-2 min-w-0" aria-label={secondary?'对照稿内容':'当前稿内容'}>
+      <h4 className="text-sm font-semibold">{versionLabel(value)}</h4>
+      {value.editNote&&<p className="text-xs text-muted-foreground">{value.editNote}</p>}
+      {segments.map((s,i)=><article key={s.id??i} className={'rounded-lg border p-3 '+(playback.state.playing&&s.startMs!==undefined&&playback.state.positionMs>=s.startMs&&playback.state.positionMs<(s.endMs??s.startMs)?'border-primary bg-primary/5':'border-border')} data-segment-id={s.id??i}>
+        <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
+          <span>{s.speakerId?names.get(s.speakerId)||'未知说话人':'未知说话人'}</span>
+          <span>{s.isFinal===false?'临时片段':value.kind==='edited'?'人工修订':value.kind==='legacy'?'历史片段':'稳定片段'}</span>
+          <span>{s.startMs===undefined?'无时间戳':timestamp(s.startMs)+' – '+(s.endMs===undefined?'未确定':timestamp(s.endMs))}</span>
+        </div>
+        <button className="mt-2 block w-full whitespace-pre-wrap text-left text-sm leading-relaxed disabled:cursor-text" disabled={!playback.manifest || s.startMs===undefined} title={s.startMs===undefined?'没有时间戳':!playback.manifest?'原音不可用':'点击文字定位原音'} onClick={()=>void playback.seek(s.startMs!,true)}>{s.text}</button>
+      </article>)}
+      {!value.segments.length&&<p className="whitespace-pre-wrap text-sm">{value.text || '此版本没有文字'}</p>}
+      {!!value.segments.length&&!segments.length&&<p className="text-sm text-muted-foreground">此筛选下没有片段</p>}
     </div>
-  )
+  }
+  return <div className="flex-1 overflow-y-auto"><div className="mx-auto max-w-5xl space-y-5 p-5">
+    <section aria-label="稿件版本" className="space-y-2">
+      <div className="flex flex-wrap gap-3">
+        <label className="text-sm">当前版本 <select aria-label="当前稿件版本" className={input} disabled={busy} value={version.id} onChange={e=>void select(e.target.value)}>{versions.map(v=><option key={v.id} value={v.id}>{versionLabel(v)}</option>)}</select></label>
+        <label className="text-sm">对照 <select aria-label="对照稿件版本" className={input} value={compareId} onChange={e=>setCompareId(e.target.value)}><option value="">不对照</option>{versions.filter(v=>v.id!==version.id).map(v=><option key={v.id} value={v.id}>{versionLabel(v)}</option>)}</select></label>
+      </div>
+      <p className="text-xs text-muted-foreground">当前版本决定导出内容。人工修订另存版本；不同稿件相同说话人编号不代表同一人。录音来源不是说话人身份。</p>
+      {session.realtime?.some(r=>r.status==='incomplete')&&<p className="text-xs text-amber-600">此会议包含未完成的实时识别段；已保存原音与结果仍可校对。</p>}
+    </section>
+
+    <section aria-label="原音回放" className="rounded-lg border border-border p-3 space-y-2">
+      <div className="flex flex-wrap items-center gap-3">
+        <span className="text-sm font-semibold">原音回放</span>
+        {playback.manifest&&<><button className={input} onClick={()=>playback.state.playing?playback.pause():void playback.play()}>{playback.state.playing?'暂停':'播放'}</button>
+          <select aria-label="回放录音来源" className={input} value={playback.track} onChange={e=>playback.changeTrack(e.target.value as AudioTrack)}>{(['mix','system','microphone'] as const).filter(t=>playback.manifest!.blocks.some(b=>b.tracks.includes(t))).map(t=><option key={t} value={t}>{{mix:'同步混音',system:'系统声音',microphone:'麦克风'}[t]}</option>)}</select>
+          <span className="font-mono text-xs" data-playback-position={Math.round(playback.state.positionMs)}>{timestamp(playback.state.positionMs)} / {timestamp(playback.manifest.durationMs)}</span></>}
+      </div>
+      {playback.manifest&&<input aria-label="原音播放位置" className="w-full" type="range" min={0} max={playback.manifest.durationMs} step={10} value={playback.state.positionMs} onChange={e=>void playback.seek(Number(e.target.value),playback.state.playing)}/>}
+      {playback.loading&&<p className="text-sm">正在读取原音索引…</p>}
+      {playback.state.message&&<p role="status" className="text-sm text-amber-700 dark:text-amber-400">{playback.state.message}</p>}
+      {playback.state.nextMs!==undefined&&<button className={input} onClick={()=>void playback.seek(playback.state.nextMs!,true)}>跳到下一段可用原音 {timestamp(playback.state.nextMs)}</button>}
+      {!!playback.manifest?.events.length&&<details className="text-xs text-muted-foreground"><summary>录音来源与中断记录</summary>{playback.manifest.events.map((e,i)=><p key={i}>{timestamp(e.atMs)} {e.message}</p>)}</details>}
+    </section>
+
+    {error&&<p role="alert" className="text-sm text-red-600">{error}</p>}{notice&&<p role="status" className="text-sm text-emerald-600">{notice}</p>}
+    {draft&&source?<section aria-label="稿件校对编辑" className="space-y-3 rounded-lg border border-primary/30 p-3">
+      <p className="text-sm">校对尚未保存。保存会生成新版本，保留原稿与此前修订；导出使用已保存的当前版本。</p>
+      <div className="flex flex-wrap gap-3">{draft.speakers.map(s=><label key={s.id} className="text-xs">{s.label}<input aria-label={'说话人姓名 '+s.id} className={'block '+input} value={s.displayName??''} placeholder="匿名名称" onChange={e=>setDraft({...draft,speakers:draft.speakers.map(item=>item.id===s.id?{...item,displayName:e.target.value}:item)})}/></label>)}</div>
+      {draft.segments.map((s,i)=><div key={s.id??i} className="space-y-2 rounded border border-border p-2">
+        <div className="flex flex-wrap gap-2"><select aria-label={'片段 '+(i+1)+' 归属'} className={input} value={s.speakerId??''} onChange={e=>updateSegment(i,{speakerId:e.target.value||undefined})}><option value="">未知说话人</option>{draft.speakers.map(p=><option key={p.id} value={p.id}>{p.displayName||p.label}</option>)}</select>
+          <label className="text-xs">开始（秒）<input aria-label={'片段 '+(i+1)+' 开始秒'} className={input+' w-24'} type="number" min="0" step="0.001" value={s.startMs===undefined?'':s.startMs/1000} onChange={e=>updateSegment(i,{startMs:e.target.value===''?undefined:Number(e.target.value)*1000})}/></label>
+          <label className="text-xs">结束（秒）<input aria-label={'片段 '+(i+1)+' 结束秒'} className={input+' w-24'} type="number" min="0" step="0.001" value={s.endMs===undefined?'':s.endMs/1000} onChange={e=>updateSegment(i,{endMs:e.target.value===''?undefined:Number(e.target.value)*1000})}/></label></div>
+        <textarea aria-label={'片段 '+(i+1)+' 文字'} className={input+' w-full min-h-20'} value={s.text} onChange={e=>updateSegment(i,{text:e.target.value})}/>
+      </div>)}
+      {!draft.segments.length&&<textarea aria-label="纯文字校对" className={input+' w-full min-h-40'} value={draft.text} onChange={e=>setDraft({...draft,text:e.target.value})}/>}
+      <div className="flex flex-wrap gap-3"><button className={input} disabled={busy} onClick={()=>void action(()=>saveRevision(editedVersion(source,draft,'人工校对文字、时间或说话人归属/姓名'),source))}>保存为修订版本</button><button className={input} disabled={busy} onClick={()=>{if(window.confirm('放弃未保存的校对内容？')){setDraft(undefined);setSource(undefined)}}}>放弃校对</button>
+        <button className={input} onClick={()=>setDraft({...draft,speakers:[...draft.speakers,{id:'manual-'+crypto.randomUUID(),label:'新增匿名说话人 '+(draft.speakers.length+1)}]})}>新增匿名说话人</button></div>
+    </section>:<div className="flex flex-wrap gap-3 items-center"><button className={input} disabled={busy || session.status==='recording'} onClick={startEdit}>校对当前稿件</button>
+      <label className="text-sm">按说话人查看 <select aria-label="按说话人筛选" className={input} value={filter} onChange={e=>setFilter(e.target.value)}><option value="">全部片段</option><option value="unknown">未知说话人</option>{version.speakers.map(s=><option key={s.id} value={s.id}>{s.displayName||s.label}</option>)}</select></label>
+      {session.status==='recording'&&<span className="text-xs">停止录音后可校对</span>}</div>}
+
+    {!draft&&version.speakers.length>0&&<details className="rounded border border-border p-3 space-y-2"><summary className="text-sm cursor-pointer">人工确认跨版本说话人映射</summary>
+      <p className="text-xs text-muted-foreground">逐项确认后，将选定姓名复制到一个新的人工修订版本。保留原编号和原版本；多项映射到同一姓名表示你的人工判断，不建立跨会议身份。</p>
+      <select aria-label="姓名映射来源版本" className={input} value={mappingSource} onChange={e=>{setMappingSource(e.target.value);setPairs({})}}><option value="">选择姓名来源稿件</option>{versions.filter(v=>v.id!==version.id&&v.speakers.length).map(v=><option value={v.id} key={v.id}>{versionLabel(v)}</option>)}</select>
+      {mappingSource&&version.speakers.map(s=><label key={s.id} className="flex items-center gap-2 text-sm">{s.displayName||s.label}<select aria-label={'映射 '+s.id} className={input} value={pairs[s.id]??''} onChange={e=>{const next={...pairs};if(e.target.value)next[s.id]=e.target.value;else delete next[s.id];setPairs(next)}}><option value="">不映射</option>{versions.find(v=>v.id===mappingSource)?.speakers.map(from=><option key={from.id} value={from.id}>{from.displayName||from.label}</option>)}</select></label>)}
+      <button className={input} disabled={busy||!Object.keys(pairs).length||session.status==='recording'} onClick={()=>void action(async()=>{
+        if(!window.confirm('确认所选说话人对应关系，并另存修订版本？已有版本和姓名不会被改写。'))return
+        const from=versions.find(v=>v.id===mappingSource);if(!from)throw new Error('来源稿件不存在')
+        await saveRevision(mapSpeakers(version,from,pairs),version)
+      })}>确认映射并另存版本</button>
+    </details>}
+    <div className={compare?'grid grid-cols-1 xl:grid-cols-2 gap-5':''}>{renderVersion(version)}{compare&&renderVersion(compare,true)}</div>
+    <details className="text-xs text-muted-foreground"><summary>版本与编辑记录（{versions.length}）</summary>{versions.map(v=><p className="py-1" key={v.id}>{versionLabel(v)} · {v.id}{v.parentVersionId?' · 基于 '+v.parentVersionId:''}{v.editNote?' · '+v.editNote:''}{v.speakerMapping?' · 已人工确认映射':''}</p>)}</details>
+  </div></div>
 }
