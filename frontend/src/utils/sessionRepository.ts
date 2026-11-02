@@ -22,6 +22,7 @@ export interface SessionLaunchState {
 
 let cachedSessions: TranscriptSession[] = []
 let cacheReady = false
+const durableWrites = new Map<string, Promise<TranscriptSession[]>>()
 
 function normalizeSession(session: TranscriptSession): TranscriptSession {
   return normalizeTranscriptSession(session)
@@ -181,12 +182,21 @@ export const sessionRepository = {
     return persistSingleSession(sessionId, sessions)
   },
 
+  async mutateDurable(sessionId: string, update: (current: TranscriptSession) => Partial<TranscriptSession>): Promise<TranscriptSession[]> {
+    const previous = durableWrites.get(sessionId) ?? Promise.resolve([])
+    const operation = previous.catch(() => []).then(async () => {
+      const current = getCachedSessions().find(session => session.id === sessionId)
+      if (!current) throw new Error('会话不存在')
+      const patch = { ...update(current), updatedAt: Date.now() }
+      await upsertSession(normalizeSession({ ...current, ...patch }))
+      return updateCachedSessions(getCachedSessions().map(session => session.id === sessionId ? { ...session, ...patch } : session))
+    })
+    durableWrites.set(sessionId, operation)
+    try { return await operation } finally { if (durableWrites.get(sessionId) === operation) durableWrites.delete(sessionId) }
+  },
+
   async updateMetadataDurable(sessionId: string, updates: Partial<TranscriptSession>): Promise<TranscriptSession[]> {
-    const current = getCachedSessions().find(session => session.id === sessionId)
-    if (!current) throw new Error('会话不存在')
-    const next = normalizeSession({ ...current, ...updates, updatedAt: Date.now() })
-    await upsertSession(next)
-    return updateCachedSessions(getCachedSessions().map(session => session.id === sessionId ? next : session))
+    return this.mutateDurable(sessionId, () => updates)
   },
 
   saveProgress(sessionId: string, snapshot: SessionProgressSnapshot): TranscriptSession[] {

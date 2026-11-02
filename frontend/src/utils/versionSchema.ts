@@ -29,7 +29,7 @@ export function normalizeVersions(raw: unknown): TranscriptVersion[] | undefined
     return [{ id, kind: v.kind as TranscriptVersion['kind'], createdAt: num(v.createdAt) ?? 0, text: v.text,
       segments: Array.isArray(v.segments) ? v.segments.flatMap(raw => { const s = obj(raw); return span(raw).map(span => ({ ...span, id:str(s?.id),speakerId:str(s?.speakerId),isFinal:typeof s?.isFinal === 'boolean' ? s.isFinal : undefined })) }) : [],
       speakers: Array.isArray(v.speakers) ? v.speakers.flatMap(raw => { const s = obj(raw); return str(s?.id) ? [{ id:str(s?.id)!,label:str(s?.label) || str(s?.id)!,displayName:str(s?.displayName) }] : [] }) : [],
-      parentVersionId:str(v.parentVersionId),sourceJobId:str(v.sourceJobId),resource:str(v.resource),
+      editNote:str(v.editNote),parentVersionId:str(v.parentVersionId),sourceJobId:str(v.sourceJobId),resource:str(v.resource),
       ssdVersion:v.ssdVersion === '200' || v.ssdVersion === '300' ? v.ssdVersion : undefined,response:response(v.response),
       speakerMapping: mapping && str(mapping.sourceVersionId) && num(mapping.confirmedAt) !== undefined && pairs ? {
         sourceVersionId:str(mapping.sourceVersionId)!,confirmedAt:num(mapping.confirmedAt)!,

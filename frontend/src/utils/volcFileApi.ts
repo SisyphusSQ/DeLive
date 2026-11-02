@@ -30,9 +30,10 @@ export function ingestFileTasks(jobs: FileTask[]): Promise<void> {
     if (!session) continue // Do not recreate a session the user deleted.
     const next = addPostMeetingVersion(session, job.version)
     if (next === session) continue
-    const sessions = await sessionRepository.updateMetadataDurable(session.id, {
-      versions: next.versions, selectedVersionId: next.selectedVersionId, transcript: next.transcript,
-      segments: next.segments, speakers: next.speakers,
+    const sessions = await sessionRepository.mutateDurable(session.id, current => {
+      const updated = addPostMeetingVersion(current, job.version!)
+      return { versions: updated.versions, selectedVersionId: updated.selectedVersionId, transcript: updated.transcript,
+        segments: updated.segments, speakers: updated.speakers }
     })
     useSessionStore.setState({ sessions })
   }

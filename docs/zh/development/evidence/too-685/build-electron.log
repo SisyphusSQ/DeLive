@@ -1,0 +1,4 @@
+
+> delive@2.3.0-beta.2 build:electron
+> tsc -p electron/tsconfig.json
+

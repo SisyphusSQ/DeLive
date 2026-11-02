@@ -148,9 +148,21 @@ export class RecordingStore {
   }
   readBlock(id: string, index: number, track: AudioTrack): Uint8Array {
     if (!Number.isInteger(index) || index < 0 || !TRACKS.includes(track)) throw new Error('Invalid block')
-    const m = this.read(id)
-    if (!m.blocks.some(b => b.index === index && b.tracks.includes(track))) throw new Error('音频分片不存在')
-    return fs.readFileSync(path.join(this.folder(id), String(index), track + '.wav'))
+    // Read only the requested committed block. Rebuilding a meeting-wide index here
+    // makes playback/export quadratic in the number of chunks for long meetings.
+    const folder = path.join(this.folder(id), String(index))
+    if (!fs.lstatSync(folder).isDirectory()) throw new Error('Invalid block directory')
+    const block: AudioBlock = JSON.parse(fs.readFileSync(path.join(folder, 'block.json'), 'utf8'))
+    if (block.index !== index || !Array.isArray(block.tracks) || !block.tracks.includes(track)
+      || !Number.isInteger(block.sampleRate) || block.sampleRate < 8000 || block.sampleRate > 96000
+      || !Number.isInteger(block.frames) || block.frames <= 0 || block.frames > block.sampleRate * 2) throw new Error('音频分片索引无效')
+    const file = path.join(folder, track + '.wav'), stat = fs.lstatSync(file)
+    if (!stat.isFile() || stat.size !== 44 + block.frames * 2) throw new Error('音频分片缺失或损坏')
+    const data = fs.readFileSync(file)
+    if (data.toString('ascii',0,4) !== 'RIFF' || data.toString('ascii',8,12) !== 'WAVE'
+      || data.readUInt16LE(20) !== 1 || data.readUInt16LE(22) !== 1 || data.readUInt32LE(24) !== block.sampleRate
+      || data.readUInt16LE(34) !== 16 || data.readUInt32LE(40) !== block.frames * 2) throw new Error('音频分片格式损坏')
+    return data
   }
   remove(id: string) {
     if (this.active.has(id)) throw new Error('不能删除正在录制的原音')

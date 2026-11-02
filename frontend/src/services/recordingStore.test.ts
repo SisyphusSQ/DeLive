@@ -65,6 +65,18 @@ describe('durable recording assets', () => {
     expect(() => s.begin('../escape')).toThrow()
     s.remove('sources'); expect(s.list()).toEqual([])
   })
+  it('reads one committed block without scanning unrelated meeting blocks', () => {
+    const s = store(); s.begin('long'); s.append('long', packet()); s.append('long', packet(1000)); s.finish('long')
+    writeFileSync(join(s.directory,'long','1','block.json'),'corrupt unrelated metadata')
+    expect(Buffer.from(s.readBlock('long',0,'mix')).readUInt32LE(24)).toBe(48000)
+    expect(() => s.readBlock('long',1,'mix')).toThrow()
+  })
+  it('rejects a damaged WAV header even when the file length matches', () => {
+    const s = store(); s.begin('header'); s.append('header', packet()); s.finish('header')
+    const file = join(s.directory,'header','0','mix.wav'), data = readFileSync(file)
+    data.writeUInt16LE(2,22);writeFileSync(file,data)
+    expect(() => s.readBlock('header',0,'mix')).toThrow('格式损坏')
+  })
   it('reports damaged audio instead of advertising playback', () => {
     const s = store(); s.begin('damage'); s.append('damage', packet()); s.finish('damage')
     writeFileSync(join(s.directory, 'damage', '0', 'mix.wav'), 'broken')

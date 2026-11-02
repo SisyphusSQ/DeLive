@@ -1,3 +1,4 @@
+import { downloadReview } from './reviewVersions'
 import type { Tag, TranscriptSession } from '../types'
 
 export function generateId(): string {
@@ -50,6 +51,7 @@ function triggerDownload(blob: Blob, filename: string): void {
 }
 
 export function exportToTxt(session: TranscriptSession, tags?: Tag[]): void {
+  if (session.versions?.length) return downloadReview(session, 'txt')
   const sessionTags = tags?.filter((tag) => session.tagIds?.includes(tag.id)) || []
   const tagNames = sessionTags.map((tag) => tag.name).join(', ')
   const translatedText = session.translatedTranscript?.text?.trim()
@@ -71,6 +73,7 @@ ${translatedText ? `\n\n${'-'.repeat(20)}\n翻译\n${'-'.repeat(20)}\n\n${transl
 }
 
 export function exportToMarkdown(session: TranscriptSession, tags?: Tag[]): void {
+  if (session.versions?.length) return downloadReview(session, 'md')
   const sessionTags = tags?.filter((tag) => session.tagIds?.includes(tag.id)) || []
   const tagNames = sessionTags.map((tag) => `\`${tag.name}\``).join(' ')
   const translatedText = session.translatedTranscript?.text?.trim()
