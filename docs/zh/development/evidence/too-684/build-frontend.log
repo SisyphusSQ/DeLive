@@ -1,0 +1,36 @@
+
+> delive@2.3.0-beta.2 build:client
+> cd frontend && npm run build
+
+
+> desktop-live-frontend@1.0.0 build
+> tsc -b && vite build
+
+vite v6.4.1 building for production...
+transforming...
+Browserslist: browsers data (caniuse-lite) is 11 months old. Please run:
+  npx update-browserslist-db@latest
+  Why you should do it regularly: https://github.com/browserslist/update-db#readme
+✓ 2960 modules transformed.
+rendering chunks...
+[plugin vite:reporter] 
+(!) /Users/suqing/coding/app/DeLive/frontend/src/providers/implementations/VolcProvider.ts is dynamically imported by /Users/suqing/coding/app/DeLive/frontend/src/utils/providerConfigTest.ts but also statically imported by /Users/suqing/coding/app/DeLive/frontend/src/providers/index.ts, /Users/suqing/coding/app/DeLive/frontend/src/providers/registry.ts, dynamic import will not move module into another chunk.
+
+computing gzip size...
+dist/index.html                      0.86 kB │ gzip:   0.50 kB
+dist/caption.html                    1.20 kB │ gzip:   0.63 kB
+dist/assets/ggml-org-CvuZnv0w.png    4.10 kB
+dist/assets/caption-Cfr57Ef5.css    86.57 kB │ gzip:  14.10 kB
+dist/assets/main-fIBkgZDg.css       91.44 kB │ gzip:  14.85 kB
+dist/assets/index-qCBDsrb3.js        5.44 kB │ gzip:   2.40 kB
+dist/assets/caption-BlpXrSja.js      8.27 kB │ gzip:   3.08 kB
+dist/assets/index-CCp8vKvN.js       73.30 kB │ gzip:  24.75 kB
+dist/assets/x-D53TesNd.js          284.35 kB │ gzip:  91.51 kB
+dist/assets/index-DtAUYsH_.js      598.94 kB │ gzip: 205.56 kB
+dist/assets/main-2WSNR8J3.js       946.04 kB │ gzip: 257.77 kB
+
+(!) Some chunks are larger than 500 kB after minification. Consider:
+- Using dynamic import() to code-split the application
+- Use build.rollupOptions.output.manualChunks to improve chunking: https://rollupjs.org/configuration-options/#output-manualchunks
+- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.
+✓ built in 2.73s

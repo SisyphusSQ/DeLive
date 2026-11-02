@@ -1,0 +1,6 @@
+Error occurred in handler for 'file-tasks:configure': Error: 系统安全存储不可用，对象存储凭据未保存
+    at configure (/Users/suqing/coding/app/DeLive/dist-electron/electron/fileTranscription/fileTaskIpc.js:47:23)
+    at /Users/suqing/coding/app/DeLive/dist-electron/electron/fileTranscription/fileTaskIpc.js:76:20
+    at Session.<anonymous> (node:electron/js2c/browser_init:2:110648)
+    at Session.emit (node:events:508:28)
+{"status":"PASS","actualKeychain":false,"credentialTest":"AES encryption double in isolated harness; real keychain success NOT_RUN","checks":["safeStorage unavailable rejects persistence","private storage configuration UI and production IPC","unknown submit persists across renderer restart","same task query, no resubmit","independent versions preserve live/correction/names","confirmed cleanup","actual WAV file import through UI","native recording and IndexedDB reopen"],"tasks":2,"submits":2,"queries":2,"removed":2}
