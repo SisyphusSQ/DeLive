@@ -1,3 +1,5 @@
+import { getElectronLanguage } from './i18n'
+import { buildCSP } from './ipcSecurity'
 import { app, BrowserWindow, screen, type Tray } from 'electron'
 import fs from 'fs'
 import path from 'path'
@@ -14,6 +16,7 @@ export interface CaptionStyle {
 }
 
 interface CaptionStatus {
+  language: 'zh' | 'en' | 'ko'
   enabled: boolean
   draggable: boolean
   style: CaptionStyle
@@ -358,12 +361,18 @@ export function createCaptionWindowController(options: CaptionControllerOptions)
       title: 'DeLive Caption',
       webPreferences: {
         preload: path.join(__dirname, 'preload.js'),
+        // Electron 40 shares zoom per origin; a separate session keeps captions independent.
+        partition: 'delive-caption',
         contextIsolation: true,
         nodeIntegration: false,
       },
       focusable: true,
       show: false,
     })
+
+    captionWindow.webContents.session.webRequest.onHeadersReceived((details, callback) => callback({
+      responseHeaders: { ...details.responseHeaders, 'Content-Security-Policy': [buildCSP(options.isDev)] },
+    }))
 
     debug('createCaptionWindow.created', {
       targetDisplay: targetDisplay.id,
@@ -491,6 +500,7 @@ export function createCaptionWindowController(options: CaptionControllerOptions)
 
   function getStatus(): CaptionStatus {
     return {
+      language: getElectronLanguage(),
       enabled: captionEnabled,
       draggable: captionDraggable,
       style: captionStyle,

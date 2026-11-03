@@ -104,3 +104,5 @@ export function refreshElectronLang(lang?: Lang) {
     cachedLang = getSavedLang()
   }
 }
+
+export function getElectronLanguage(): Lang { return cachedLang ?? getSavedLang() }
