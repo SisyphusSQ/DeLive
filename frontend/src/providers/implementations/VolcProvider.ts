@@ -120,7 +120,7 @@ export class VolcProvider extends BaseASRProvider {
       const ws = new WebSocket(url)
       this.ws = ws
       const timer = setTimeout(() => fail('CONNECT_TIMEOUT', '转写连接超时'), 15000)
-      const fail = (code: string, message: string) => {
+      const fail = (code: string, message: string, details?: Record<string, unknown>) => {
         if (this.terminal) return
         this.terminal = true
         this.ready = false
@@ -129,23 +129,32 @@ export class VolcProvider extends BaseASRProvider {
         reject(new Error(message))
         this.settled?.()
         ws.close()
-        this.emitError(this.createError(code, message))
+        this.emitError(this.createError(code, message, details))
       }
       ws.onopen = () => ws.send(JSON.stringify({ type: 'start', config: {
         apiKey: config.apiKey, appKey: config.appKey, accessKey: config.accessKey, enableDdc: config.enableDdc === true,
       } }))
       ws.onmessage = event => {
+        let stage = 'json'
         try {
           const msg = JSON.parse(event.data)
+          stage = 'message'
           if (msg.type === 'ready') {
             clearTimeout(timer); this.ready = true; this.setState('connected'); resolve()
           } else if (msg.type === 'snapshot') {
             if (this.terminal) return
-            // 火山初始化响应只有 log_id，不是可替换当前稿的识别快照。
+            stage = 'snapshot'
             const result = msg.raw?.result
-            if (!msg.final && result?.text === undefined && result?.utterances === undefined && typeof result?.additions?.log_id === 'string') return
+            const metadataOnly = result?.text === undefined && result?.utterances === undefined &&
+              typeof result?.additions?.log_id === 'string' && result.additions.log_id.length > 0
+            // 初始化元数据不替换稿件；真实静音终帧另带时长，但省略文本和分句。
+            if (!msg.final && metadataOnly) return
             if (typeof msg.sequence === 'number' && this.snapshot?.sequence !== undefined && Math.abs(msg.sequence) < Math.abs(this.snapshot.sequence)) return
-            this.snapshot = parseVolcSnapshot(msg.raw, this.recognitionId, this.offsetMs ?? 0, ++this.revision, msg.final === true, msg.sequence)
+            const duration = msg.raw?.audio_info?.duration
+            const emptyFinal = msg.final === true && metadataOnly && typeof duration === 'number' && Number.isFinite(duration) && duration >= 0 &&
+              !this.snapshot?.text && !this.snapshot?.segments.length
+            this.snapshot = parseVolcSnapshot(emptyFinal ? { result: { text: '', utterances: [] } } : msg.raw,
+              this.recognitionId, this.offsetMs ?? 0, ++this.revision, msg.final === true, msg.sequence)
             this.emit('onRealtime', this.snapshot)
             if (msg.final) {
               this.terminal = true; this.ready = false
@@ -154,7 +163,12 @@ export class VolcProvider extends BaseASRProvider {
           } else if (msg.type === 'error') {
             fail(String(msg.code || 'SERVER_ERROR'), String(msg.message || '火山识别失败'))
           } else fail('PROTOCOL_ERROR', '未知的转写代理消息')
-        } catch { fail('PROTOCOL_ERROR', '转写响应不符合消息契约') }
+        } catch (error) {
+          // 只暴露本地校验原因，JSON 错误正文可能包含服务响应或敏感文本。
+          const reason = error instanceof Error && ['火山响应缺少 result.text', '火山分句格式错误', '火山分句时间或状态错误'].includes(error.message)
+            ? error.message : '消息解析失败'
+          fail('PROTOCOL_ERROR', '转写响应不符合消息契约', { stage, reason })
+        }
       }
       ws.onerror = () => fail('NETWORK_ERROR', '转写网络连接失败，原音继续保存')
       ws.onclose = () => {
