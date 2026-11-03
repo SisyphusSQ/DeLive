@@ -37,6 +37,7 @@ export function DataManagementPanel({
         </label>
         <p className="text-xs text-muted-foreground">
           {t.settings.dataManagementDesc}
+          本页 JSON 仅包含文字和元数据，不包含图片、原音实体。完整素材恢复请使用云端备份。
         </p>
         <div className="flex gap-2">
           <button

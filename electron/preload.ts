@@ -256,6 +256,23 @@ const electronAPI: ElectronAPI = {
     ipcRenderer.send('api-update-open-api-config', config)
   },
 
+  completeBackup: {
+    build: (metadataJson, includeAudio) => ipcRenderer.invoke('complete-backup:build', metadataJson, includeAudio),
+    upload: (config, artifactId) => ipcRenderer.invoke('complete-backup:upload', config, artifactId),
+    prepare: (config, key) => ipcRenderer.invoke('complete-backup:prepare', config, key),
+    apply: (stageId, sessionIds, rollbackId) => ipcRenderer.invoke('complete-backup:apply', stageId, sessionIds, rollbackId),
+    settle: (token, committed) => ipcRenderer.invoke('complete-backup:settle', token, committed),
+    pendingRestore: () => ipcRenderer.invoke('complete-backup:pendingRestore'),
+    prepareRollback: (id) => ipcRenderer.invoke('complete-backup:prepareRollback', id),
+    rollbacks: () => ipcRenderer.invoke('complete-backup:rollbacks'),
+    jobs: () => ipcRenderer.invoke('complete-backup:jobs'),
+    resume: (config, jobId) => ipcRenderer.invoke('complete-backup:resume', config, jobId),
+    onProgress: (callback) => {
+      const listener = (_event: Electron.IpcRendererEvent, progress: import('../shared/backup').BackupProgress) => callback(progress)
+      ipcRenderer.on('complete-backup-progress', listener)
+      return () => ipcRenderer.removeListener('complete-backup-progress', listener)
+    },
+  },
   cloudBackupTest: (config) => ipcRenderer.invoke('cloud-backup-test', config),
   cloudBackupUpload: (config, jsonData) => ipcRenderer.invoke('cloud-backup-upload', config, jsonData),
   cloudBackupList: (config) => ipcRenderer.invoke('cloud-backup-list', config),

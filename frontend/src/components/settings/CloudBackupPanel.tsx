@@ -1,5 +1,6 @@
-import { useState, useCallback } from 'react'
-import { withoutCredentials } from '../../utils/backupStorage'
+import { useState, useCallback, useEffect } from 'react'
+import { buildIpcConfig, uploadCompleteBackup, restoreCompleteBackup } from '../../services/completeBackup'
+import type { PreparedRestore, CloudJob, BackupArtifact, BackupProgress } from '../../../../shared/backup'
 import {
   Cloud,
   Check,
@@ -18,60 +19,11 @@ import type {
   S3BackupConfig,
   WebDAVBackupConfig,
 } from '../../types'
-import type { CloudBackupIpcConfig, CloudBackupIpcFileInfo } from '../../../../shared/electronApi'
-import {
-  validateBackupData,
-  upgradeBackupData,
-  importDataOverwrite,
-  type BackupData,
-} from '../../utils/storage'
-import { getSessions } from '../../utils/sessionStorage'
-import { getSettings, getTags, getTopics } from '../../utils/settingsStorage'
-import { normalizeTranscriptSessions } from '../../utils/sessionSchema'
-import { CURRENT_BACKUP_VERSION, CURRENT_BACKUP_SCHEMA_VERSION } from '../../utils/backupStorage'
-
+import type { CloudBackupIpcFileInfo } from '../../../../shared/electronApi'
 interface CloudBackupPanelProps {
   t: Translations
   cloudBackupConfig: CloudBackupConfig
   updateCloudBackupConfig: (config: Partial<CloudBackupConfig>) => Promise<void>
-}
-
-function buildIpcConfig(config: CloudBackupConfig): CloudBackupIpcConfig {
-  return {
-    provider: config.provider || 's3',
-    s3: config.s3 ? {
-      endpoint: config.s3.endpoint || '',
-      region: config.s3.region || 'us-east-1',
-      bucket: config.s3.bucket || '',
-      prefix: config.s3.prefix || '',
-      accessKeyId: config.s3.accessKeyId || '',
-      secretAccessKey: config.s3.secretAccessKey || '',
-      forcePathStyle: config.s3.forcePathStyle ?? true,
-    } : undefined,
-    webdav: config.webdav ? {
-      url: config.webdav.url || '',
-      username: config.webdav.username || '',
-      password: config.webdav.password || '',
-      basePath: config.webdav.basePath || '',
-    } : undefined,
-  }
-}
-
-async function buildBackupJson(): Promise<string> {
-  const sessions = normalizeTranscriptSessions(await getSessions())
-  const tags = getTags()
-  const settings = withoutCredentials(getSettings())
-  const topics = getTopics()
-  const data: BackupData = {
-    version: CURRENT_BACKUP_VERSION,
-    schemaVersion: CURRENT_BACKUP_SCHEMA_VERSION,
-    exportedAt: new Date().toISOString(),
-    sessions,
-    tags,
-    settings,
-    topics,
-  }
-  return JSON.stringify(data, null, 2)
 }
 
 function formatFileSize(bytes: number): string {
@@ -101,6 +53,13 @@ export function CloudBackupPanel({
   const [files, setFiles] = useState<CloudBackupIpcFileInfo[]>([])
   const [loadingFiles, setLoadingFiles] = useState(false)
   const [restoreStatus, setRestoreStatus] = useState<string | null>(null)
+
+  const [prepared, setPrepared] = useState<PreparedRestore | null>(null)
+  const [jobs, setJobs] = useState<CloudJob[]>([])
+  const [rollbacks, setRollbacks] = useState<BackupArtifact[]>([])
+  const [progress, setProgress] = useState<BackupProgress | null>(null)
+  const refreshTasks = useCallback(async () => { const api=window.electronAPI?.completeBackup; if(api){setJobs(await api.jobs());setRollbacks(await api.rollbacks())} }, [])
+  useEffect(() => { void refreshTasks().catch(error=>setUploadError(error.message)); return window.electronAPI?.completeBackup?.onProgress(setProgress) }, [refreshTasks])
 
   const provider = cloudBackupConfig.provider || 's3'
   const s3 = cloudBackupConfig.s3 || {} as Partial<S3BackupConfig>
@@ -133,27 +92,22 @@ export function CloudBackupPanel({
     }
   }, [cloudBackupConfig])
 
-  const handleUpload = useCallback(async () => {
+  const handleUpload = async () => {
     if (!window.electronAPI) return
     setUploadStatus('uploading')
     setUploadError('')
 
     try {
-      const jsonData = await buildBackupJson()
-      const result = await window.electronAPI.cloudBackupUpload(buildIpcConfig(cloudBackupConfig), jsonData)
-      if (result.ok) {
-        setUploadStatus('success')
-        setTimeout(() => setUploadStatus('idle'), 3000)
-        void handleLoadFiles()
-      } else {
-        setUploadStatus('error')
-        setUploadError(result.error || 'Unknown error')
-      }
+      await uploadCompleteBackup(cloudBackupConfig)
+      setUploadStatus('success')
+      await refreshTasks()
+      void handleLoadFiles()
     } catch (err) {
       setUploadStatus('error')
       setUploadError(err instanceof Error ? err.message : String(err))
+      await refreshTasks()
     }
-  }, [cloudBackupConfig])
+  }
 
   const handleLoadFiles = useCallback(async () => {
     if (!window.electronAPI) return
@@ -162,37 +116,23 @@ export function CloudBackupPanel({
     if (result.ok && result.files) {
       setFiles(result.files)
     }
+    else setUploadError(result.error || '读取备份列表失败')
     setLoadingFiles(false)
   }, [cloudBackupConfig])
 
   const handleRestore = useCallback(async (key: string) => {
     if (!window.electronAPI) return
-    if (!confirm(ts.cloudBackupRestoreConfirm)) return
-
     setRestoreStatus(key)
-    const result = await window.electronAPI.cloudBackupDownload(buildIpcConfig(cloudBackupConfig), key)
-    if (!result.ok || !result.data) {
-      alert(`${ts.cloudBackupRestoreFailed}: ${result.error || 'No data'}`)
-      setRestoreStatus(null)
-      return
-    }
+    try { setPrepared(await window.electronAPI.completeBackup.prepare(buildIpcConfig(cloudBackupConfig),key)) }
+    catch(error) { setUploadError((error as Error).message) }
+    finally { setRestoreStatus(null) }
+  }, [cloudBackupConfig])
 
-    try {
-      const parsed = JSON.parse(result.data)
-      if (!validateBackupData(parsed)) {
-        alert(`${ts.cloudBackupRestoreFailed}: Invalid backup data`)
-        setRestoreStatus(null)
-        return
-      }
-
-      await importDataOverwrite(upgradeBackupData(parsed))
-      alert(ts.cloudBackupRestoreSuccess)
-      window.location.reload()
-    } catch (err) {
-      alert(`${ts.cloudBackupRestoreFailed}: ${err instanceof Error ? err.message : String(err)}`)
-      setRestoreStatus(null)
-    }
-  }, [cloudBackupConfig, ts])
+  const applyRestore = async (mode:'merge'|'overwrite') => {
+    if(!prepared)return
+    try { if(await restoreCompleteBackup(prepared,mode))setPrepared(null) }
+    catch(error){setUploadError((error as Error).message)}
+  }
 
   const handleDelete = useCallback(async (key: string) => {
     if (!window.electronAPI) return
@@ -235,7 +175,7 @@ export function CloudBackupPanel({
           <div className="space-y-2">
             <label className="text-xs font-medium text-muted-foreground">{ts.cloudBackupProvider}</label>
             <div className="flex gap-2">
-              {(['s3', 'webdav'] as CloudBackupProviderType[]).map((p) => (
+              {(['s3', 'webdav', 'quark'] as CloudBackupProviderType[]).map((p) => (
                 <button
                   key={p}
                   type="button"
@@ -246,12 +186,21 @@ export function CloudBackupPanel({
                       : 'bg-muted text-muted-foreground hover:bg-muted/80'
                   }`}
                 >
-                  {p === 's3' ? ts.cloudBackupS3 : ts.cloudBackupWebDAV}
+                  {p === 'quark' ? '夸克 CLI' : p === 's3' ? ts.cloudBackupS3 : ts.cloudBackupWebDAV}
                 </button>
               ))}
             </div>
           </div>
 
+          {provider === 'quark' && <div className="space-y-2">
+            <label className="block text-xs">本机受限 CLI 入口（绝对路径）
+              <input aria-label="夸克 CLI 入口" className="w-full p-2 rounded border bg-background" value={cloudBackupConfig.quark?.runtimeScript||''} onChange={e=>void updateCloudBackupConfig({quark:{directory:'ai-agent/coding/delive/backups/',...cloudBackupConfig.quark,runtimeScript:e.target.value}})} />
+            </label>
+            <label className="block text-xs">云端目录
+              <input aria-label="夸克备份目录" className="w-full p-2 rounded border bg-background" value={cloudBackupConfig.quark?.directory||'ai-agent/coding/delive/backups/'} onChange={e=>void updateCloudBackupConfig({quark:{runtimeScript:'',...cloudBackupConfig.quark,directory:e.target.value}})} />
+            </label>
+            <p className="text-xs text-muted-foreground">复用本机 CLI 登录。应用不登录、不读取凭据、不安装升级。支持受限 runtimeScript 入口的 status / run 协议；首次备份才创建云目录。</p>
+          </div>}
           {/* S3 config */}
           {provider === 's3' && (
             <div className="space-y-2">
@@ -359,6 +308,7 @@ export function CloudBackupPanel({
             </div>
           )}
 
+          <label className="flex gap-2 text-xs"><input type="checkbox" checked={cloudBackupConfig.includeAudio!==false} onChange={e=>void updateCloudBackupConfig({includeAudio:e.target.checked})} />包含原音（默认）；取消后备份明确标为“不含原音”</label>
           {/* Auto backup toggle */}
           <label className="flex items-center gap-2 text-xs text-muted-foreground cursor-pointer">
             <input
@@ -415,10 +365,17 @@ export function CloudBackupPanel({
           {testStatus === 'error' && testError && (
             <p className="text-xs text-destructive">{testError}</p>
           )}
-          {uploadStatus === 'error' && uploadError && (
+          {uploadError && (
             <p className="text-xs text-destructive">{uploadError}</p>
           )}
 
+          {progress && <p role="status" className="text-xs">{progress.message}{progress.total ? ` · ${Math.round((progress.completed||0)/progress.total*100)}%` : ''}</p>}
+          {prepared && <div className="p-3 border rounded space-x-3 text-sm">
+            <p>已校验恢复材料：{JSON.parse(prepared.metadataJson).sessions.length} 个会话，{prepared.files} 个素材文件。{prepared.legacy?'旧版仅文字':prepared.includeAudio?'含原音':'不含原音'}</p>
+            <button onClick={()=>void applyRestore('merge')}>合并（同 ID 保留本地）</button><button onClick={()=>void applyRestore('overwrite')}>覆盖恢复</button><button onClick={()=>setPrepared(null)}>取消</button>
+          </div>}
+          {jobs.filter(j=>j.state!=='complete').map(job=><div key={job.id} className="text-xs p-2 border rounded"><p>{job.artifact.name} · {job.state} · {job.error}</p><button className="text-primary" onClick={()=>{void window.electronAPI!.completeBackup.resume(buildIpcConfig(cloudBackupConfig),job.id).then(refreshTasks).catch(error=>setUploadError(error.message))}}>检查 / 继续原任务</button></div>)}
+          {rollbacks.length>0 && <div className="text-xs space-y-1"><p>本地恢复回退包</p>{rollbacks.map(item=><button key={item.id} className="block text-primary" onClick={()=>{void window.electronAPI!.completeBackup.prepareRollback(item.id).then(setPrepared).catch(error=>setUploadError(error.message))}}>恢复回退包 {item.name}（{item.sessions} 个会话）</button>)}</div>}
           {/* Backup history */}
           <div className="space-y-2">
             <div className="flex items-center justify-between">
@@ -443,7 +400,7 @@ export function CloudBackupPanel({
                 {files.map((file) => (
                   <div key={file.key} className="flex items-center justify-between p-2 rounded-md bg-background text-xs">
                     <div className="flex-1 min-w-0 mr-2">
-                      <p className="truncate font-mono text-[10px] text-muted-foreground">{file.key.split('/').pop()}</p>
+                      <p className="truncate font-mono text-[10px] text-muted-foreground">{file.name||file.key.split('/').pop()} · {file.legacy?'旧版：仅文字':file.includeAudio===false?'不含原音':'完整备份'}</p>
                       <p className="text-muted-foreground">
                         {formatDate(file.lastModified)} · {formatFileSize(file.size)}
                       </p>
@@ -462,14 +419,14 @@ export function CloudBackupPanel({
                           <DownloadCloud className="w-3.5 h-3.5 text-primary" />
                         )}
                       </button>
-                      <button
+                      {provider !== 'quark' && <button
                         type="button"
                         onClick={() => void handleDelete(file.key)}
                         className="p-1 rounded hover:bg-muted transition-colors"
                         title={ts.cloudBackupDelete}
                       >
                         <Trash2 className="w-3.5 h-3.5 text-destructive" />
-                      </button>
+                      </button>}
                     </div>
                   </div>
                 ))}

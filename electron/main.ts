@@ -261,7 +261,7 @@ registerDiagnosticsIpc({
 const recordingStorage = registerRecordingIpc(ipcMain)
 registerFileTaskIpc(ipcMain, recordingStorage.owner)
 registerSafeStorageIpc(ipcMain)
-registerCloudBackupIpc(ipcMain)
+registerCloudBackupIpc(ipcMain, recordingStorage)
 
 registerApiIpc({
   ipcMain,

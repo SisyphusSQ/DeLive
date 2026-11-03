@@ -1,3 +1,5 @@
+import { recoverBackupRestore, restoringBackup } from './services/completeBackup'
+import { startAutoBackup } from './services/autoBackup'
 import { flushImageRemovals } from './services/imageCleanup'
 import { ingestFileTasks } from './utils/volcFileApi'
 import { useState, useEffect, useCallback, useRef } from 'react'
@@ -36,6 +38,8 @@ import { initStorage } from './utils/storage'
 function App() {
   const [showSourcePicker, setShowSourcePicker] = useState(false)
   const [toasts, setToasts] = useState<ToastMessage[]>([])
+  const [restoreBusy,setRestoreBusy] = useState(false)
+  useEffect(()=>{const update=()=>setRestoreBusy(restoringBackup);window.addEventListener('backup-restore-state',update);return()=>window.removeEventListener('backup-restore-state',update)},[])
   const [storageError, setStorageError] = useState('')
   const [isInitialized, setIsInitialized] = useState(false)
   const { initTheme, t, currentView, setView, backToLive } = useUIStore()
@@ -89,6 +93,8 @@ function App() {
     addToast('error', message)
   }, [addToast])
 
+  useEffect(()=>{const report=(event:Event)=>handleError('恢复未完成：'+(event as CustomEvent<string>).detail);window.addEventListener('backup-error',report);return()=>window.removeEventListener('backup-error',report)},[handleError])
+
   useEffect(() => { if (credentialError) handleError(credentialError) }, [credentialError, handleError])
 
   useApiIpcResponder()
@@ -103,6 +109,7 @@ function App() {
   useEffect(() => {
     if (!window.electronAPI?.onToggleRecording) return
     return window.electronAPI.onToggleRecording(() => {
+      if(restoringBackup)return
       const state = useSessionStore.getState().recordingState
       if (state === 'idle') {
         startRecording()
@@ -117,6 +124,7 @@ function App() {
     let cancelled = false
 
     void (async () => {
+      await recoverBackupRestore()
       await initStorage()
       initTheme()
       loadSettings()
@@ -142,6 +150,8 @@ function App() {
       cancelled = true
     }
   }, [initTheme, loadSettings, loadSessions, loadTags, loadTopics, addToast])
+
+  useEffect(()=>{if(isInitialized)return startAutoBackup(handleError)},[isInitialized,handleError])
 
   // 初始化完成后同步字幕样式到主进程，确保字幕窗口使用用户保存的样式
   useEffect(() => {
@@ -220,6 +230,8 @@ function App() {
   if (!isInitialized) return <p role="status" className="p-8">正在读取会话…</p>
 
   const sidebarWidth = sidebarCollapsed ? 56 : 224
+
+  if(restoreBusy)return <div role="alert" className="fixed inset-0 grid place-items-center bg-background"><div>正在恢复资料，请保持应用打开。若收尾失败，请重启应用继续。<button className="block text-primary" onClick={()=>window.location.reload()}>重新加载并恢复事务</button></div></div>
 
   return (
     <div className="flex h-screen bg-background text-foreground transition-colors duration-300">

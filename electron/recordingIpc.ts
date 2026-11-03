@@ -26,7 +26,7 @@ export function registerRecordingIpc(ipc: IpcMain) {
     try { s.interruptAll() } catch (error) { console.error('[Recording] Failed to mark interruption', error) }
   })
   const handlers = {
-    begin: (id: string) => getStores()[0].begin(id),
+    begin: (id: string) => { if(fs.existsSync(path.join(app.getPath('userData'),'backups','pending-restore.json'))) throw new Error('请先完成恢复事务'); return getStores()[0].begin(id) },
     append: (id: string, p: RecordingPacket) => owner(id).append(id, p),
     event: (id: string, e: { atMs: number; message: string; source?: SourceState }) => owner(id).event(id, e),
     finish: (id: string, interrupted?: boolean) => owner(id).finish(id, interrupted),
@@ -70,5 +70,9 @@ export function registerRecordingIpc(ipc: IpcMain) {
     })
   }
   app.on('before-quit', interrupt)
-  return { owner }
+  return { owner,
+    restoreDirectory: (id: string) => { try { return owner(id).directory } catch { return getStores()[0].directory } },
+    assertIdle: () => { if (getStores().some(store => store.list().some(m=>m.status==='recording'))) throw new Error('请先停止录音') },
+    refresh: () => { stores = undefined },
+  }
 }

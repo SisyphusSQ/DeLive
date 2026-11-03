@@ -1,3 +1,7 @@
+import { createReadStream, createWriteStream } from 'node:fs'
+import { stat } from 'node:fs/promises'
+import { Readable } from 'node:stream'
+import { pipeline } from 'node:stream/promises'
 import type { CloudBackupIpcConfig, CloudBackupIpcFileInfo } from '../../shared/electronApi'
 
 type WebDAVConfig = NonNullable<CloudBackupIpcConfig['webdav']>
@@ -133,7 +137,7 @@ export async function webdavList(
       if (!hrefMatch) continue
 
       const href = decodeURIComponent(hrefMatch[1])
-      if (!href.endsWith('.json')) continue
+      if (!href.endsWith('.json') && !href.endsWith('.delive')) continue
 
       const isCollection = /<D:collection\s*\/?>/i.test(entry)
       if (isCollection) continue
@@ -204,4 +208,16 @@ export async function webdavDelete(
     const msg = err instanceof Error ? err.message : String(err)
     return { ok: false, error: msg }
   }
+}
+
+export async function webdavUploadArchive(config: WebDAVConfig, file: string, name: string): Promise<string> {
+  const ready=await ensureDirectory(config);if(!ready.ok)throw new Error(ready.error)
+  const response=await fetch(buildBaseUrl(config)+'/'+encodeURIComponent(name),{method:'PUT',headers:{...authHeaders(config),'Content-Type':'application/octet-stream','Content-Length':String((await stat(file)).size)},body:createReadStream(file) as unknown as BodyInit,duplex:'half'} as RequestInit)
+  await response.body?.cancel();if(!response.ok)throw new Error('WebDAV 上传失败：'+response.status);return name
+}
+export async function webdavDownloadArchive(config: WebDAVConfig, key: string, file: string): Promise<void> {
+  if(key.includes('/')||key.includes('\\')||key==='.'||key==='..')throw new Error('备份文件名无效')
+  const response=await fetch(buildBaseUrl(config)+'/'+encodeURIComponent(key),{headers:authHeaders(config)})
+  if(!response.ok||!response.body)throw new Error('WebDAV 下载失败：'+response.status)
+  await pipeline(Readable.fromWeb(response.body as never),createWriteStream(file,{flags:'wx',mode:0o600}))
 }
