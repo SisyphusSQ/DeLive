@@ -10,6 +10,16 @@ import type {
 } from '../shared/electronApi'
 
 const electronAPI: ElectronAPI = {
+  codex: {
+    inspect: executable => ipcRenderer.invoke('codex:inspect', executable),
+    complete: (id, executable, request) => ipcRenderer.invoke('codex:complete', id, executable, request),
+    cancel: id => ipcRenderer.invoke('codex:cancel', id),
+    onDelta: callback => {
+      const listener = (_event: Electron.IpcRendererEvent, id: string, delta: string) => callback(id, delta)
+      ipcRenderer.on('codex:delta', listener)
+      return () => ipcRenderer.removeListener('codex:delta', listener)
+    },
+  },
   fileTasks: {
     settings: () => ipcRenderer.invoke('file-tasks:settings'),
     configure: config => ipcRenderer.invoke('file-tasks:configure', config),

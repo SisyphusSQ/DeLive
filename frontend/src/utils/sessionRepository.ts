@@ -120,6 +120,20 @@ export const sessionRepository = {
     const now = Date.now()
 
     sessions = sessions.map((session) => {
+      const error = 'AI 任务因应用退出而中断，请手动重新生成'
+      const interruptedAi = session.postProcess?.status === 'pending' || session.mindMap?.status === 'pending'
+        || session.askHistory?.some(turn => turn.status === 'pending')
+        || ['detecting', 'correcting'].includes(session.correction?.status || '')
+      if (interruptedAi) {
+        interruptedSessionIds.push(session.id)
+        session = { ...session,
+          postProcess: session.postProcess?.status === 'pending' ? { ...session.postProcess, status: 'error', error } : session.postProcess,
+          mindMap: session.mindMap?.status === 'pending' ? { ...session.mindMap, status: 'error', error } : session.mindMap,
+          askHistory: session.askHistory?.map(turn => turn.status === 'pending' ? { ...turn, status: 'error', error } : turn),
+          correction: session.correction && ['detecting', 'correcting'].includes(session.correction.status)
+            ? { ...session.correction, status: 'error', error } : session.correction,
+        }
+      }
       if (session.status !== 'recording') {
         return session
       }

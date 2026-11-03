@@ -15,6 +15,7 @@ import { Switch } from '../ui'
 import type { Translations } from '../../i18n'
 import type { AiFeatureKey, AiPostProcessConfig } from '../../types'
 import { fetchAvailableModels } from '../../services/aiPostProcess'
+import { aiBaseUrl, redactAiError } from '../../../../shared/ai'
 
 interface AiPostProcessPanelProps {
   t: Translations
@@ -45,10 +46,12 @@ export function AiPostProcessPanel({
   updateAiPostProcessConfig,
 }: AiPostProcessPanelProps) {
   const cfg = aiPostProcessConfig
-  const pick: Pick = (zh, en, ko) => (language === 'ko' ? ko : language === 'zh' ? zh : en)
+  const pick: Pick = useCallback((zh, en, ko) => (language === 'ko' ? ko : language === 'zh' ? zh : en), [language])
   const [showApiKey, setShowApiKey] = useState(false)
   const [fetchStatus, setFetchStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle')
   const [fetchError, setFetchError] = useState('')
+  const [connectionInfo, setConnectionInfo] = useState('')
+  const [manualModel, setManualModel] = useState('')
   const [modelSearch, setModelSearch] = useState('')
 
   const effectiveDefault = cfg.defaultModel?.trim() || cfg.model?.trim() || ''
@@ -62,19 +65,26 @@ export function AiPostProcessPanel({
   }, [cfg.availableModels, modelSearch])
 
   const handleFetchModels = useCallback(async () => {
-    const baseUrl = cfg.baseUrl?.trim()
-    if (!baseUrl) return
     setFetchStatus('loading')
     setFetchError('')
+    setConnectionInfo('')
     try {
-      const models = await fetchAvailableModels(baseUrl, cfg.apiKey)
-      updateAiPostProcessConfig({ availableModels: models })
+      if (cfg.provider === 'codex') {
+        if (!window.electronAPI?.codex) throw new Error('本机 Codex 需要桌面应用')
+        const status = await window.electronAPI.codex.inspect(cfg.codexPath)
+        if (!status.authenticated) throw new Error('Codex 尚未认证，请先在 CLI 登录或配置服务')
+        updateAiPostProcessConfig({ availableModels: status.models.map(m => m.id), visionModels: status.models.filter(m => m.vision).map(m => m.id) })
+        setConnectionInfo(`Codex ${status.version} · ${pick('认证可用，复用默认 CODEX_HOME', 'Authenticated · default CODEX_HOME', '인증됨 · 기본 CODEX_HOME')}`)
+      } else {
+        const models = await fetchAvailableModels(aiBaseUrl(cfg), cfg.apiKey)
+        updateAiPostProcessConfig({ availableModels: models })
+      }
       setFetchStatus('success')
     } catch (err) {
-      setFetchError(err instanceof Error ? err.message : String(err))
+      setFetchError(redactAiError(err instanceof Error ? err.message : String(err), cfg.apiKey))
       setFetchStatus('error')
     }
-  }, [cfg.baseUrl, cfg.apiKey, updateAiPostProcessConfig])
+  }, [cfg, updateAiPostProcessConfig, pick])
 
   const toggleModelSelected = useCallback(
     (modelId: string) => {
@@ -137,7 +147,24 @@ export function AiPostProcessPanel({
       </section>
 
       {/* API connection */}
-      <section className="workspace-panel-muted p-4 space-y-3">
+      <fieldset disabled={fetchStatus === 'loading'} className="workspace-panel-muted p-4 space-y-3">
+        <label className="block text-sm" htmlFor="ai-provider">{pick('AI 接入方式', 'AI provider', 'AI 공급자')}</label>
+        <select id="ai-provider" className="w-full rounded border border-input bg-background p-2" value={cfg.provider || 'openai-compatible'} onChange={event => {
+          const provider = event.target.value as AiPostProcessConfig['provider']
+          updateAiPostProcessConfig({ provider, model: '', defaultModel: '', selectedModels: [], availableModels: [], modelAssignment: {}, visionModels: [], apiKey: '',
+            baseUrl: provider === 'openai' ? 'https://api.openai.com/v1' : 'http://127.0.0.1:11434/v1' })
+          setFetchStatus('idle'); setFetchError(''); setConnectionInfo('')
+        }}>
+          <option value="openai-compatible">OpenAI-compatible</option>
+          <option value="openai">OpenAI API (Responses)</option>
+          <option value="codex">{pick('本机 Codex', 'Local Codex', '로컬 Codex')}</option>
+        </select>
+        <p className="text-xs text-muted-foreground">{pick('切换接入方式后请重新选择模型并填写所需密钥；不会自动切换服务。', 'Select models and credentials after switching providers. No automatic fallback.', '공급자 변경 후 모델과 인증 정보를 설정하세요. 자동 대체 없음.')}</p>
+        {cfg.provider === 'codex' ? <>
+          <label className="block text-sm" htmlFor="codex-path">{pick('Codex 程序路径（留空自动探测）', 'Codex executable (blank: auto-detect)', 'Codex 경로 (비우면 자동 탐지)')}</label>
+          <input id="codex-path" className="w-full rounded border border-input bg-background p-2 font-mono text-sm" value={cfg.codexPath || ''} onChange={e => updateAiPostProcessConfig({ codexPath: e.target.value })} placeholder="/opt/homebrew/bin/codex" />
+          <p className="text-xs text-muted-foreground">{pick('复用默认 CODEX_HOME 中的认证和服务配置，不修改全局配置。当前支持 Codex 0.156.x。', 'Uses default CODEX_HOME auth and provider settings without editing global config. Supports Codex 0.156.x.', '기본 CODEX_HOME 인증 및 설정 사용. 전역 설정 변경 없음. Codex 0.156.x 지원.')}</p>
+        </> : <>
         <label className="text-sm font-medium leading-none flex items-center gap-2">
           <Key className="w-3.5 h-3.5 text-muted-foreground" />
           {pick('API 连接', 'API Connection', 'API 연결')}
@@ -177,10 +204,17 @@ export function AiPostProcessPanel({
           </div>
           <p className="text-xs text-muted-foreground">{t.settings.aiApiKeyDesc}</p>
         </div>
+        {cfg.provider !== 'openai' && <>
+          <label className="block text-sm" htmlFor="ai-protocol">{pick('请求协议', 'Protocol', '프로토콜')}</label>
+          <select id="ai-protocol" className="w-full rounded border border-input bg-background p-2" value={cfg.protocol || 'chat-completions'} onChange={e => updateAiPostProcessConfig({ protocol: e.target.value as AiPostProcessConfig['protocol'] })}>
+            <option value="chat-completions">Chat Completions</option><option value="responses">Responses</option>
+          </select>
+        </>}
+        </>}
 
         <button
           onClick={() => void handleFetchModels()}
-          disabled={!cfg.baseUrl?.trim() || fetchStatus === 'loading'}
+          disabled={fetchStatus === 'loading'}
           className={`inline-flex items-center justify-center gap-2 h-9 px-4 text-sm font-medium rounded-md transition-colors w-full
             ${fetchStatus === 'loading'
               ? 'bg-muted text-muted-foreground cursor-not-allowed'
@@ -204,7 +238,18 @@ export function AiPostProcessPanel({
         {fetchStatus === 'error' && fetchError && (
           <p className="text-xs text-destructive">{fetchError}</p>
         )}
-      </section>
+        {connectionInfo && <p role="status" className="text-xs text-muted-foreground">{connectionInfo}</p>}
+        <label htmlFor="ai-manual-model" className="block text-sm">{pick('手动添加模型', 'Add model manually', '모델 직접 추가')}</label>
+        <div className="flex gap-2"><input id="ai-manual-model" className="min-w-0 flex-1 rounded border border-input bg-background p-2 text-sm" value={manualModel} onChange={e => setManualModel(e.target.value)} />
+          <button className="rounded border px-3 text-sm" disabled={!manualModel.trim()} onClick={() => {
+            const model = manualModel.trim()
+            updateAiPostProcessConfig({ availableModels: [...new Set([...(cfg.availableModels || []), model])], selectedModels: [...new Set([...selected, model])], ...(!effectiveDefault ? { defaultModel: model, model } : {}) })
+            setManualModel('')
+          }}>{pick('添加', 'Add', '추가')}</button></div>
+        <label htmlFor="ai-vision-models" className="block text-sm">{pick('已确认支持图片的模型（逗号分隔）', 'Confirmed vision models (comma separated)', '이미지 지원 확인 모델 (쉼표 구분)')}</label>
+        <input id="ai-vision-models" className="w-full rounded border border-input bg-background p-2 text-sm" key={`${cfg.provider}:${(cfg.visionModels || []).join(',')}`} defaultValue={(cfg.visionModels || []).join(', ')} onBlur={e => updateAiPostProcessConfig({ visionModels: [...new Set(e.target.value.split(',').map(m => m.trim()).filter(Boolean))] })} />
+        <p className="text-xs text-muted-foreground">{pick('Codex 根据模型能力填充；API 模型请根据服务说明确认。读取模型列表不代表已通过图文调用。', 'Codex supplies model capabilities; confirm API vision support with your provider. A model list is not an image test.', 'Codex 기능은 자동 입력됩니다. API 이미지 지원은 공급자에 확인하세요.')}</p>
+      </fieldset>
 
       {/* Model list */}
       {(cfg.availableModels?.length ?? 0) > 0 && (

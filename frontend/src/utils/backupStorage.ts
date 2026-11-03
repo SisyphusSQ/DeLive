@@ -164,7 +164,7 @@ function normalizeAiPostProcessConfig(value: unknown): AiPostProcessConfig | und
     return undefined
   }
 
-  const provider = value.provider === 'openai-compatible'
+  const provider = value.provider === 'openai-compatible' || value.provider === 'openai' || value.provider === 'codex'
     ? value.provider
     : 'openai-compatible'
   const promptLanguage = value.promptLanguage === 'en' || value.promptLanguage === 'zh' || value.promptLanguage === 'ko'
@@ -174,6 +174,15 @@ function normalizeAiPostProcessConfig(value: unknown): AiPostProcessConfig | und
   return {
     enabled: typeof value.enabled === 'boolean' ? value.enabled : undefined,
     provider,
+    protocol: value.protocol === 'responses' ? 'responses' : 'chat-completions',
+    visionModels: Array.isArray(value.visionModels) ? value.visionModels.filter((m): m is string => typeof m === 'string') : undefined,
+    defaultModel: typeof value.defaultModel === 'string' ? value.defaultModel : undefined,
+    selectedModels: Array.isArray(value.selectedModels) ? value.selectedModels.filter((m): m is string => typeof m === 'string') : undefined,
+    availableModels: Array.isArray(value.availableModels) ? value.availableModels.filter((m): m is string => typeof m === 'string') : undefined,
+    modelAssignment: isRecord(value.modelAssignment) ? Object.fromEntries(Object.entries(value.modelAssignment).filter(([k, v]) => ['briefing', 'chat', 'mindmap', 'correction'].includes(k) && typeof v === 'string')) : undefined,
+    preferCorrectedText: value.preferCorrectedText === 'original' || value.preferCorrectedText === 'corrected' ? value.preferCorrectedText : 'auto',
+    correctionMode: value.correctionMode === 'review' ? 'review' : 'quick',
+    enableStreaming: typeof value.enableStreaming === 'boolean' ? value.enableStreaming : undefined,
     baseUrl: typeof value.baseUrl === 'string' ? value.baseUrl : undefined,
     model: typeof value.model === 'string' ? value.model : undefined,
     apiKey: typeof value.apiKey === 'string' ? value.apiKey : undefined,
@@ -227,7 +236,7 @@ export async function exportAllData(): Promise<void> {
     exportedAt: new Date().toISOString(),
     sessions: normalizeTranscriptSessions(await getSessions()),
     tags: getTags(),
-    settings: withoutVolcCredentials(getSettings()),
+    settings: withoutCredentials(getSettings()),
     topics: getTopics(),
   }
 
@@ -326,7 +335,13 @@ export async function importDataMerge(
   }
 }
 
-export function withoutVolcCredentials(settings: AppSettings): AppSettings {
+export function withoutCredentials(settings: AppSettings): AppSettings {
+  if (settings.aiPostProcess) {
+    const aiPostProcess = { ...settings.aiPostProcess }
+    delete aiPostProcess.apiKey
+    delete aiPostProcess.codexPath
+    settings = { ...settings, aiPostProcess }
+  }
   if (!settings.providerConfigs?.volc) return settings
   const volc = { ...settings.providerConfigs.volc }
   for (const key of ['apiKey', 'appKey', 'accessKey']) delete volc[key]

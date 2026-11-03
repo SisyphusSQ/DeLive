@@ -29,7 +29,7 @@ features:
     details: 始终置顶、可拖拽的字幕窗口，支持原文、翻译和双语三种模式。字体、颜色、阴影、背景完全可自定义。
   - icon: 🔒
     title: 本地优先 & 安全
-    details: 会话存储在 IndexedDB，密钥通过 safeStorage 加密，上下文隔离、可信窗口 IPC、CSP 注入、导航守卫。数据不离开你的设备。
+    details: 会话存储在 IndexedDB，密钥通过 safeStorage 加密，上下文隔离、可信窗口 IPC、CSP 注入、导航守卫。本地保存会话；调用远端转写或 AI 服务时，所需资料会发送给所选服务。
   - icon: 🌐
     title: 开放 API 与 MCP 生态
     details: 本地 REST API（8 个端点）、实时 WebSocket 流、独立 MCP 服务器（支持 Claude Desktop 和 Cursor）、Agent Skill 定义、Agent Skills 一键调用转录 — AI 集成一步到位。

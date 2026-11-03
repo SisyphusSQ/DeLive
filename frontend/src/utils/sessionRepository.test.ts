@@ -132,6 +132,27 @@ describe('sessionRepository persistence strategy', () => {
     expect(saved[0].title).toBe('original')
   })
 
+  it('persists interrupted AI tasks without replacing completed results or reissuing requests', async () => {
+    sessionStorageMock.getSessions.mockResolvedValue([makeSession({
+      id: 'ai-interrupted', status: 'completed',
+      postProcess: { status: 'pending', summary: 'partial' },
+      mindMap: { status: 'pending', markdown: 'partial' },
+      correction: { status: 'correcting', mode: 'quick' },
+      askHistory: [
+        { id: 'pending', question: 'question', createdAt: 1, status: 'pending' },
+        { id: 'saved', question: 'old', answer: 'saved result', createdAt: 1, status: 'success' },
+      ],
+    })])
+    const { sessionRepository } = await import('./sessionRepository')
+    const { sessions } = await sessionRepository.loadForLaunch()
+    expect(sessions[0].postProcess).toMatchObject({ status: 'error', error: expect.stringContaining('中断') })
+    expect(sessions[0].mindMap?.status).toBe('error')
+    expect(sessions[0].correction?.status).toBe('error')
+    expect(sessions[0].askHistory?.map(turn => turn.status)).toEqual(['error', 'success'])
+    expect(sessions[0].askHistory?.[1].answer).toBe('saved result')
+    expect(sessionStorageMock.upsertSessions).toHaveBeenCalledWith([sessions[0]])
+  })
+
   it('uses full replace only for replaceAllSessions', async () => {
     const { sessionRepository } = await import('./sessionRepository')
     const sessions = [

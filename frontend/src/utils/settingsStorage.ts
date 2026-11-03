@@ -147,6 +147,9 @@ export function getSettings(): AppSettings {
 }
 
 export function saveSettings(settings: AppSettings): void {
+  if (settings.aiPostProcess?.apiKey) {
+    settings = { ...settings, aiPostProcess: { ...settings.aiPostProcess, apiKey: '{{SAFE_STORAGE}}' } }
+  }
   // Resolved Volc credentials only live in memory; provider save encrypts them first.
   if (settings.providerConfigs?.volc) {
     const volc = { ...settings.providerConfigs.volc }

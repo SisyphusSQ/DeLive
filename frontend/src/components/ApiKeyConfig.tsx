@@ -216,6 +216,11 @@ export function ApiKeyConfig({ isOpen, onClose, mode = 'modal', onViewChangelog 
   }
 
   const handleSave = async () => {
+    if (activeGroup === 'aiPostProcess') {
+      try { await updateAiPostProcessConfig(aiPostProcessConfig); onClose() }
+      catch (error) { setTestStatus('error'); setTestMessage((error as Error).message) }
+      return
+    }
     const providerConfig = buildEditableProviderConfig()
     const normalizedHints = Array.isArray(providerConfig.languageHints) && providerConfig.languageHints.length > 0
       ? providerConfig.languageHints.map((item) => String(item).trim()).filter(Boolean)
@@ -235,7 +240,8 @@ export function ApiKeyConfig({ isOpen, onClose, mode = 'modal', onViewChangelog 
         : settings.apiKey,
       languageHints: normalizedHints,
     })
-    await updateAiPostProcessConfig(aiPostProcessConfig)
+    try { await updateAiPostProcessConfig(aiPostProcessConfig) }
+    catch (error) { setTestStatus('error'); setTestMessage((error as Error).message); return }
     onClose()
   }
 
@@ -462,6 +468,7 @@ export function ApiKeyConfig({ isOpen, onClose, mode = 'modal', onViewChangelog 
         {/* Save bar — only shown for groups that need manual save */}
         {(activeGroup === 'provider' || activeGroup === 'aiPostProcess') && (
           <div className="flex items-center justify-end gap-3 px-6 py-3 bg-muted/30 border-t border-border shrink-0">
+            {activeGroup === 'aiPostProcess' && testStatus === 'error' && <p role="alert" className="mr-auto text-sm text-destructive">{testMessage}</p>}
             {isDirty && (
               <span className="mr-auto text-xs text-warning font-medium">
                 {t.electron.unsavedChanges}

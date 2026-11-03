@@ -1,3 +1,4 @@
+import type { AiConnection } from '../../../shared/ai'
 // 重新导出 ASR 相关类型
 export * from './asr'
 
@@ -214,9 +215,8 @@ export interface ProviderConfigData {
 
 export type AiFeatureKey = 'briefing' | 'chat' | 'mindmap' | 'correction'
 
-export interface AiPostProcessConfig {
+export interface AiPostProcessConfig extends AiConnection {
   enabled?: boolean
-  provider?: 'openai-compatible'
   baseUrl?: string
   apiKey?: string
   promptLanguage?: 'zh' | 'en' | 'ko'
