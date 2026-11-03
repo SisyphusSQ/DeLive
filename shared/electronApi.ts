@@ -229,7 +229,8 @@ export interface ApiTagData {
 // ─── Cloud Backup types ───
 
 export interface CloudBackupIpcConfig {
-  provider: 's3' | 'webdav'
+  provider: 's3' | 'webdav' | 'quark'
+  quark?: import('./backup').QuarkConfig
   s3?: {
     endpoint: string
     region: string
@@ -248,6 +249,9 @@ export interface CloudBackupIpcConfig {
 }
 
 export interface CloudBackupIpcFileInfo {
+  name?: string
+  includeAudio?: boolean
+  legacy?: boolean
   key: string
   lastModified: string
   size: number
@@ -256,6 +260,7 @@ export interface CloudBackupIpcFileInfo {
 // ─── Core types ───
 
 export interface ElectronAPI {
+  completeBackup: import('./backup').CompleteBackupAPI
   sessionImages: import('./sessionImages').SessionImagesAPI
   codex: import('./ai').CodexAPI
   fileTasks: import('./fileTranscription').FileTasksAPI

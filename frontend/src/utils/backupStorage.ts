@@ -1,3 +1,4 @@
+import { portableSettings } from '../../../shared/backup'
 import type {
   AiPostProcessConfig,
   AppSettings,
@@ -14,31 +15,6 @@ import { getDefaultSettings } from './storageShared'
 
 export const CURRENT_BACKUP_VERSION = '3.0'
 export const CURRENT_BACKUP_SCHEMA_VERSION = 3
-
-function mergeProviderApiKeys(
-  current?: Record<string, ProviderConfigData>,
-  incoming?: Record<string, ProviderConfigData>,
-): Record<string, ProviderConfigData> | undefined {
-  if (!incoming) return current
-  if (!current) return incoming
-
-  const merged = { ...incoming }
-  for (const [vendor, cfg] of Object.entries(current)) {
-    if (!cfg.apiKey && !cfg.appKey && !cfg.accessKey) continue
-    if (!merged[vendor]) {
-      merged[vendor] = cfg
-    } else {
-      merged[vendor] = {
-        ...merged[vendor],
-        ...(cfg.apiKey ? { apiKey: cfg.apiKey } : {}),
-        ...(cfg.appKey ? { appKey: cfg.appKey } : {}),
-        ...(cfg.accessKey ? { accessKey: cfg.accessKey } : {}),
-        ...(cfg.apiToken ? { apiToken: cfg.apiToken } : {}),
-      }
-    }
-  }
-  return merged
-}
 
 export interface BackupData {
   version: string
@@ -284,15 +260,11 @@ export async function importDataOverwrite(
   }
 
   const currentSettings = getSettings()
-  const mergedProviderConfigs = mergeProviderApiKeys(
-    currentSettings.providerConfigs,
-    normalized.settings.providerConfigs,
-  )
-  saveSettings({
-    ...normalized.settings,
-    apiKey: currentSettings.apiKey || normalized.settings.apiKey,
-    providerConfigs: mergedProviderConfigs,
-  })
+  const portable = withoutCredentials(normalized.settings)
+  saveSettings({ ...currentSettings, ...portable, aiPostProcess: {
+    ...currentSettings.aiPostProcess, ...portable.aiPostProcess,
+    apiKey: currentSettings.aiPostProcess?.apiKey, codexPath: currentSettings.aiPostProcess?.codexPath,
+  } })
 
   return {
     sessions: normalized.sessions.length,
@@ -336,14 +308,5 @@ export async function importDataMerge(
 }
 
 export function withoutCredentials(settings: AppSettings): AppSettings {
-  if (settings.aiPostProcess) {
-    const aiPostProcess = { ...settings.aiPostProcess }
-    delete aiPostProcess.apiKey
-    delete aiPostProcess.codexPath
-    settings = { ...settings, aiPostProcess }
-  }
-  if (!settings.providerConfigs?.volc) return settings
-  const volc = { ...settings.providerConfigs.volc }
-  for (const key of ['apiKey', 'appKey', 'accessKey']) delete volc[key]
-  return { ...settings, providerConfigs: { ...settings.providerConfigs, volc } }
+  return portableSettings(settings) as unknown as AppSettings
 }

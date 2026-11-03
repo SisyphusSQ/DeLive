@@ -242,7 +242,7 @@ export interface OpenApiConfig {
   token?: string
 }
 
-export type CloudBackupProviderType = 's3' | 'webdav'
+export type CloudBackupProviderType = 's3' | 'webdav' | 'quark'
 
 export interface S3BackupConfig {
   endpoint: string
@@ -262,6 +262,8 @@ export interface WebDAVBackupConfig {
 }
 
 export interface CloudBackupConfig {
+  includeAudio?: boolean
+  quark?: import('../../../shared/backup').QuarkConfig
   enabled?: boolean
   provider?: CloudBackupProviderType
   autoBackupOnComplete?: boolean

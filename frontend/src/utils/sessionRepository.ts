@@ -22,6 +22,8 @@ export interface SessionLaunchState {
 
 let cachedSessions: TranscriptSession[] = []
 let cacheReady = false
+const pendingWrites = new Set<Promise<unknown>>()
+function trackWrite<T>(operation: Promise<T>): Promise<T> { pendingWrites.add(operation); void operation.finally(() => pendingWrites.delete(operation)).catch(() => {}); return operation }
 const durableWrites = new Map<string, Promise<TranscriptSession[]>>()
 
 function normalizeSession(session: TranscriptSession): TranscriptSession {
@@ -41,7 +43,7 @@ function updateCachedSessions(sessions: TranscriptSession[]): TranscriptSession[
 function persistSessions(sessions: TranscriptSession[]): TranscriptSession[] {
   const nextSessions = updateCachedSessions(sessions)
 
-  void saveSessions(nextSessions).catch((error) => {
+  void trackWrite(saveSessions(nextSessions)).catch((error) => {
     console.error('[sessionRepository] Failed to persist sessions:', error)
   })
 
@@ -74,7 +76,7 @@ function persistSessionBatch(sessionIds: string[], sessions: TranscriptSession[]
     return nextSessions
   }
 
-  void upsertSessions(targets).catch((error) => {
+  void trackWrite(upsertSessions(targets)).catch((error) => {
     console.error('[sessionRepository] Failed to persist session batch:', error)
   })
 
@@ -84,7 +86,7 @@ function persistSessionBatch(sessionIds: string[], sessions: TranscriptSession[]
 function persistSessionDeletion(sessionId: string, sessions: TranscriptSession[]): TranscriptSession[] {
   const nextSessions = updateCachedSessions(sessions)
 
-  void deleteSessionById(sessionId).catch((error) => {
+  void trackWrite(deleteSessionById(sessionId)).catch((error) => {
     console.error('[sessionRepository] Failed to delete session:', error)
   })
 
@@ -113,6 +115,13 @@ function updateSessionCollection(
 }
 
 export const sessionRepository = {
+  async snapshot(): Promise<TranscriptSession[]> {
+    await Promise.all([...pendingWrites, ...durableWrites.values()])
+    const sessions = cacheReady ? getCachedSessions() : await getSessions()
+    // Persist the complete current cache so earlier reported write failures cannot be hidden in a backup.
+    await saveSessions(sessions)
+    return structuredClone(sessions)
+  },
   async loadForLaunch(): Promise<SessionLaunchState> {
     const loadedSessions = await getSessions()
     const upgraded = upgradeTranscriptSessions(loadedSessions)

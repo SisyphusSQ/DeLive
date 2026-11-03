@@ -189,6 +189,7 @@ export default withMermaid(
                   { text: '测试', link: '/zh/development/testing' },
                   { text: 'AI 接入与权限', link: '/zh/development/ai-providers' },
                   { text: '会话图片与 AI 来源', link: '/zh/development/session-images' },
+                  { text: '完整云端备份', link: '/zh/development/cloud-backup' },
                   { text: '构建与发布', link: '/zh/development/build' },
                 ],
               },

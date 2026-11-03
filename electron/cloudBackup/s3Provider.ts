@@ -1,3 +1,8 @@
+import { createReadStream, createWriteStream } from 'node:fs'
+import { stat } from 'node:fs/promises'
+import { Readable } from 'node:stream'
+import { pipeline } from 'node:stream/promises'
+import { Upload } from '@aws-sdk/lib-storage'
 import {
   S3Client,
   PutObjectCommand,
@@ -90,7 +95,7 @@ export async function s3List(
     } while (continuationToken)
 
     const files: CloudBackupIpcFileInfo[] = allContents
-      .filter(obj => obj.Key?.endsWith('.json'))
+      .filter(obj => obj.Key?.endsWith('.json') || obj.Key?.endsWith('.delive'))
       .sort((a, b) => {
         const ta = a.LastModified?.getTime() ?? 0
         const tb = b.LastModified?.getTime() ?? 0
@@ -154,4 +159,17 @@ export async function s3Delete(
   } finally {
     client.destroy()
   }
+}
+
+export async function s3UploadArchive(config: NonNullable<CloudBackupIpcConfig['s3']>, file: string, name: string, progress: (completed: number, total: number)=>void): Promise<string> {
+  const client=createS3Client(config),key=resolveKey(config.prefix,name),size=(await stat(file)).size
+  try { const upload=new Upload({client,params:{Bucket:config.bucket,Key:key,Body:createReadStream(file),ContentLength:size,ContentType:'application/octet-stream'},queueSize:2,partSize:16*1024*1024,leavePartsOnError:false});upload.on('httpUploadProgress',p=>progress(p.loaded||0,size));await upload.done();return key }
+  finally {client.destroy()}
+}
+export async function s3DownloadArchive(config: NonNullable<CloudBackupIpcConfig['s3']>, key: string, file: string): Promise<void> {
+  const prefix=config.prefix.replace(/\/+$/,'')
+  if(prefix&&!key.startsWith(prefix+'/'))throw new Error('备份对象不在配置目录')
+  const client=createS3Client(config)
+  try {const result=await client.send(new GetObjectCommand({Bucket:config.bucket,Key:key}));if(!result.Body)throw new Error('下载返回空文件');const input=result.Body instanceof Readable?result.Body:Readable.fromWeb(result.Body.transformToWebStream() as never);await pipeline(input,createWriteStream(file,{flags:'wx',mode:0o600}))}
+  finally {client.destroy()}
 }
