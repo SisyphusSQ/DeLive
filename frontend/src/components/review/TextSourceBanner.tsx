@@ -1,3 +1,4 @@
+import { selectedReviewVersion, versionLabel } from '../../utils/reviewVersions'
 import { Info, Loader2 } from 'lucide-react'
 import type { TranscriptSession } from '../../types'
 import { useUIStore } from '../../stores/uiStore'
@@ -24,6 +25,8 @@ export function TextSourceBanner({ session }: TextSourceBannerProps) {
   const hasCorrected = correctionStatus === 'done'
     && typeof correction?.correctedText === 'string'
     && correction.correctedText.trim().length > 0
+
+  if (session.selectedVersionId) return <p className="text-xs text-muted-foreground">AI 文字来源：{versionLabel(selectedReviewVersion(session))}</p>
 
   if (isCorrecting && preference !== 'original') {
     return (

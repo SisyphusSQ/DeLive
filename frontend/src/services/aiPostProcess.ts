@@ -1,4 +1,4 @@
-import { completeAi } from './aiTransport'
+import { completeSessionAi, CONTEXT_MARKER, resolveInputText, type AiInputStamp } from './aiSessionContext'
 import { briefingSchema, qaSchema, mindMapSchema } from './aiSchemas'
 import type {
   AiFeatureKey,
@@ -13,7 +13,6 @@ import type {
 import { throwUserError } from '../utils/userErrors'
 
 const DEFAULT_PROMPT_LANGUAGE: NonNullable<AiPostProcessConfig['promptLanguage']> = 'zh'
-const MAX_TRANSCRIPT_CHARS = 24_000
 
 interface ModelsApiResponse {
   data?: Array<{ id: string; created?: number; owned_by?: string }>
@@ -78,7 +77,7 @@ export interface SessionBriefingResult {
   postProcess: TranscriptPostProcess
 }
 
-export interface SessionQaResult {
+export interface SessionQaResult extends AiInputStamp {
   answer: string
   citations?: TranscriptQaCitation[]
   model: string
@@ -148,6 +147,8 @@ function normalizeQaCitation(value: unknown): TranscriptQaCitation | null {
 
   return {
     quote,
+    source: record.source === 'image' ? 'image' : record.source === 'text' ? 'text' : undefined,
+    imageId: typeof record.imageId === 'string' ? record.imageId : undefined,
     speakerLabel: speakerLabel || undefined,
   }
 }
@@ -328,28 +329,11 @@ export function resolveTranscriptText(
   session: TranscriptSession,
   preference: AiPostProcessConfig['preferCorrectedText'],
 ): string {
-  const pref = preference || 'auto'
-  const hasCorrected = session.correction?.status === 'done'
-    && typeof session.correction.correctedText === 'string'
-    && session.correction.correctedText.trim().length > 0
-
-  if (pref === 'corrected' && hasCorrected) return session.correction!.correctedText!.trim()
-  if (pref === 'auto' && hasCorrected) return session.correction!.correctedText!.trim()
-  return session.transcript.trim()
+  return resolveInputText(session, preference)
 }
 
-function buildSessionContextBlock(
-  session: TranscriptSession,
-  preference?: AiPostProcessConfig['preferCorrectedText'],
-): string {
-  const transcript = resolveTranscriptText(session, preference)
-  const clippedTranscript = transcript.length > MAX_TRANSCRIPT_CHARS
-    ? `${transcript.slice(0, MAX_TRANSCRIPT_CHARS)}\n\n[truncated]`
-    : transcript
-  const translatedTranscript = session.translatedTranscript?.text?.trim()
-  return translatedTranscript
-    ? `${clippedTranscript}\n\n=== translated ===\n${translatedTranscript}`
-    : clippedTranscript
+function buildSessionContextBlock(_session: TranscriptSession, _preference?: AiPostProcessConfig['preferCorrectedText']): string {
+  return CONTEXT_MARKER
 }
 
 function buildAskSystemPrompt(language: NonNullable<AiPostProcessConfig['promptLanguage']>): string {
@@ -470,15 +454,7 @@ function buildMindMapUserPrompt(
   preference?: AiPostProcessConfig['preferCorrectedText'],
 ): string {
   const transcriptBlock = buildSessionContextBlock(session, preference)
-  const summaryBlock = session.postProcess?.summary?.trim()
-    ? `Summary:\n${session.postProcess.summary.trim()}`
-    : ''
-  const actionBlock = session.postProcess?.actionItems?.length
-    ? `Action items:\n${session.postProcess.actionItems.join('\n')}`
-    : ''
-  const keywordsBlock = session.postProcess?.keywords?.length
-    ? `Keywords:\n${session.postProcess.keywords.join(', ')}`
-    : ''
+  const summaryBlock = '', actionBlock = '', keywordsBlock = ''
 
   if (language === 'ko') {
     return [
@@ -578,15 +554,15 @@ export async function generateSessionBriefing(
     throwUserError('aiModelNotConfigured')
   }
 
-  if (!session.transcript.trim()) {
+  if (!resolveInputText(session, config.preferCorrectedText) && !session.images?.length) {
     throwUserError('noTranscriptForAnalysis')
   }
 
-  const content = await completeAi(config, { model, schema: briefingSchema, messages: [
+  const { content, ...stamp } = await completeSessionAi(session, config, { model, schema: briefingSchema, messages: [
     { role: 'system', content: buildSystemPrompt(promptLanguage) },
     { role: 'user', content: buildUserPrompt(session, promptLanguage, config.preferCorrectedText) },
   ] }, { taskKey: session.id })
-  const postProcess = parseAiBriefingResponse(content, model)
+  const postProcess = { ...parseAiBriefingResponse(content, model), ...stamp }
 
   return { postProcess }
 }
@@ -610,7 +586,7 @@ export async function askQuestionForSession(
     throwUserError('aiModelNotConfigured')
   }
 
-  if (!session.transcript.trim()) {
+  if (!resolveInputText(session, config.preferCorrectedText) && !session.images?.length) {
     throwUserError('noTranscriptForQa')
   }
 
@@ -620,13 +596,13 @@ export async function askQuestionForSession(
 
   const conversationId = options?.conversationId?.trim()
 
-  const content = await completeAi(config, { model, schema: qaSchema, messages: [
+  const { content, ...stamp } = await completeSessionAi(session, config, { model, schema: qaSchema, messages: [
     { role: 'system', content: buildAskSystemPrompt(promptLanguage) },
     { role: 'user', content: buildAskUserPrompt({ ...session,
       askHistory: conversationId ? (session.askHistory || []).filter(turn => (turn.conversationId || 'default') === conversationId) : session.askHistory,
     }, normalizedQuestion, promptLanguage, config.preferCorrectedText) },
   ] }, { taskKey: session.id })
-  return parseSessionQaResponse(content, model)
+  return { ...parseSessionQaResponse(content, model), ...stamp }
 }
 
 export interface AskStreamCallbacks {
@@ -649,20 +625,20 @@ export async function askQuestionForSessionStreaming(
 
   if (!config.enabled) throwUserError('aiPostProcessDisabled')
   if (!model) throwUserError('aiModelNotConfigured')
-  if (!session.transcript.trim()) throwUserError('noTranscriptForQa')
+  if (!resolveInputText(session, config.preferCorrectedText) && !session.images?.length) throwUserError('noTranscriptForQa')
   if (!normalizedQuestion) throwUserError('enterQuestion')
 
   const conversationId = options?.conversationId?.trim()
 
   let fullText = ''
   try {
-    const content = await completeAi(config, { model, schema: qaSchema, messages: [
+    const { content, ...stamp } = await completeSessionAi(session, config, { model, schema: qaSchema, messages: [
       { role: 'system', content: buildAskSystemPrompt(promptLanguage) },
       { role: 'user', content: buildAskUserPrompt({ ...session,
         askHistory: conversationId ? (session.askHistory || []).filter(turn => (turn.conversationId || 'default') === conversationId) : session.askHistory,
       }, normalizedQuestion, promptLanguage, config.preferCorrectedText) },
     ] }, { taskKey: session.id, signal: options?.signal, onDelta: delta => { fullText += delta; callbacks.onChunk(fullText) } })
-    callbacks.onDone(content, parseSessionQaResponse(content, model))
+    callbacks.onDone(content, { ...parseSessionQaResponse(content, model), ...stamp })
   } catch (error) {
     callbacks.onError(error instanceof Error ? error : new Error(String(error)))
   }
@@ -684,15 +660,15 @@ export async function generateSessionMindMap(
     throwUserError('aiModelNotConfigured')
   }
 
-  if (!session.transcript.trim()) {
+  if (!resolveInputText(session, config.preferCorrectedText) && !session.images?.length) {
     throwUserError('noTranscriptForMindMap')
   }
 
-  const content = await completeAi(config, { model, schema: mindMapSchema, messages: [
+  const { content, ...stamp } = await completeSessionAi(session, config, { model, schema: mindMapSchema, messages: [
     { role: 'system', content: buildMindMapSystemPrompt(promptLanguage) },
     { role: 'user', content: buildMindMapUserPrompt(session, promptLanguage, config.preferCorrectedText) },
   ] }, { taskKey: session.id })
-  const mindMap = parseSessionMindMapResponse(content, model)
+  const mindMap = { ...parseSessionMindMapResponse(content, model), ...stamp }
 
   return { mindMap }
 }

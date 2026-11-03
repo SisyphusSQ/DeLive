@@ -50,14 +50,17 @@ function persistSessions(sessions: TranscriptSession[]): TranscriptSession[] {
 
 function persistSingleSession(sessionId: string, sessions: TranscriptSession[]): TranscriptSession[] {
   const nextSessions = updateCachedSessions(sessions)
-  const targetSession = nextSessions.find((session) => session.id === sessionId)
-
-  if (!targetSession) {
-    return nextSessions
-  }
-
-  void upsertSession(targetSession).catch((error) => {
+  const previous = durableWrites.get(sessionId) ?? Promise.resolve([])
+  const operation = previous.catch(() => []).then(async () => {
+    const target = getCachedSessions().find(session => session.id === sessionId)
+    if (target) await upsertSession(target)
+    return getCachedSessions()
+  })
+  durableWrites.set(sessionId, operation)
+  void operation.catch((error) => {
     console.error('[sessionRepository] Failed to persist session:', error)
+  }).finally(() => {
+    if (durableWrites.get(sessionId) === operation) durableWrites.delete(sessionId)
   })
 
   return nextSessions
@@ -266,5 +269,15 @@ export const sessionRepository = {
   deleteSession(sessionId: string): TranscriptSession[] {
     const sessions = getCachedSessions().filter((session) => session.id !== sessionId)
     return persistSessionDeletion(sessionId, sessions)
+  },
+
+  async deleteSessionDurable(sessionId: string): Promise<TranscriptSession[]> {
+    const previous = durableWrites.get(sessionId) ?? Promise.resolve([])
+    const operation = previous.catch(() => []).then(async () => {
+      await deleteSessionById(sessionId)
+      return updateCachedSessions(getCachedSessions().filter(session => session.id !== sessionId))
+    })
+    durableWrites.set(sessionId, operation)
+    try { return await operation } finally { if (durableWrites.get(sessionId) === operation) durableWrites.delete(sessionId) }
   },
 }

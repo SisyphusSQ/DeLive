@@ -6,6 +6,7 @@ import { useSessionStore } from '../../stores/sessionStore'
 import { sessionRepository } from '../../utils/sessionRepository'
 import { appendRevision, editedVersion, mapSpeakers, reviewVersions, selectedReviewVersion, timestamp, versionLabel } from '../../utils/reviewVersions'
 import { useRecordingPlayback } from '../../hooks/useRecordingPlayback'
+import { SessionImages } from '../SessionImages'
 
 const input='rounded border border-border bg-background px-2 py-1 text-sm'
 export function TranscriptTab({session}:{session:TranscriptSession}) {
@@ -79,6 +80,7 @@ function ReviewTranscript({session}:{session:TranscriptSession}) {
       {!!playback.manifest?.events.length&&<details className="text-xs text-muted-foreground"><summary>录音来源与中断记录</summary>{playback.manifest.events.map((e,i)=><p key={i}>{timestamp(e.atMs)} {e.message}</p>)}</details>}
     </section>
 
+    <SessionImages session={session} getTime={() => playback.state.positionMs} onSeek={playback.manifest ? ms => void playback.seek(ms, true) : undefined} />
     {error&&<p role="alert" className="text-sm text-red-600">{error}</p>}{notice&&<p role="status" className="text-sm text-emerald-600">{notice}</p>}
     {draft&&source?<section aria-label="稿件校对编辑" className="space-y-3 rounded-lg border border-primary/30 p-3">
       <p className="text-sm">校对尚未保存。保存会生成新版本，保留原稿与此前修订；导出使用已保存的当前版本。</p>

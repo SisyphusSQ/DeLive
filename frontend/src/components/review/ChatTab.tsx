@@ -1,3 +1,5 @@
+import { resolveInputText } from '../../services/aiSessionContext'
+import { AiStaleNotice } from './AiStaleNotice'
 import { useEffect, useMemo, useRef, useState, useCallback } from 'react'
 import {
   MessageSquareQuote,
@@ -243,7 +245,7 @@ export function ChatTab({ session }: ChatTabProps) {
 
   const askSuggestions = t.preview.askSuggestions || []
   const showNewThreadPill = isNewThread && !hasActiveConversation
-  const canSend = aiConfigured && !askPending && session.transcript.trim() && questionDraft.trim()
+  const canSend = aiConfigured && !askPending && (resolveInputText(session, 'auto') || session.images?.length) && questionDraft.trim()
 
   return (
     <div className="flex h-full flex-col overflow-hidden">
@@ -283,9 +285,9 @@ export function ChatTab({ session }: ChatTabProps) {
         </div>
         <button
           onClick={handleStartNewConversation}
-          disabled={!aiConfigured || !session.transcript.trim() || askPending}
+          disabled={!aiConfigured || !(resolveInputText(session, 'auto') || session.images?.length) || askPending}
           className={`inline-flex shrink-0 items-center gap-1 rounded-md px-2.5 py-1.5 text-[11px] font-medium transition-colors ${
-            !aiConfigured || !session.transcript.trim() || askPending
+            !aiConfigured || !(resolveInputText(session, 'auto') || session.images?.length) || askPending
               ? 'cursor-not-allowed text-muted-foreground/50'
               : 'text-muted-foreground hover:bg-accent hover:text-foreground'
           }`}
@@ -305,7 +307,7 @@ export function ChatTab({ session }: ChatTabProps) {
           {!aiConfigured && (
             <p className="mb-4 text-xs text-muted-foreground">{t.preview.aiNotConfigured}</p>
           )}
-          {!session.transcript.trim() && (
+          {!(resolveInputText(session, 'auto') || session.images?.length) && (
             <p className="mb-4 text-xs text-muted-foreground">{t.preview.askNoTranscript}</p>
           )}
 
@@ -365,7 +367,7 @@ export function ChatTab({ session }: ChatTabProps) {
                         </div>
                       ) : (
                         <div className="rounded-2xl rounded-tl-md px-4 py-3">
-                          <MarkdownRenderer content={turn.answer || ''} />
+                          <AiStaleNotice session={session} result={turn} /><MarkdownRenderer content={turn.answer || ''} />
                         </div>
                       )}
 
@@ -383,11 +385,9 @@ export function ChatTab({ session }: ChatTabProps) {
                               >
                                 <div className="inline-flex items-center gap-1 text-[10px] font-medium text-muted-foreground">
                                   <Quote className="w-2.5 h-2.5" />
-                                  {citation.speakerLabel || t.preview.askReferenceFallback}
+                                  {citation.source === 'image' ? <a className="text-primary underline" href={`#image-${citation.imageId}`}>图片内容</a> : citation.speakerLabel || t.preview.askReferenceFallback}
                                 </div>
-                                <p className="mt-1 text-xs leading-relaxed text-foreground/80 whitespace-pre-wrap">
-                                  {citation.quote}
-                                </p>
+                                <MarkdownRenderer content={citation.quote} className="text-xs" />
                               </div>
                             ))}
                           </div>

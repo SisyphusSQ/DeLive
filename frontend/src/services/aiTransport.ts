@@ -37,20 +37,18 @@ export function buildAiBody(config: AiConnection, request: AiRequest, stream: bo
   return { model: request.model, messages, stream }
 }
 
-export async function completeAi(config: AiConnection, request: AiRequest, options: AiRequestOptions = {}): Promise<string> {
+export async function withAiTask<T>(taskKey: string, signal: AbortSignal | undefined, run: (signal: AbortSignal) => Promise<T>): Promise<T> {
   const controller = new AbortController()
-  const key = options.taskKey || crypto.randomUUID()
-  const group = tasks.get(key) || new Set<AbortController>()
+  const group = tasks.get(taskKey) || new Set<AbortController>()
   group.add(controller)
-  tasks.set(key, group)
-  try {
-    return await performAi(config, request, { ...options,
-      signal: AbortSignal.any([controller.signal, ...(options.signal ? [options.signal] : [])]),
-    })
-  } finally {
-    group.delete(controller)
-    if (!group.size) tasks.delete(key)
-  }
+  tasks.set(taskKey, group)
+  try { return await run(AbortSignal.any([controller.signal, ...(signal ? [signal] : [])])) }
+  finally { group.delete(controller); if (!group.size) tasks.delete(taskKey) }
+}
+
+export async function completeAi(config: AiConnection, request: AiRequest, options: AiRequestOptions = {}): Promise<string> {
+  return withAiTask(options.taskKey || crypto.randomUUID(), options.signal,
+    signal => performAi(config, request, { ...options, signal }))
 }
 
 async function performAi(config: AiConnection, request: AiRequest, options: AiRequestOptions): Promise<string> {

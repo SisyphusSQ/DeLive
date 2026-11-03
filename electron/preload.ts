@@ -10,6 +10,13 @@ import type {
 } from '../shared/electronApi'
 
 const electronAPI: ElectronAPI = {
+  sessionImages: {
+    cleanupUnreferenced: references => ipcRenderer.invoke('session-images:cleanup', references),
+    import: (id, bytes, name) => ipcRenderer.invoke('session-images:import', id, bytes, name),
+    read: (id, assetPath) => ipcRenderer.invoke('session-images:read', id, assetPath),
+    remove: (id, assetPath) => ipcRenderer.invoke('session-images:remove', id, assetPath),
+    removeSession: id => ipcRenderer.invoke('session-images:remove-session', id),
+  },
   codex: {
     inspect: executable => ipcRenderer.invoke('codex:inspect', executable),
     complete: (id, executable, request) => ipcRenderer.invoke('codex:complete', id, executable, request),

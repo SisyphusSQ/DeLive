@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback, useRef } from 'react'
+import { SessionImageViewer } from './SessionImages'
 import { Sparkles } from 'lucide-react'
 import type { TranscriptSession } from '../types'
 import {
@@ -97,6 +98,8 @@ export function PreviewModal({
     if (!session) return undefined
 
     const handleKeyDown = (event: KeyboardEvent) => {
+      const dialogs = document.querySelectorAll('[aria-modal="true"]')
+      if (dialogs.length && dialogs[dialogs.length - 1].getAttribute('aria-labelledby') !== 'session-review-title') return
       if (event.key === 'Escape') {
         onClose()
       }
@@ -138,6 +141,7 @@ export function PreviewModal({
 
   const containerContent = (
     <>
+      <SessionImageViewer session={session} />
       <SessionHeader
         session={session}
         onClose={onClose}

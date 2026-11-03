@@ -368,6 +368,7 @@ export function useASR(options: UseASROptions = {}) {
   }, [buildProviderCallbacks, options, setRecordingState])
 
   const getMediaStream = useCallback(() => captureRef.current.currentStream, [])
+  const getRecordingTime = useCallback(() => Math.round(captureRef.current.archiveTimeMs), [])
 
   return {
     startRecording,
@@ -375,6 +376,7 @@ export function useASR(options: UseASROptions = {}) {
     switchConfig,
     switchProvider,
     getMediaStream,
+    getRecordingTime,
     reconnectTranscription,
   }
 }

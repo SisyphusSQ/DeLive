@@ -1,3 +1,5 @@
+import { resolveInputText } from '../../services/aiSessionContext'
+import { AiStaleNotice } from './AiStaleNotice'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import {
@@ -177,7 +179,7 @@ export function MindMapTab({ session }: MindMapTabProps) {
 
   const aiConfigured = isAiPostProcessConfigured(settings)
   const generating = session.mindMap?.status === 'pending'
-  const hasTranscript = Boolean(session.transcript.trim())
+  const hasTranscript = Boolean((resolveInputText(session, 'auto') || session.images?.length))
   const hasMindMap = Boolean(draftMarkdown.trim())
   const isDirty = draftMarkdown.trim() !== (session.mindMap?.markdown || '').trim()
   const exportBaseName = useMemo(
@@ -239,7 +241,7 @@ export function MindMapTab({ session }: MindMapTabProps) {
     <div className="flex h-full flex-col overflow-hidden">
       {/* Toolbar */}
       <div className="flex flex-wrap items-center gap-2 border-b border-border bg-muted/20 px-5 py-3">
-        <TextSourceBanner session={session} />
+        <TextSourceBanner session={session} /><AiStaleNotice session={session} result={session.mindMap} />
         <button
           onClick={() => void handleGenerate()}
           disabled={!aiConfigured || !hasTranscript || generating}

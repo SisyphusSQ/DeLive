@@ -120,8 +120,11 @@ export function createTransaction<T>(
     const transaction = db.transaction(storeName, mode)
     const store = transaction.objectStore(storeName)
 
-    transaction.onerror = () => reject(transaction.error ?? new Error(`IndexedDB transaction failed for ${storeName}`))
-    executor(store, resolve, reject)
+    let result: T
+    transaction.onerror = transaction.onabort = () => reject(transaction.error ?? new Error(`IndexedDB transaction failed for ${storeName}`))
+    transaction.oncomplete = () => resolve(result)
+    try { executor(store, value => { result = value }, reject) }
+    catch (error) { transaction.abort(); reject(error) }
   })
 }
 
