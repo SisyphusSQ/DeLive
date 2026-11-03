@@ -1,3 +1,4 @@
+import { installWindowZoom } from './windowZoom'
 import { app, BrowserWindow, shell, type BrowserWindowConstructorOptions } from 'electron'
 import path from 'path'
 import { buildCSP, isAllowedNavigationUrl } from './ipcSecurity'
@@ -44,6 +45,7 @@ export function createMainWindow(options: CreateMainWindowOptions): BrowserWindo
   }
 
   const mainWindow = new BrowserWindow(windowOptions)
+  installWindowZoom(mainWindow)
 
   mainWindow.on('show', () => {
     options.onShow?.()

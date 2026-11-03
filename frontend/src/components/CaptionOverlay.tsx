@@ -1,3 +1,4 @@
+import { getTranslations } from '../i18n'
 /**
  * 字幕叠加层组件
  * 用于在透明窗口中显示实时转录的字幕
@@ -66,6 +67,7 @@ export function CaptionOverlay() {
     window.electronAPI.captionGetStatus().then((status) => {
       if (cancelled) return
 
+      if (status.language) useUIStore.setState({ language: status.language, t: getTranslations(status.language) })
       setStyle(status.style)
       setIsDraggable(status.draggable)
       setStableText(status.stableText ?? (status.isFinal ? status.text : ''))

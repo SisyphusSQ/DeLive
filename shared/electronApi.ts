@@ -50,6 +50,7 @@ export interface CaptionStyle {
 }
 
 export interface CaptionStatus {
+  language?: 'zh' | 'en' | 'ko'
   enabled: boolean
   draggable: boolean
   style: CaptionStyle

@@ -53,6 +53,10 @@ idle → starting → recording → stopping → completed
 |--------|------|
 | `Ctrl+Shift+D` / `Cmd+Shift+D` | 显示/隐藏主窗口 |
 | `Ctrl+Shift+R` / `Cmd+Shift+R` | 切换录制 |
+| `Cmd +` / `Cmd =`、`Cmd -` | 放大/缩小主界面（75%–150%） |
+| `Cmd 0` | 主界面恢复 100% |
+
+缩放比例重启后保留，设置和输入框中也可使用；字幕浮窗字号独立。详见[主界面缩放](../development/window-zoom)。
 
 
 ## 双来源原音录音
