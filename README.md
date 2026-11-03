@@ -1,3 +1,5 @@
+> This fork builds **DeLive SQ** for macOS arm64 (ad-hoc DMG/ZIP), with in-app updates disabled and separate user data without automatic migration. The website, release badges and download links below refer to upstream. This fork currently has local artifacts only; see the [build notes](docs/zh/development/build.md) and [TOO-686 acceptance record](docs/zh/development/evidence-too-686-live.md).
+
 <div align="center">
 
 <img src="assets/header.png" width="100%" alt="DeLive Banner" />

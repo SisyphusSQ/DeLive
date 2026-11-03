@@ -6,10 +6,12 @@ export function parseVolcSnapshot(raw: unknown, id: string, offsetMs: number, re
   if (!result || typeof result.text !== 'string') throw new Error('火山响应缺少 result.text')
   if (result.utterances !== undefined && !Array.isArray(result.utterances)) throw new Error('火山分句格式错误')
   const utterances = ((result.utterances ?? []) as Array<Record<string, unknown>>).map(u => {
-    if (typeof u.text !== 'string' || typeof u.start_time !== 'number' || !Number.isFinite(u.start_time) || u.start_time < 0 ||
-        typeof u.end_time !== 'number' || !Number.isFinite(u.end_time) || u.end_time < u.start_time || typeof u.definite !== 'boolean') throw new Error('火山分句时间或状态错误')
+    // 实际流式响应会省略识别段起点的零值 start_time。
+    const startTime = u.start_time === undefined ? 0 : u.start_time
+    if (typeof u.text !== 'string' || typeof startTime !== 'number' || !Number.isFinite(startTime) || startTime < 0 ||
+        typeof u.end_time !== 'number' || !Number.isFinite(u.end_time) || u.end_time < startTime || typeof u.definite !== 'boolean') throw new Error('火山分句时间或状态错误')
     const additions = u.additions as { speaker_id?: unknown; source?: unknown } | undefined
-    return { text: u.text, start_time: u.start_time, end_time: u.end_time, definite: u.definite,
+    return { text: u.text, start_time: startTime, end_time: u.end_time, definite: u.definite,
       additions: { speaker_id: typeof additions?.speaker_id === 'string' && additions.speaker_id !== '' ? additions.speaker_id : undefined,
         source: typeof additions?.source === 'string' ? additions.source : undefined } }
   })

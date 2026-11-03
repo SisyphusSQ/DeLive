@@ -54,8 +54,8 @@ const desktopSourceController = createDesktopSourceController({
 const localRuntimeController = createLocalRuntimeController()
 
 function isAutoUpdateSupported(): boolean {
-  if (process.platform !== 'linux') return true
-  return Boolean(process.env.APPIMAGE)
+  // Fork updates stay disabled until a dedicated release source is configured.
+  return false
 }
 
 function isTrayReady(): boolean {

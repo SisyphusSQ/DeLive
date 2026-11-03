@@ -42,4 +42,11 @@ describe('full snapshots and recognition-scoped identities', () => {
   it('does not invent timestamps or speaker labels from malformed responses', () => {
     expect(() => parseVolcSnapshot({ result: { text: 'x', utterances: [{ text: 'x' }] } }, 'a', 0, 1, false)).toThrow()
   })
+  it('accepts omitted zero start_time from live reconnect but rejects invalid explicit times', () => {
+    const utterance = { text: '元', end_time: 1199, definite: false, additions: { source: 'stream' } }
+    const parse = (u: Record<string, unknown>) => parseVolcSnapshot({ result: { text: '元', utterances: [u] } }, 'reconnect', 9000, 1, false)
+    expect(parse(utterance).segments[0]).toMatchObject({ startMs: 9000, endMs: 10199, isFinal: false })
+    for (const start_time of [null, -1, '0', NaN, Infinity, 1200]) expect(() => parse({ ...utterance, start_time })).toThrow()
+    expect(() => parse({ text: '元', definite: false })).toThrow()
+  })
 })
