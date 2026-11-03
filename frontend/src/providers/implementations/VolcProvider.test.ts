@@ -16,6 +16,8 @@ class Socket {
   message(value: unknown) { this.onmessage?.({ data: JSON.stringify(value) }) }
 }
 const raw = { result: { text: '合成文本', utterances: [{ text: '合成文本', start_time: 0, end_time: 100, definite: true, additions: { speaker_id: '0' } }] } }
+// 真实服务对 2 秒生成静音的终帧结构；log_id 已替换。
+const silentFinal = { audio_info: { duration: 2000 }, result: { additions: { log_id: 'fixture-log-id' } } }
 async function connected() {
   const provider = new VolcProvider(), events: RealtimeRecognition[] = []
   provider.on('onRealtime', event => events.push(event))
@@ -28,6 +30,56 @@ async function connected() {
 describe('Volc lifecycle (isolated WebSocket double)', () => {
   beforeEach(() => { vi.useFakeTimers(); Socket.instances = []; vi.stubGlobal('WebSocket', Socket) })
   afterEach(() => { vi.useRealTimers(); vi.unstubAllGlobals() })
+  it('completes a real-service silent final without errors and reconnects with a distinct recognition', async () => {
+    const first = await connected(), error = vi.fn(), finished = vi.fn()
+    first.provider.on('onError', error); first.provider.on('onFinished', finished)
+    first.ws.message({ type: 'snapshot', raw: { result: silentFinal.result }, final: false })
+    const stopped = first.provider.disconnect()
+    await vi.advanceTimersByTimeAsync(1)
+    first.ws.message({ type: 'snapshot', raw: silentFinal, final: true, sequence: 1 })
+    await stopped
+    expect(error).not.toHaveBeenCalled()
+    expect(finished).toHaveBeenCalledOnce()
+    expect(first.events).toHaveLength(1)
+    expect(first.events[0]).toMatchObject({ text: '', segments: [], status: 'complete', response: { text: '', utterances: [] } })
+    expect(JSON.stringify(first.events)).not.toContain('log_id')
+    const second = await connected()
+    second.ws.message({ type: 'snapshot', raw, final: true })
+    expect(second.events[0].text).toBe('合成文本')
+    expect(second.events[0].id).not.toBe(first.events[0].id)
+    await second.provider.disconnect()
+  })
+  it('never treats missing text after recognized speech as a successful empty final', async () => {
+    const { provider, ws, events } = await connected(), error = vi.fn()
+    provider.on('onError', error)
+    ws.message({ type: 'snapshot', raw })
+    ws.message({ type: 'snapshot', raw: silentFinal, final: true })
+    expect(events[events.length - 1]).toMatchObject({ text: '合成文本', status: 'incomplete' })
+    expect(error).toHaveBeenCalledWith(expect.objectContaining({ code: 'PROTOCOL_ERROR', details: { stage: 'snapshot', reason: '火山响应缺少 result.text' } }))
+    await provider.disconnect()
+  })
+  it.each([
+    {}, { result: {} }, { result: silentFinal.result },
+    { ...silentFinal, audio_info: { duration: -1 } },
+    { ...silentFinal, audio_info: { duration: '2000' } },
+    { ...silentFinal, result: { ...silentFinal.result, text: null } },
+    { ...silentFinal, result: { ...silentFinal.result, utterances: [{ text: 'bad' }] } },
+  ])('rejects malformed final responses without hiding failure: %j', async malformed => {
+    const { provider, ws, events } = await connected(), error = vi.fn()
+    provider.on('onError', error)
+    ws.message({ type: 'snapshot', raw: malformed, final: true })
+    expect(events[events.length - 1].status).toBe('incomplete')
+    expect(error).toHaveBeenCalledWith(expect.objectContaining({ code: 'PROTOCOL_ERROR' }))
+    await provider.disconnect()
+  })
+  it('reports JSON failures without exposing response text', async () => {
+    const { provider, ws } = await connected(), error = vi.fn()
+    provider.on('onError', error)
+    ws.onmessage?.({ data: 'secret-response-not-json' })
+    expect(error).toHaveBeenCalledWith(expect.objectContaining({ details: { stage: 'json', reason: '消息解析失败' } }))
+    expect(JSON.stringify(error.mock.calls)).not.toContain('secret-response')
+    await provider.disconnect()
+  })
   it('ignores real-service metadata acknowledgements without dropping text or accepting malformed final frames', async () => {
     const { provider, ws, events } = await connected()
     const metadata = { result: { additions: { log_id: 'fixture-log-id' } } }

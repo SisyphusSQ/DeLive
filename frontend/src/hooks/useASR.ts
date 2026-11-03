@@ -47,11 +47,19 @@ export function useASR(options: UseASROptions = {}) {
     console.log('[useASR] 停止录制...')
     setRecordingState('stopping')
 
+    let audioSaved = false
     try {
       const audio = await captureRef.current.stop()
+      audioSaved = audio?.status === 'completed'
       if (audio) useSessionStore.setState({ sessions: sessionRepository.updateMetadata(audio.sessionId, { audioRecordingId: audio.sessionId, duration: audio.durationMs, wasInterrupted: audio.status === 'interrupted' }) })
     } catch (error) { options.onError?.('原音保存失败：' + (error as Error).message) }
+    const provider = providerSessionRef.current.currentProvider
+    const finishingVolc = provider?.id === 'volc' && provider.isConnected
     await providerSessionRef.current.disconnect()
+    const { realtime, currentTranscript } = useSessionStore.getState()
+    if (audioSaved && finishingVolc && realtime?.length && realtime.every(result => result.status === 'complete')) {
+      useRecordingStore.getState().update({ asrStatus: currentTranscript.trim() ? '转写完成；原音已保留' : '未识别到语音；原音已保留' })
+    }
     captionRef.current.clear()
 
     selectedVendorRef.current = null

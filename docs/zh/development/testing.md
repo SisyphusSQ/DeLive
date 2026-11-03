@@ -96,3 +96,4 @@ describe('yourFunction', () => {
 - [TOO-686 正式验收交接](./handoff-too-686.md)（开发阶段历史交接）
 
 - [TOO-686 本机验收记录](./evidence-too-686-live.md)：真实服务、独立包及自动化故障检查；明确区分现场延期和存储阻塞。
+- [TOO-689 无文字结束响应](./evidence-too-689.md)：真实静音终帧、停止提示、空连接重连与错误保留。
