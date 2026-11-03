@@ -19,6 +19,7 @@ import { startVolcProxyServer, getProxyPort } from './volcProxy'
 import { registerApiIpc } from './apiIpc'
 import { attachApiServer } from './apiServer'
 import { registerCloudBackupIpc } from './cloudBackup/cloudBackupIpc'
+import { registerCodexIpc } from './codexIpc'
 import { refreshElectronLang, getElectronStrings } from './i18n'
 
 installLogInterceptor()
@@ -52,6 +53,7 @@ const desktopSourceController = createDesktopSourceController({
 })
 
 const localRuntimeController = createLocalRuntimeController()
+const codexController = registerCodexIpc(ipcMain)
 
 function isAutoUpdateSupported(): boolean {
   // Fork updates stay disabled until a dedicated release source is configured.
@@ -190,6 +192,7 @@ app.on('window-all-closed', () => {
 app.on('before-quit', () => {
   captionController.debug('app.before-quit')
   isQuitting = true
+  codexController.dispose()
   captionController.dispose()
   globalShortcut.unregisterAll()
   void localRuntimeController.stopAll()

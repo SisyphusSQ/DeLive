@@ -1,4 +1,5 @@
 import { useState, useCallback } from 'react'
+import { withoutCredentials } from '../../utils/backupStorage'
 import {
   Cloud,
   Check,
@@ -59,7 +60,7 @@ function buildIpcConfig(config: CloudBackupConfig): CloudBackupIpcConfig {
 async function buildBackupJson(): Promise<string> {
   const sessions = normalizeTranscriptSessions(await getSessions())
   const tags = getTags()
-  const settings = getSettings()
+  const settings = withoutCredentials(getSettings())
   const topics = getTopics()
   const data: BackupData = {
     version: CURRENT_BACKUP_VERSION,

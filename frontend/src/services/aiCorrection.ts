@@ -1,3 +1,5 @@
+import { completeAi } from './aiTransport'
+import type { AiMessage } from '../../../shared/ai'
 import type {
   AiPostProcessConfig,
   AppSettings,
@@ -5,16 +7,14 @@ import type {
   TranscriptSession,
 } from '../types'
 import { resolveModelForFeature } from './aiPostProcess'
-import { throwUserError, userErrorMessage } from '../utils/userErrors'
+import { throwUserError } from '../utils/userErrors'
 
-const DEFAULT_AI_BASE_URL = 'http://127.0.0.1:11434/v1'
 const DEFAULT_PROMPT_LANGUAGE: NonNullable<AiPostProcessConfig['promptLanguage']> = 'zh'
 
 function getAiConfig(settings: AppSettings): AiPostProcessConfig {
   return {
     enabled: false,
     provider: 'openai-compatible',
-    baseUrl: DEFAULT_AI_BASE_URL,
     model: '',
     apiKey: '',
     promptLanguage: DEFAULT_PROMPT_LANGUAGE,
@@ -195,100 +195,19 @@ export interface StreamCallbacks {
 }
 
 async function streamChatCompletion(
-  baseUrl: string,
-  apiKey: string | undefined,
+  config: AiPostProcessConfig,
   model: string,
-  messages: Array<{ role: string; content: string }>,
+  messages: AiMessage[],
   callbacks: StreamCallbacks,
   signal?: AbortSignal,
+  taskKey?: string,
 ): Promise<void> {
-  const url = `${baseUrl.replace(/\/+$/, '')}/chat/completions`
-  const headers: Record<string, string> = { 'Content-Type': 'application/json' }
-  if (apiKey?.trim()) headers.Authorization = `Bearer ${apiKey.trim()}`
-
-  const res = await fetch(url, {
-    method: 'POST',
-    headers,
-    body: JSON.stringify({
-      model,
-      temperature: 0.1,
-      stream: true,
-      messages,
-    }),
-    signal,
-  })
-
-  if (!res.ok) {
-    const errorText = await res.text().catch(() => '')
-    throw new Error(errorText || userErrorMessage('aiRequestFailed', undefined, res.status))
-  }
-
-  const reader = res.body?.getReader()
-  if (!reader) throwUserError('responseBodyNotReadable')
-
-  const decoder = new TextDecoder()
-  let buffer = ''
-  let fullText = ''
-
   try {
-    while (true) {
-      const { done, value } = await reader.read()
-      if (done) break
-
-      buffer += decoder.decode(value, { stream: true })
-      const lines = buffer.split('\n')
-      buffer = lines.pop() || ''
-
-      for (const line of lines) {
-        const trimmed = line.trim()
-        if (!trimmed || !trimmed.startsWith('data:')) continue
-        const data = trimmed.slice(5).trim()
-        if (data === '[DONE]') continue
-
-        try {
-          const parsed = JSON.parse(data) as {
-            choices?: Array<{ delta?: { content?: string } }>
-          }
-          const content = parsed.choices?.[0]?.delta?.content
-          if (content) {
-            fullText += content
-            callbacks.onChunk(content)
-          }
-        } catch {
-          // skip malformed JSON chunks
-        }
-      }
-    }
-
-    callbacks.onDone(fullText)
-  } catch (err) {
-    if (signal?.aborted) return
-    callbacks.onError(err instanceof Error ? err : new Error(String(err)))
-  } finally {
-    reader.releaseLock()
+    const text = await completeAi(config, { model, messages }, { taskKey, signal, onDelta: callbacks.onChunk })
+    callbacks.onDone(text)
+  } catch (error) {
+    callbacks.onError(error instanceof Error ? error : new Error(String(error)))
   }
-}
-
-// --------------- Non-streaming JSON call ---------------
-
-interface ChatCompletionResponse {
-  choices?: Array<{
-    message?: {
-      content?: string | Array<{ type?: string; text?: string }>
-    }
-  }>
-}
-
-function extractTextContent(choices: ChatCompletionResponse['choices']): string {
-  const content = choices?.[0]?.message?.content
-  if (typeof content === 'string') return content.trim()
-  if (Array.isArray(content)) {
-    return content
-      .map((part) => (part?.type === 'text' && typeof part.text === 'string' ? part.text : ''))
-      .join('\n')
-      .trim()
-  }
-  return ''
 }
 
 function extractJsonArray(raw: string): string {
@@ -317,7 +236,6 @@ export async function detectCorrectionIssues(
   settings: AppSettings,
 ): Promise<DetectResult> {
   const config = getAiConfig(settings)
-  const baseUrl = config.baseUrl?.trim().replace(/\/+$/, '') || DEFAULT_AI_BASE_URL
   const model = resolveModelForFeature(config, 'correction')
   const lang = config.promptLanguage || DEFAULT_PROMPT_LANGUAGE
 
@@ -325,29 +243,10 @@ export async function detectCorrectionIssues(
   if (!model) throwUserError('aiCorrectionModelNotConfigured')
   if (!session.transcript.trim()) throwUserError('noTranscriptForCorrection')
 
-  const res = await fetch(`${baseUrl}/chat/completions`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      ...(config.apiKey?.trim() ? { Authorization: `Bearer ${config.apiKey.trim()}` } : {}),
-    },
-    body: JSON.stringify({
-      model,
-      temperature: 0.1,
-      messages: [
-        { role: 'system', content: buildDetectSystemPrompt(lang) },
-        { role: 'user', content: buildDetectUserPrompt(session, lang) },
-      ],
-    }),
-  })
-
-  if (!res.ok) {
-    const errorText = await res.text().catch(() => '')
-    throw new Error(errorText || userErrorMessage('aiRequestFailed', undefined, res.status))
-  }
-
-  const payload = (await res.json()) as ChatCompletionResponse
-  const raw = extractTextContent(payload.choices)
+  const raw = await completeAi(config, { model, messages: [
+    { role: 'system', content: buildDetectSystemPrompt(lang) },
+    { role: 'user', content: buildDetectUserPrompt(session, lang) },
+  ] }, { taskKey: session.id })
   const jsonText = extractJsonArray(raw)
 
   let parsed: Array<{
@@ -392,7 +291,6 @@ export async function correctTranscriptQuick(
   callbacks: QuickCorrectionCallbacks,
 ): Promise<void> {
   const config = getAiConfig(settings)
-  const baseUrl = config.baseUrl?.trim().replace(/\/+$/, '') || DEFAULT_AI_BASE_URL
   const model = resolveModelForFeature(config, 'correction')
   const lang = config.promptLanguage || DEFAULT_PROMPT_LANGUAGE
 
@@ -401,8 +299,7 @@ export async function correctTranscriptQuick(
   if (!session.transcript.trim()) throwUserError('noTranscriptForCorrection')
 
   await streamChatCompletion(
-    baseUrl,
-    config.apiKey,
+    config,
     model,
     [
       { role: 'system', content: buildQuickCorrectionSystemPrompt(lang) },
@@ -410,6 +307,7 @@ export async function correctTranscriptQuick(
     ],
     callbacks,
     callbacks.signal,
+    session.id,
   )
 }
 
@@ -420,7 +318,6 @@ export async function correctTranscriptWithReview(
   callbacks: QuickCorrectionCallbacks,
 ): Promise<void> {
   const config = getAiConfig(settings)
-  const baseUrl = config.baseUrl?.trim().replace(/\/+$/, '') || DEFAULT_AI_BASE_URL
   const model = resolveModelForFeature(config, 'correction')
   const lang = config.promptLanguage || DEFAULT_PROMPT_LANGUAGE
 
@@ -429,8 +326,7 @@ export async function correctTranscriptWithReview(
   if (acceptedIssues.length === 0) throwUserError('noAcceptedIssues')
 
   await streamChatCompletion(
-    baseUrl,
-    config.apiKey,
+    config,
     model,
     [
       { role: 'system', content: buildReviewCorrectionSystemPrompt(lang) },
@@ -438,5 +334,6 @@ export async function correctTranscriptWithReview(
     ],
     callbacks,
     callbacks.signal,
+    session.id,
   )
 }

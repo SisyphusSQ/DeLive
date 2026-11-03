@@ -187,6 +187,7 @@ export default withMermaid(
                   { text: '项目结构', link: '/zh/development/structure' },
                   { text: '扩展 Provider', link: '/zh/development/extending-providers' },
                   { text: '测试', link: '/zh/development/testing' },
+                  { text: 'AI 接入与权限', link: '/zh/development/ai-providers' },
                   { text: '构建与发布', link: '/zh/development/build' },
                 ],
               },

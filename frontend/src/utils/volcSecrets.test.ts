@@ -3,7 +3,7 @@ import type { AppSettings } from '../types'
 const storage = vi.hoisted(() => ({ getSettings: vi.fn(), saveSettings: vi.fn() }))
 vi.mock('./settingsStorage', () => storage)
 import { migrateApiKeysToSafeStorage, resolveApiKeysFromSafeStorage, storeVolcSecrets } from './secretStorage'
-import { withoutVolcCredentials } from './backupStorage'
+import { withoutCredentials } from './backupStorage'
 describe('Volc secrets (synthetic credentials, safe-storage double)', () => {
   beforeEach(() => { vi.clearAllMocks() })
   it('encrypts every credential and exports none', async () => {
@@ -16,7 +16,7 @@ describe('Volc secrets (synthetic credentials, safe-storage double)', () => {
     const saved = storage.saveSettings.mock.calls[0][0] as AppSettings
     expect(JSON.stringify(saved)).not.toContain('fake-')
     expect((await resolveApiKeysFromSafeStorage(saved)).providerConfigs?.volc).toEqual(settings.providerConfigs?.volc)
-    expect(JSON.stringify(withoutVolcCredentials(settings))).not.toContain('fake-')
+    expect(JSON.stringify(withoutCredentials(settings))).not.toContain('fake-')
     vi.unstubAllGlobals()
   })
   it('refuses new plaintext fallback and clears legacy disk plaintext if encryption is unavailable', async () => {

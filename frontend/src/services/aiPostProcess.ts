@@ -1,3 +1,5 @@
+import { completeAi } from './aiTransport'
+import { briefingSchema, qaSchema, mindMapSchema } from './aiSchemas'
 import type {
   AiFeatureKey,
   AiPostProcessConfig,
@@ -8,9 +10,8 @@ import type {
   TranscriptQaCitation,
   TranscriptSession,
 } from '../types'
-import { throwUserError, userErrorMessage } from '../utils/userErrors'
+import { throwUserError } from '../utils/userErrors'
 
-const DEFAULT_AI_BASE_URL = 'http://127.0.0.1:11434/v1'
 const DEFAULT_PROMPT_LANGUAGE: NonNullable<AiPostProcessConfig['promptLanguage']> = 'zh'
 const MAX_TRANSCRIPT_CHARS = 24_000
 
@@ -54,14 +55,6 @@ export function resolveModelForFeature(
   return ''
 }
 
-interface ChatCompletionResponse {
-  choices?: Array<{
-    message?: {
-      content?: string | Array<{ type?: string; text?: string }>
-    }
-  }>
-}
-
 interface AiBriefingPayload {
   titleSuggestion?: unknown
   tagSuggestions?: unknown
@@ -99,7 +92,6 @@ function getAiConfig(settings: AppSettings): AiPostProcessConfig {
   return {
     enabled: false,
     provider: 'openai-compatible',
-    baseUrl: DEFAULT_AI_BASE_URL,
     model: '',
     apiKey: '',
     promptLanguage: DEFAULT_PROMPT_LANGUAGE,
@@ -232,21 +224,6 @@ function normalizeMindMapPayload(payload: SessionMindMapPayload, model: string):
   }
 }
 
-function extractTextContent(content: ChatCompletionResponse['choices']): string {
-  const messageContent = content?.[0]?.message?.content
-  if (typeof messageContent === 'string') {
-    return messageContent.trim()
-  }
-
-  if (Array.isArray(messageContent)) {
-    return messageContent
-      .map((part) => part?.type === 'text' && typeof part.text === 'string' ? part.text : '')
-      .join('\n')
-      .trim()
-  }
-
-  return ''
-}
 
 function extractJsonObject(raw: string): string {
   const trimmed = raw.trim()
@@ -542,8 +519,7 @@ export function isAiPostProcessConfigured(settings: AppSettings): boolean {
   const config = getAiConfig(settings)
   return Boolean(
     config.enabled
-    && config.baseUrl?.trim()
-    && config.model?.trim(),
+    && resolveModelForFeature(config, 'briefing'),
   )
 }
 
@@ -591,7 +567,6 @@ export async function generateSessionBriefing(
   settings: AppSettings,
 ): Promise<SessionBriefingResult> {
   const config = getAiConfig(settings)
-  const baseUrl = config.baseUrl?.trim().replace(/\/+$/, '') || DEFAULT_AI_BASE_URL
   const model = resolveModelForFeature(config, 'briefing')
   const promptLanguage = config.promptLanguage || DEFAULT_PROMPT_LANGUAGE
 
@@ -607,30 +582,10 @@ export async function generateSessionBriefing(
     throwUserError('noTranscriptForAnalysis')
   }
 
-  const response = await fetch(`${baseUrl}/chat/completions`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      ...(config.apiKey?.trim() ? { Authorization: `Bearer ${config.apiKey.trim()}` } : {}),
-    },
-    body: JSON.stringify({
-      model,
-      temperature: 0.2,
-      messages: [
-        { role: 'system', content: buildSystemPrompt(promptLanguage) },
-        { role: 'user', content: buildUserPrompt(session, promptLanguage, config.preferCorrectedText) },
-      ],
-    }),
-    signal: AbortSignal.timeout(120_000),
-  })
-
-  if (!response.ok) {
-    const errorText = await response.text().catch(() => '')
-    throw new Error(errorText || userErrorMessage('aiRequestFailed', undefined, response.status))
-  }
-
-  const payload = await response.json() as ChatCompletionResponse
-  const content = extractTextContent(payload.choices)
+  const content = await completeAi(config, { model, schema: briefingSchema, messages: [
+    { role: 'system', content: buildSystemPrompt(promptLanguage) },
+    { role: 'user', content: buildUserPrompt(session, promptLanguage, config.preferCorrectedText) },
+  ] }, { taskKey: session.id })
   const postProcess = parseAiBriefingResponse(content, model)
 
   return { postProcess }
@@ -643,7 +598,6 @@ export async function askQuestionForSession(
   options?: { conversationId?: string },
 ): Promise<SessionQaResult> {
   const config = getAiConfig(settings)
-  const baseUrl = config.baseUrl?.trim().replace(/\/+$/, '') || DEFAULT_AI_BASE_URL
   const model = resolveModelForFeature(config, 'chat')
   const promptLanguage = config.promptLanguage || DEFAULT_PROMPT_LANGUAGE
   const normalizedQuestion = question.trim()
@@ -666,40 +620,12 @@ export async function askQuestionForSession(
 
   const conversationId = options?.conversationId?.trim()
 
-  const response = await fetch(`${baseUrl}/chat/completions`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      ...(config.apiKey?.trim() ? { Authorization: `Bearer ${config.apiKey.trim()}` } : {}),
-    },
-    body: JSON.stringify({
-      model,
-      temperature: 0.2,
-      messages: [
-        { role: 'system', content: buildAskSystemPrompt(promptLanguage) },
-        {
-          role: 'user',
-          content: buildAskUserPrompt({
-            ...session,
-            askHistory: conversationId
-              ? (session.askHistory || []).filter((turn) => (
-                (turn.conversationId || 'default') === conversationId
-              ))
-              : session.askHistory,
-          }, normalizedQuestion, promptLanguage, config.preferCorrectedText),
-        },
-      ],
-    }),
-    signal: AbortSignal.timeout(120_000),
-  })
-
-  if (!response.ok) {
-    const errorText = await response.text().catch(() => '')
-    throw new Error(errorText || userErrorMessage('aiRequestFailed', undefined, response.status))
-  }
-
-  const payload = await response.json() as ChatCompletionResponse
-  const content = extractTextContent(payload.choices)
+  const content = await completeAi(config, { model, schema: qaSchema, messages: [
+    { role: 'system', content: buildAskSystemPrompt(promptLanguage) },
+    { role: 'user', content: buildAskUserPrompt({ ...session,
+      askHistory: conversationId ? (session.askHistory || []).filter(turn => (turn.conversationId || 'default') === conversationId) : session.askHistory,
+    }, normalizedQuestion, promptLanguage, config.preferCorrectedText) },
+  ] }, { taskKey: session.id })
   return parseSessionQaResponse(content, model)
 }
 
@@ -717,7 +643,6 @@ export async function askQuestionForSessionStreaming(
   options?: { conversationId?: string; signal?: AbortSignal },
 ): Promise<void> {
   const config = getAiConfig(settings)
-  const baseUrl = config.baseUrl?.trim().replace(/\/+$/, '') || DEFAULT_AI_BASE_URL
   const model = resolveModelForFeature(config, 'chat')
   const promptLanguage = config.promptLanguage || DEFAULT_PROMPT_LANGUAGE
   const normalizedQuestion = question.trim()
@@ -729,83 +654,17 @@ export async function askQuestionForSessionStreaming(
 
   const conversationId = options?.conversationId?.trim()
 
-  const res = await fetch(`${baseUrl}/chat/completions`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      ...(config.apiKey?.trim() ? { Authorization: `Bearer ${config.apiKey.trim()}` } : {}),
-    },
-    body: JSON.stringify({
-      model,
-      temperature: 0.2,
-      stream: true,
-      messages: [
-        { role: 'system', content: buildAskSystemPrompt(promptLanguage) },
-        {
-          role: 'user',
-          content: buildAskUserPrompt({
-            ...session,
-            askHistory: conversationId
-              ? (session.askHistory || []).filter((turn) => (
-                (turn.conversationId || 'default') === conversationId
-              ))
-              : session.askHistory,
-          }, normalizedQuestion, promptLanguage, config.preferCorrectedText),
-        },
-      ],
-    }),
-    signal: options?.signal,
-  })
-
-  if (!res.ok) {
-    const errorText = await res.text().catch(() => '')
-    throw new Error(errorText || userErrorMessage('aiRequestFailed', undefined, res.status))
-  }
-
-  const reader = res.body?.getReader()
-  if (!reader) throwUserError('responseBodyNotReadable')
-
-  const decoder = new TextDecoder()
-  let buffer = ''
   let fullText = ''
-
   try {
-    while (true) {
-      const { done, value } = await reader.read()
-      if (done) break
-
-      buffer += decoder.decode(value, { stream: true })
-      const lines = buffer.split('\n')
-      buffer = lines.pop() || ''
-
-      for (const line of lines) {
-        const trimmed = line.trim()
-        if (!trimmed || !trimmed.startsWith('data:')) continue
-        const data = trimmed.slice(5).trim()
-        if (data === '[DONE]') continue
-
-        try {
-          const parsed = JSON.parse(data) as {
-            choices?: Array<{ delta?: { content?: string } }>
-          }
-          const content = parsed.choices?.[0]?.delta?.content
-          if (content) {
-            fullText += content
-            callbacks.onChunk(fullText)
-          }
-        } catch {
-          // skip malformed JSON chunks
-        }
-      }
-    }
-
-    const result = parseSessionQaResponse(fullText, model)
-    callbacks.onDone(fullText, result)
-  } catch (err) {
-    if (options?.signal?.aborted) return
-    callbacks.onError(err instanceof Error ? err : new Error(String(err)))
-  } finally {
-    reader.releaseLock()
+    const content = await completeAi(config, { model, schema: qaSchema, messages: [
+      { role: 'system', content: buildAskSystemPrompt(promptLanguage) },
+      { role: 'user', content: buildAskUserPrompt({ ...session,
+        askHistory: conversationId ? (session.askHistory || []).filter(turn => (turn.conversationId || 'default') === conversationId) : session.askHistory,
+      }, normalizedQuestion, promptLanguage, config.preferCorrectedText) },
+    ] }, { taskKey: session.id, signal: options?.signal, onDelta: delta => { fullText += delta; callbacks.onChunk(fullText) } })
+    callbacks.onDone(content, parseSessionQaResponse(content, model))
+  } catch (error) {
+    callbacks.onError(error instanceof Error ? error : new Error(String(error)))
   }
 }
 
@@ -814,7 +673,6 @@ export async function generateSessionMindMap(
   settings: AppSettings,
 ): Promise<SessionMindMapResult> {
   const config = getAiConfig(settings)
-  const baseUrl = config.baseUrl?.trim().replace(/\/+$/, '') || DEFAULT_AI_BASE_URL
   const model = resolveModelForFeature(config, 'mindmap')
   const promptLanguage = config.promptLanguage || DEFAULT_PROMPT_LANGUAGE
 
@@ -830,30 +688,10 @@ export async function generateSessionMindMap(
     throwUserError('noTranscriptForMindMap')
   }
 
-  const response = await fetch(`${baseUrl}/chat/completions`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      ...(config.apiKey?.trim() ? { Authorization: `Bearer ${config.apiKey.trim()}` } : {}),
-    },
-    body: JSON.stringify({
-      model,
-      temperature: 0.2,
-      messages: [
-        { role: 'system', content: buildMindMapSystemPrompt(promptLanguage) },
-        { role: 'user', content: buildMindMapUserPrompt(session, promptLanguage, config.preferCorrectedText) },
-      ],
-    }),
-    signal: AbortSignal.timeout(120_000),
-  })
-
-  if (!response.ok) {
-    const errorText = await response.text().catch(() => '')
-    throw new Error(errorText || userErrorMessage('aiRequestFailed', undefined, response.status))
-  }
-
-  const payload = await response.json() as ChatCompletionResponse
-  const content = extractTextContent(payload.choices)
+  const content = await completeAi(config, { model, schema: mindMapSchema, messages: [
+    { role: 'system', content: buildMindMapSystemPrompt(promptLanguage) },
+    { role: 'user', content: buildMindMapUserPrompt(session, promptLanguage, config.preferCorrectedText) },
+  ] }, { taskKey: session.id })
   const mindMap = parseSessionMindMapResponse(content, model)
 
   return { mindMap }

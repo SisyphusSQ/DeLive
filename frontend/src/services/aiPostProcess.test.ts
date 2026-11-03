@@ -42,6 +42,7 @@ describe('aiPostProcess', () => {
   })
 
   it('detects whether ai post-process is configured', () => {
+    expect(isAiPostProcessConfigured({ apiKey: '', languageHints: ['zh'], aiPostProcess: { enabled: true, model: 'legacy-model' } })).toBe(true)
     expect(isAiPostProcessConfigured({
       apiKey: '',
       languageHints: ['zh', 'en'],

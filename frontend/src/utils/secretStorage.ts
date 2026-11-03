@@ -9,18 +9,31 @@ function safeStorageKeyFor(path: string): string {
 
 export async function migrateApiKeysToSafeStorage(source?: AppSettings): Promise<void> {
   const settings = source ? structuredClone(source) : getSettings()
+  const migrationErrors: string[] = []
+  let migratedRequiredSecrets = false
+  const aiKey = settings.aiPostProcess?.apiKey
+  if (aiKey && aiKey !== SAFE_STORAGE_PLACEHOLDER) {
+    migratedRequiredSecrets = true
+    try {
+      settings.aiPostProcess = { ...settings.aiPostProcess, apiKey: await encryptApiKeyForStorage('ai_postprocess', aiKey) }
+    } catch {
+      settings.aiPostProcess = { ...settings.aiPostProcess, apiKey: '' }
+      migrationErrors.push('AI 旧密钥无法加密：已移除磁盘明文，仅当前运行可用；请恢复系统安全存储后重新保存')
+    }
+  }
   const volc = settings.providerConfigs?.volc
   if (volc && ['apiKey', 'appKey', 'accessKey'].some(k => typeof volc[k] === 'string' && volc[k] && volc[k] !== SAFE_STORAGE_PLACEHOLDER)) {
+    migratedRequiredSecrets = true
     try {
       await storeVolcSecrets(volc)
       for (const key of ['apiKey', 'appKey', 'accessKey']) if (volc[key]) volc[key] = SAFE_STORAGE_PLACEHOLDER
-      saveSettings(settings)
     } catch {
       for (const key of ['apiKey', 'appKey', 'accessKey']) if (volc[key] !== SAFE_STORAGE_PLACEHOLDER) volc[key] = ''
-      saveSettings(settings)
-      throw new Error('火山旧凭据无法加密：已移除磁盘明文，仅当前运行可用；请在系统安全存储恢复后重新保存配置')
+      migrationErrors.push('火山旧凭据无法加密：已移除磁盘明文，仅当前运行可用；请在系统安全存储恢复后重新保存配置')
     }
   }
+  if (migratedRequiredSecrets) saveSettings(settings)
+  if (migrationErrors.length) throw new Error(migrationErrors.join('；'))
   if (!window.electronAPI?.safeStorageAvailable) return
   const available = await window.electronAPI.safeStorageAvailable()
   if (!available) return
@@ -54,24 +67,6 @@ export async function migrateApiKeysToSafeStorage(source?: AppSettings): Promise
           changed = true
         }
       }
-    }
-  }
-
-  if (
-    settings.aiPostProcess?.apiKey
-    && typeof settings.aiPostProcess.apiKey === 'string'
-    && settings.aiPostProcess.apiKey !== SAFE_STORAGE_PLACEHOLDER
-  ) {
-    const stored = await window.electronAPI.safeStorageSet(
-      safeStorageKeyFor('ai_postprocess'),
-      settings.aiPostProcess.apiKey,
-    )
-    if (stored) {
-      settings.aiPostProcess = {
-        ...settings.aiPostProcess,
-        apiKey: SAFE_STORAGE_PLACEHOLDER,
-      }
-      changed = true
     }
   }
 
@@ -188,6 +183,11 @@ export async function encryptApiKeyForStorage(
   apiKey: string,
 ): Promise<string> {
   if (!apiKey || apiKey === SAFE_STORAGE_PLACEHOLDER) return apiKey
+  if (vendorId === 'ai_postprocess') {
+    if (!window.electronAPI?.safeStorageSet || !await window.electronAPI.safeStorageAvailable()) throw new Error('系统安全存储不可用，AI 密钥未保存')
+    if (!await window.electronAPI.safeStorageSet(safeStorageKeyFor(vendorId), apiKey)) throw new Error('AI 密钥加密保存失败')
+    return SAFE_STORAGE_PLACEHOLDER
+  }
   if (!window.electronAPI?.safeStorageSet) return apiKey
 
   const available = await window.electronAPI.safeStorageAvailable()

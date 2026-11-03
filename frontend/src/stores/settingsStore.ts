@@ -1,4 +1,5 @@
 import { storeVolcSecrets } from '../utils/secretStorage'
+import { aiBaseUrl } from '../../../shared/ai'
 import { create } from 'zustand'
 import type {
   AiPostProcessConfig,
@@ -84,6 +85,7 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
       aiPostProcess: {
         ...defaultSettings.aiPostProcess,
         ...(settings.aiPostProcess || {}),
+        baseUrl: aiBaseUrl(settings.aiPostProcess || {}),
       },
       openApi: {
         ...defaultSettings.openApi,
@@ -131,16 +133,10 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
     const { settings } = get()
     const currentConfig = settings.aiPostProcess || {}
     const nextConfig = { ...currentConfig, ...config }
-    const inMemorySettings = {
-      ...settings,
-      aiPostProcess: nextConfig,
-    }
-
-    set({ settings: inMemorySettings })
-
     const encryptedApiKey = typeof nextConfig.apiKey === 'string'
       ? await encryptApiKeyForStorage('ai_postprocess', nextConfig.apiKey)
       : nextConfig.apiKey
+    const inMemorySettings = { ...get().settings, aiPostProcess: nextConfig }
 
     saveSettings({
       ...inMemorySettings,
@@ -149,6 +145,7 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
         apiKey: encryptedApiKey,
       },
     })
+    set({ settings: inMemorySettings })
   },
   updateOpenApiConfig: (config) => {
     const { settings } = get()
