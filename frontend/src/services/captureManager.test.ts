@@ -49,3 +49,17 @@ describe('audio-thread timeline and mix', () => {
     expect(p.process([[system], [mic]], [[output]])).toBe(false)
   })
 })
+
+describe('image timestamps', () => {
+  it('uses the audio clock, freezes when suspended and includes the current archive offset', () => {
+    const capture = new CaptureManager()
+    const state = capture as unknown as { id:string;context:{currentTime:number};offset:number;graphOrigin:number;lastArchiveTime:number }
+    state.id='synthetic';state.context={currentTime:3.5};state.graphOrigin=1;state.offset=5000
+    expect(capture.archiveTimeMs).toBe(7500)
+    expect(capture.archiveTimeMs).toBe(7500)
+    state.context.currentTime=4
+    expect(capture.archiveTimeMs).toBe(8000)
+    state.graphOrigin=0;state.context.currentTime=0.25;state.offset=9000
+    expect(capture.archiveTimeMs).toBe(9250)
+  })
+})

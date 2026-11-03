@@ -1,5 +1,6 @@
 import { normalizeVersions } from './versionSchema'
 import { parseVolcSnapshot } from './volcTranscript'
+import { validateSessionImages } from '../../../shared/sessionImages'
 import type {
   CorrectionIssue,
   TranscriptAskTurn,
@@ -19,7 +20,7 @@ import type {
 } from '../types'
 import { formatDate, formatTime, generateId } from './storageUtils'
 
-export const CURRENT_SESSION_SCHEMA_VERSION = 4
+export const CURRENT_SESSION_SCHEMA_VERSION = 5
 const DEFAULT_SESSION_STATUS: TranscriptSessionStatus = 'completed'
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -182,6 +183,11 @@ function normalizeChapter(value: unknown): TranscriptChapter | null {
   }
 }
 
+function normalizeInputStamp(value: Record<string, unknown>): import('../services/aiSessionContext').AiInputStamp {
+  return { imageIds: Array.isArray(value.imageIds) ? value.imageIds.filter((id): id is string => typeof id === 'string' && /^[a-f0-9-]{36}$/.test(id)) : undefined, inputFingerprint: typeof value.inputFingerprint === 'string' && /^[a-f0-9]{64}$/.test(value.inputFingerprint) ? value.inputFingerprint : undefined,
+    inputPreference: value.inputPreference === 'original' || value.inputPreference === 'corrected' || value.inputPreference === 'auto' ? value.inputPreference : undefined }
+}
+
 function normalizeQaCitation(value: unknown): TranscriptQaCitation | null {
   if (!isRecord(value)) {
     return null
@@ -194,6 +200,8 @@ function normalizeQaCitation(value: unknown): TranscriptQaCitation | null {
 
   return {
     quote,
+    source: value.source === 'image' ? 'image' : value.source === 'text' ? 'text' : undefined,
+    imageId: getString(value.imageId),
     speakerLabel: getString(value.speakerLabel)?.trim() || undefined,
   }
 }
@@ -221,6 +229,7 @@ function normalizeAskTurn(value: unknown): TranscriptAskTurn | null {
     : undefined
 
   return {
+    ...normalizeInputStamp(value),
     id,
     conversationId: getString(value.conversationId)?.trim() || undefined,
     question,
@@ -257,6 +266,7 @@ function normalizeMindMap(value: unknown): TranscriptMindMap | undefined {
   }
 
   return {
+    ...normalizeInputStamp(value),
     markdown: markdown || '',
     title: title || undefined,
     generatedAt,
@@ -310,6 +320,7 @@ function normalizePostProcess(value: unknown): TranscriptPostProcess | undefined
   }
 
   return {
+    ...normalizeInputStamp(value),
     summary,
     actionItems: actionItems.length > 0 ? actionItems : undefined,
     keywords: keywords.length > 0 ? keywords : undefined,
@@ -368,6 +379,7 @@ function normalizeCorrection(raw: unknown): TranscriptCorrection | undefined {
   }
 
   return {
+    ...normalizeInputStamp(obj),
     status,
     mode,
     correctedText: correctedText || undefined,
@@ -410,6 +422,7 @@ export function normalizeTranscriptSession(session: Partial<TranscriptSession>):
   const versions = normalizeVersions(session.versions)
   return {
     versions,
+    images: validateSessionImages(session.images, session.id || ''),
     selectedVersionId: versions?.some(v => v.id === session.selectedVersionId) ? session.selectedVersionId : versions?.[0]?.id,
     id: getString(session.id)?.trim() || generateId(),
     schemaVersion: CURRENT_SESSION_SCHEMA_VERSION,

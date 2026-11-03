@@ -256,6 +256,7 @@ export interface CloudBackupIpcFileInfo {
 // ─── Core types ───
 
 export interface ElectronAPI {
+  sessionImages: import('./sessionImages').SessionImagesAPI
   codex: import('./ai').CodexAPI
   fileTasks: import('./fileTranscription').FileTasksAPI
   recording: import('./recording').RecordingAPI

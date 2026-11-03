@@ -1,3 +1,6 @@
+import { resolveInputText } from '../../services/aiSessionContext'
+import { MarkdownRenderer } from './MarkdownRenderer'
+import { AiStaleNotice } from './AiStaleNotice'
 import {
   Sparkles,
   Loader2,
@@ -74,7 +77,7 @@ export function AiTab({ session }: AiTabProps) {
               <Sparkles className="w-3.5 h-3.5" />
               {t.preview.aiBriefing}
             </div>
-            <TextSourceBanner session={session} />
+            <TextSourceBanner session={session} /><AiStaleNotice session={session} result={session.postProcess} />
             {!aiConfigured && (
               <p className="text-xs text-muted-foreground">{t.preview.aiNotConfigured}</p>
             )}
@@ -84,9 +87,9 @@ export function AiTab({ session }: AiTabProps) {
           </div>
           <button
             onClick={() => void handleGenerateAiBriefing()}
-            disabled={!aiConfigured || aiGenerating || !session.transcript.trim()}
+            disabled={!aiConfigured || aiGenerating || !(resolveInputText(session, 'auto') || session.images?.length)}
             className={`inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-colors ${
-              !aiConfigured || !session.transcript.trim()
+              !aiConfigured || !(resolveInputText(session, 'auto') || session.images?.length)
                 ? 'cursor-not-allowed border border-border bg-muted text-muted-foreground'
                 : aiGenerating
                   ? 'border border-primary/30 bg-primary/10 text-primary'
@@ -114,9 +117,7 @@ export function AiTab({ session }: AiTabProps) {
                 <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                   {t.preview.aiSummary}
                 </div>
-                <p className="text-sm leading-relaxed text-foreground whitespace-pre-wrap">
-                  {postProcess.summary}
-                </p>
+                <MarkdownRenderer content={postProcess.summary} />
               </div>
             )}
 
@@ -155,7 +156,7 @@ export function AiTab({ session }: AiTabProps) {
                       key={`${item}-${index}`}
                       className="rounded-lg border border-border bg-background/70 px-3 py-2 text-sm text-foreground"
                     >
-                      {item}
+                      <MarkdownRenderer content={item} />
                     </div>
                   ))}
                 </div>
@@ -225,7 +226,7 @@ export function AiTab({ session }: AiTabProps) {
                     >
                       <div className="text-sm font-medium text-foreground">{chapter.title}</div>
                       {chapter.summary && (
-                        <p className="text-xs text-muted-foreground mt-1">{chapter.summary}</p>
+                        <MarkdownRenderer content={chapter.summary} className="text-xs" />
                       )}
                     </div>
                   ))}

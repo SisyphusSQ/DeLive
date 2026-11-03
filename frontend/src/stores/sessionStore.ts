@@ -1,3 +1,5 @@
+import { queueImageRemoval, flushImageRemovals } from '../services/imageCleanup'
+import { cancelAiTasks } from '../services/aiTransport'
 import { create } from 'zustand'
 import type {
   CorrectionIssue,
@@ -126,7 +128,7 @@ export interface SessionState {
     sessionId: string,
     options?: { overwrite?: boolean },
   ) => Promise<TranscriptPostProcess>
-  deleteSession: (id: string) => void
+  deleteSession: (id: string) => Promise<void>
   deleteSessionConversation: (sessionId: string, conversationId: string) => void
   updateSessionTags: (sessionId: string, tagIds: string[]) => void
   updateSessionTopic: (sessionId: string, topicId: string | undefined) => void
@@ -365,7 +367,7 @@ export const useSessionStore = create<SessionState>((set, get) => {
       clearSessionAutosaveTimer()
       const { currentSessionId } = get()
       const snapshot = buildCurrentSessionSnapshot()
-      const hasContent = hasPersistenceSnapshotContent(snapshot) || get().sessions.some(s => s.id === currentSessionId && s.audioRecordingId)
+      const hasContent = hasPersistenceSnapshotContent(snapshot) || get().sessions.some(s => s.id === currentSessionId && (s.audioRecordingId || s.images?.length))
 
       if (currentSessionId && hasContent) {
         const sessions = sessionRepository.completeSession(currentSessionId, snapshot)
@@ -573,6 +575,7 @@ export const useSessionStore = create<SessionState>((set, get) => {
           ...pendingTurn,
           answer: result.answer,
           citations: result.citations,
+          inputFingerprint: result.inputFingerprint, inputPreference: result.inputPreference, imageIds: result.imageIds,
           answeredAt: Date.now(),
           model: result.model,
           status: 'success',
@@ -637,6 +640,7 @@ export const useSessionStore = create<SessionState>((set, get) => {
               ...pendingTurn,
               answer: result.answer,
               citations: result.citations,
+              inputFingerprint: result.inputFingerprint, inputPreference: result.inputPreference, imageIds: result.imageIds,
               answeredAt: Date.now(),
               model: result.model,
               status: 'success',
@@ -707,14 +711,17 @@ export const useSessionStore = create<SessionState>((set, get) => {
         throw error
       }
     },
-    deleteSession: (id) => {
+    deleteSession: async (id) => {
+      cancelAiTasks(id)
+      queueImageRemoval({ sessionId: id })
       const { sessions: currentSessions, recoverySession } = get()
       const nextState = applySessionDeletion(currentSessions, id, recoverySession)
-      const sessions = sessionRepository.deleteSession(id)
+      const sessions = await sessionRepository.deleteSessionDurable(id)
       set({
         sessions,
         recoverySession: nextState.recoverySession,
       })
+      await flushImageRemovals(sessions)
     },
     deleteSessionConversation: (sessionId, conversationId) => {
       const session = get().sessions.find((s) => s.id === sessionId)
@@ -809,12 +816,13 @@ export const useSessionStore = create<SessionState>((set, get) => {
       })
 
       try {
-        const { issues, model } = await detectCorrectionIssues(
+        const { issues, model, ...stamp } = await detectCorrectionIssues(
           session,
           useSettingsStore.getState().settings,
         )
         get().updateSessionCorrection(sessionId, {
           status: 'reviewing',
+          ...stamp,
           issues,
           model,
         })
@@ -861,10 +869,11 @@ export const useSessionStore = create<SessionState>((set, get) => {
               set({ correctionStreamingText: { ...get().correctionStreamingText, [sessionId]: prev + chunk } })
               onChunk?.(chunk)
             },
-            onDone: (fullText) => {
+            onDone: (fullText, stamp) => {
               get().clearCorrectionStreamingText(sessionId)
               get().updateSessionCorrection(sessionId, {
                 status: 'done',
+                ...stamp,
                 correctedText: fullText,
                 completedAt: Date.now(),
               })
@@ -924,10 +933,11 @@ export const useSessionStore = create<SessionState>((set, get) => {
               set({ correctionStreamingText: { ...get().correctionStreamingText, [sessionId]: prev + chunk } })
               onChunk?.(chunk)
             },
-            onDone: (fullText) => {
+            onDone: (fullText, stamp) => {
               get().clearCorrectionStreamingText(sessionId)
               get().updateSessionCorrection(sessionId, {
                 status: 'done',
+                ...stamp,
                 correctedText: fullText,
                 completedAt: Date.now(),
               })

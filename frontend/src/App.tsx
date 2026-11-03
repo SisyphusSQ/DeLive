@@ -1,3 +1,4 @@
+import { flushImageRemovals } from './services/imageCleanup'
 import { ingestFileTasks } from './utils/volcFileApi'
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { AlertTriangle, Settings } from 'lucide-react'
@@ -35,6 +36,7 @@ import { initStorage } from './utils/storage'
 function App() {
   const [showSourcePicker, setShowSourcePicker] = useState(false)
   const [toasts, setToasts] = useState<ToastMessage[]>([])
+  const [storageError, setStorageError] = useState('')
   const [isInitialized, setIsInitialized] = useState(false)
   const { initTheme, t, currentView, setView, backToLive } = useUIStore()
   const { loadSettings, settings, availableProviders, credentialError } = useSettingsStore()
@@ -92,7 +94,7 @@ function App() {
   useApiIpcResponder()
 
   // ASR — lifted to App so global shortcut can reach it
-  const { startRecording, stopRecording, switchConfig, switchProvider, getMediaStream, reconnectTranscription } = useASR({
+  const { startRecording, stopRecording, switchConfig, switchProvider, getMediaStream, getRecordingTime, reconnectTranscription } = useASR({
     onError: handleError,
     onStarted: () => console.log('[App] Recording started'),
   })
@@ -121,6 +123,11 @@ function App() {
       loadTags()
       loadTopics()
       await loadSessions()
+      try {
+        const sessions = useSessionStore.getState().sessions
+        await flushImageRemovals(sessions)
+        await window.electronAPI?.sessionImages?.cleanupUnreferenced(Object.fromEntries(sessions.map(s => [s.id, (s.images || []).map(i => i.assetPath)])))
+      } catch (error) { addToast('error', `图片素材清理未完成：${(error as Error).message}；将在下次启动时重试`) }
       if (window.electronAPI?.fileTasks) {
         try { await ingestFileTasks(await window.electronAPI.fileTasks.list()) }
         catch { addToast('error', '会后任务读取或保存失败，请打开文件转写查看并重试') }
@@ -129,7 +136,7 @@ function App() {
       if (!cancelled) {
         setIsInitialized(true)
       }
-    })()
+    })().catch(error => { if (!cancelled) setStorageError(`会话数据读取失败：${error.message}。原数据保留，请恢复磁盘或存储访问后重试。`) })
 
     return () => {
       cancelled = true
@@ -208,6 +215,9 @@ function App() {
   }, [isInitialized, hasApiKey, setView])
 
   const isElectron = !!window.electronAPI?.isElectron
+
+  if (storageError) return <div role="alert" className="p-8 space-y-4"><p>{storageError}</p><button onClick={() => window.location.reload()}>重新读取</button></div>
+  if (!isInitialized) return <p role="status" className="p-8">正在读取会话…</p>
 
   const sidebarWidth = sidebarCollapsed ? 56 : 224
 
@@ -350,7 +360,7 @@ function App() {
               )}
 
               <div className="animate-reveal-up delay-1">
-                <TranscriptDisplay contentHeightClassName="h-[min(50vh,36rem)] min-h-[24rem]" />
+                <TranscriptDisplay getRecordingTime={getRecordingTime} contentHeightClassName="h-[min(50vh,36rem)] min-h-[24rem]" />
               </div>
 
               <div className="workspace-panel p-6 animate-reveal-up delay-2 space-y-4">

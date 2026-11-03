@@ -1,4 +1,4 @@
-import { completeAi } from './aiTransport'
+import { completeSessionAi, CONTEXT_MARKER, resolveInputText, type AiInputStamp } from './aiSessionContext'
 import type { AiMessage } from '../../../shared/ai'
 import type {
   AiPostProcessConfig,
@@ -8,6 +8,8 @@ import type {
 } from '../types'
 import { resolveModelForFeature } from './aiPostProcess'
 import { throwUserError } from '../utils/userErrors'
+
+type PromptLang = NonNullable<AiPostProcessConfig['promptLanguage']>
 
 const DEFAULT_PROMPT_LANGUAGE: NonNullable<AiPostProcessConfig['promptLanguage']> = 'zh'
 
@@ -22,13 +24,6 @@ function getAiConfig(settings: AppSettings): AiPostProcessConfig {
   }
 }
 
-function buildTranscriptBlock(session: TranscriptSession): string {
-  return session.transcript.trim()
-}
-
-type PromptLang = NonNullable<AiPostProcessConfig['promptLanguage']>
-
-// --------------- Prompt builders ---------------
 
 function buildDetectSystemPrompt(lang: PromptLang): string {
   if (lang === 'ko') {
@@ -72,7 +67,7 @@ function buildDetectSystemPrompt(lang: PromptLang): string {
 }
 
 function buildDetectUserPrompt(session: TranscriptSession, lang: PromptLang): string {
-  const text = buildTranscriptBlock(session)
+  const text = CONTEXT_MARKER
   if (lang === 'ko') {
     return `세션 제목: ${session.title}\n\n전사 내용:\n${text}`
   }
@@ -117,7 +112,7 @@ function buildQuickCorrectionSystemPrompt(lang: PromptLang): string {
 }
 
 function buildQuickCorrectionUserPrompt(session: TranscriptSession, lang: PromptLang): string {
-  const text = buildTranscriptBlock(session)
+  const text = CONTEXT_MARKER
   if (lang === 'ko') {
     return `세션 제목: ${session.title}\n\n다음 전사 내용을 교정해 줘:\n${text}`
   }
@@ -160,7 +155,7 @@ function buildReviewCorrectionUserPrompt(
   issues: CorrectionIssue[],
   lang: PromptLang,
 ): string {
-  const text = buildTranscriptBlock(session)
+  const text = CONTEXT_MARKER
   const issuesList = issues
     .map((i) => `- "${i.originalText}" → "${i.suggestedText}"`)
     .join('\n')
@@ -190,7 +185,7 @@ function buildReviewCorrectionUserPrompt(
 
 export interface StreamCallbacks {
   onChunk: (text: string) => void
-  onDone: (fullText: string) => void
+  onDone: (fullText: string, stamp: AiInputStamp) => void
   onError: (error: Error) => void
 }
 
@@ -200,11 +195,12 @@ async function streamChatCompletion(
   messages: AiMessage[],
   callbacks: StreamCallbacks,
   signal?: AbortSignal,
-  taskKey?: string,
+  session?: TranscriptSession,
 ): Promise<void> {
   try {
-    const text = await completeAi(config, { model, messages }, { taskKey, signal, onDelta: callbacks.onChunk })
-    callbacks.onDone(text)
+    if (!session) throw new Error('会话不存在')
+    const { content, ...stamp } = await completeSessionAi(session, config, { model, messages }, { signal, onDelta: callbacks.onChunk }, true)
+    callbacks.onDone(content, stamp)
   } catch (error) {
     callbacks.onError(error instanceof Error ? error : new Error(String(error)))
   }
@@ -226,7 +222,7 @@ function extractJsonArray(raw: string): string {
 
 // --------------- Public API ---------------
 
-export interface DetectResult {
+export interface DetectResult extends AiInputStamp {
   issues: CorrectionIssue[]
   model: string
 }
@@ -241,12 +237,12 @@ export async function detectCorrectionIssues(
 
   if (!config.enabled) throwUserError('aiPostProcessDisabled')
   if (!model) throwUserError('aiCorrectionModelNotConfigured')
-  if (!session.transcript.trim()) throwUserError('noTranscriptForCorrection')
+  if (!resolveInputText(session, 'original')) throwUserError('noTranscriptForCorrection')
 
-  const raw = await completeAi(config, { model, messages: [
+  const { content: raw, ...stamp } = await completeSessionAi(session, config, { model, messages: [
     { role: 'system', content: buildDetectSystemPrompt(lang) },
     { role: 'user', content: buildDetectUserPrompt(session, lang) },
-  ] }, { taskKey: session.id })
+  ] }, { taskKey: session.id }, true)
   const jsonText = extractJsonArray(raw)
 
   let parsed: Array<{
@@ -278,7 +274,7 @@ export async function detectCorrectionIssues(
       accepted: undefined,
     }))
 
-  return { issues, model }
+  return { issues, model, ...stamp }
 }
 
 export interface QuickCorrectionCallbacks extends StreamCallbacks {
@@ -296,7 +292,7 @@ export async function correctTranscriptQuick(
 
   if (!config.enabled) throwUserError('aiPostProcessDisabled')
   if (!model) throwUserError('aiCorrectionModelNotConfigured')
-  if (!session.transcript.trim()) throwUserError('noTranscriptForCorrection')
+  if (!resolveInputText(session, 'original')) throwUserError('noTranscriptForCorrection')
 
   await streamChatCompletion(
     config,
@@ -307,7 +303,7 @@ export async function correctTranscriptQuick(
     ],
     callbacks,
     callbacks.signal,
-    session.id,
+    session,
   )
 }
 
@@ -334,6 +330,6 @@ export async function correctTranscriptWithReview(
     ],
     callbacks,
     callbacks.signal,
-    session.id,
+    session,
   )
 }

@@ -42,7 +42,7 @@ describe('sessionRepository persistence strategy', () => {
     const sessions = sessionRepository.createDraft(draft)
 
     expect(sessions[0].id).toBe('draft-1')
-    expect(sessionStorageMock.upsertSession).toHaveBeenCalledTimes(1)
+    await vi.waitFor(() => expect(sessionStorageMock.upsertSession).toHaveBeenCalledTimes(1))
     expect(sessionStorageMock.upsertSession).toHaveBeenCalledWith(
       expect.objectContaining({ id: 'draft-1' }),
     )
@@ -54,6 +54,7 @@ describe('sessionRepository persistence strategy', () => {
     const draft = makeSession({ id: 'draft-2' })
 
     sessionRepository.createDraft(draft)
+    await vi.waitFor(() => expect(sessionStorageMock.upsertSession).toHaveBeenCalledTimes(1))
     sessionStorageMock.upsertSession.mockClear()
 
     const sessions = sessionRepository.saveProgress('draft-2', {
@@ -61,7 +62,7 @@ describe('sessionRepository persistence strategy', () => {
     })
 
     expect(sessions[0].transcript).toBe('hello world')
-    expect(sessionStorageMock.upsertSession).toHaveBeenCalledTimes(1)
+    await vi.waitFor(() => expect(sessionStorageMock.upsertSession).toHaveBeenCalledTimes(1))
     expect(sessionStorageMock.upsertSession).toHaveBeenCalledWith(
       expect.objectContaining({
         id: 'draft-2',
@@ -102,30 +103,36 @@ describe('sessionRepository persistence strategy', () => {
 
     expect(result.sessions[0]).toEqual(expect.objectContaining({
       id: 'legacy-1',
-      schemaVersion: 4,
+      schemaVersion: 5,
       tagIds: [],
     }))
     expect(sessionStorageMock.upsertSessions).toHaveBeenCalledTimes(1)
     expect(sessionStorageMock.upsertSessions).toHaveBeenCalledWith([
-      expect.objectContaining({ id: 'legacy-1', schemaVersion: 4 }),
+      expect.objectContaining({ id: 'legacy-1', schemaVersion: 5 }),
     ])
   })
 
   it('serializes simultaneous revision and machine-result writes against the latest session', async () => {
     const { sessionRepository } = await import('./sessionRepository')
     sessionRepository.createDraft(makeSession({id:'concurrent'}))
+    await vi.waitFor(() => expect(sessionStorageMock.upsertSession).toHaveBeenCalledTimes(1))
     let release!: () => void
     sessionStorageMock.upsertSession.mockImplementationOnce(() => new Promise<void>(resolve => {release=resolve}))
     const one=sessionRepository.mutateDurable('concurrent', current=>({tagIds:[...(current.tagIds??[]),'manual']}))
     await Promise.resolve();await Promise.resolve()
+    sessionRepository.saveProgress('concurrent', { transcript: 'latest audio' })
     const two=sessionRepository.mutateDurable('concurrent', current=>({tagIds:[...(current.tagIds??[]),'machine']}))
     release();await one
-    expect((await two)[0].tagIds).toEqual(['manual','machine'])
+    const saved = (await two)[0]
+    expect(saved.tagIds).toEqual(['manual','machine'])
+    expect(saved.transcript).toBe('latest audio')
+    expect(sessionStorageMock.upsertSession.mock.lastCall?.[0]).toMatchObject({transcript:'latest audio',tagIds:['manual','machine']})
   })
 
   it('surfaces persistence failure without publishing a false saved state and permits retry', async () => {
     const { sessionRepository } = await import('./sessionRepository')
     sessionRepository.createDraft(makeSession({id:'failure',transcript:'original'}))
+    await vi.waitFor(() => expect(sessionStorageMock.upsertSession).toHaveBeenCalledTimes(1))
     sessionStorageMock.upsertSession.mockRejectedValueOnce(new Error('disk full'))
     await expect(sessionRepository.updateMetadataDurable('failure',{transcript:'unsaved'})).rejects.toThrow('disk full')
     const saved=await sessionRepository.mutateDurable('failure', current=>({title:current.transcript}))

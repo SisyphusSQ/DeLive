@@ -1,3 +1,4 @@
+import type { AiInputStamp } from '../services/aiSessionContext'
 import type { AiConnection } from '../../../shared/ai'
 // 重新导出 ASR 相关类型
 export * from './asr'
@@ -94,7 +95,7 @@ export interface CorrectionIssue {
   category: CorrectionIssueCategory
 }
 
-export interface TranscriptCorrection {
+export interface TranscriptCorrection extends AiInputStamp {
   correctedText?: string
   issues?: CorrectionIssue[]
   status: TranscriptCorrectionStatus
@@ -106,11 +107,13 @@ export interface TranscriptCorrection {
 }
 
 export interface TranscriptQaCitation {
+  source?: 'text' | 'image'
+  imageId?: string
   quote: string
   speakerLabel?: string
 }
 
-export interface TranscriptAskTurn {
+export interface TranscriptAskTurn extends AiInputStamp {
   id: string
   conversationId?: string
   question: string
@@ -123,7 +126,7 @@ export interface TranscriptAskTurn {
   error?: string
 }
 
-export interface TranscriptMindMap {
+export interface TranscriptMindMap extends AiInputStamp {
   markdown: string
   title?: string
   generatedAt?: number
@@ -134,7 +137,7 @@ export interface TranscriptMindMap {
   error?: string
 }
 
-export interface TranscriptPostProcess {
+export interface TranscriptPostProcess extends AiInputStamp {
   summary?: string
   actionItems?: string[]
   keywords?: string[]
@@ -173,6 +176,7 @@ export interface CaptionStyle {
 
 // 转录会话类型
 export interface TranscriptSession {
+  images?: import('../../../shared/sessionImages').SessionImage[]
   versions?: import('../../../shared/fileTranscription').TranscriptVersion[]
   selectedVersionId?: string
   realtime?: import('./realtime').RealtimeRecognition[]

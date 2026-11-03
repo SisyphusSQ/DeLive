@@ -27,6 +27,8 @@ export class CaptureManager {
   private id: string | null = null
   private origin = 0
   private offset = 0
+  private graphOrigin = 0
+  private lastArchiveTime = 0
   private queue: Promise<unknown> = Promise.resolve()
   private pending = 0
   private diskFailed = false
@@ -40,6 +42,7 @@ export class CaptureManager {
   get isRestarting() { return this._isRestarting }
   get currentStream() { return this.mixed }
   get elapsedMs() { return this.origin ? performance.now() - this.origin : 0 }
+  get archiveTimeMs() { return this.id && this.context ? this.offset + Math.max(0, this.context.currentTime - this.graphOrigin) * 1000 : this.lastArchiveTime }
 
   private state(source: AudioSource, status: SourceState['status'], device?: string) {
     const state: SourceState = { source, status, device, level: 0, atMs: this.elapsedMs }
@@ -128,6 +131,7 @@ export class CaptureManager {
     if (!window.electronAPI?.recording) throw new Error('原音持久化需要 Electron 桌面应用')
     await window.electronAPI.recording.begin(sessionId)
     this.id = sessionId; this.origin = performance.now(); this.offset = 0
+    this.graphOrigin = this.context!.currentTime; this.lastArchiveTime = 0
     this.diskFailed = false; this.pending = 0; this.queue = Promise.resolve()
     for (const state of this.states.values()) this.state(state.source, state.status, state.device)
     this.startMeters()
@@ -187,6 +191,7 @@ export class CaptureManager {
     await this.queue
   }
   private async releaseGraph() {
+    this.lastArchiveTime = this.archiveTimeMs
     this.pauseRecorder()
     if (this.meterTimer) clearInterval(this.meterTimer)
     this.meterTimer = null; this.meters = []
@@ -202,6 +207,7 @@ export class CaptureManager {
     await this.releaseGraph()
     const stream = await this.acquireStream()
     this.offset = this.elapsedMs
+    this.graphOrigin = this.context!.currentTime
     this.startMeters()
     await this.context!.resume()
     return stream

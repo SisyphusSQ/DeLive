@@ -462,7 +462,7 @@ export function HistoryPanel({
             label: t.common.delete,
             onClick: () => {
               if (pendingDeleteSession) {
-                deleteSession(pendingDeleteSession.id)
+                void deleteSession(pendingDeleteSession.id).catch(error => window.alert(`会话删除或素材清理失败：${error.message}。未清理素材将在重启时重试。`))
               }
               setPendingDeleteSession(null)
             },

@@ -188,6 +188,7 @@ export default withMermaid(
                   { text: '扩展 Provider', link: '/zh/development/extending-providers' },
                   { text: '测试', link: '/zh/development/testing' },
                   { text: 'AI 接入与权限', link: '/zh/development/ai-providers' },
+                  { text: '会话图片与 AI 来源', link: '/zh/development/session-images' },
                   { text: '构建与发布', link: '/zh/development/build' },
                 ],
               },

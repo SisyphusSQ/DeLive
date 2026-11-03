@@ -20,6 +20,7 @@ import { registerApiIpc } from './apiIpc'
 import { attachApiServer } from './apiServer'
 import { registerCloudBackupIpc } from './cloudBackup/cloudBackupIpc'
 import { registerCodexIpc } from './codexIpc'
+import { registerSessionImagesIpc } from './sessionImages'
 import { refreshElectronLang, getElectronStrings } from './i18n'
 
 installLogInterceptor()
@@ -54,6 +55,7 @@ const desktopSourceController = createDesktopSourceController({
 
 const localRuntimeController = createLocalRuntimeController()
 const codexController = registerCodexIpc(ipcMain)
+registerSessionImagesIpc(ipcMain)
 
 function isAutoUpdateSupported(): boolean {
   // Fork updates stay disabled until a dedicated release source is configured.

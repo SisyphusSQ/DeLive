@@ -75,7 +75,7 @@ describe('backupStorage', () => {
     expect(upgraded.sessions).toHaveLength(1)
     expect(upgraded.sessions[0]).toEqual(expect.objectContaining({
       id: 'legacy-session',
-      schemaVersion: 4,
+      schemaVersion: 5,
       transcript: 'hello world',
       tagIds: [],
       speakers: [],

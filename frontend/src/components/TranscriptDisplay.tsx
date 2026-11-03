@@ -4,10 +4,12 @@ import { useUIStore } from '../stores/uiStore'
 import { useSettingsStore } from '../stores/settingsStore'
 import { useSessionStore } from '../stores/sessionStore'
 import { getProviderName } from '../utils/providerI18n'
+import { SessionImages, SessionImageViewer } from './SessionImages'
 
 interface TranscriptDisplayProps {
   className?: string
   contentHeightClassName?: string
+  getRecordingTime?: () => number
 }
 
 const LIVE_SPEAKER_COLORS = [
@@ -32,9 +34,11 @@ function getSpeakerShortLabel(speakerId: string, allIds: string[]): string {
 export function TranscriptDisplay({
   className = '',
   contentHeightClassName = 'h-[320px]',
+  getRecordingTime = () => 0,
 }: TranscriptDisplayProps) {
   const { t } = useUIStore()
   const { settings, availableProviders } = useSettingsStore()
+  const currentSession = useSessionStore(state => state.sessions.find(session => session.id === state.currentSessionId))
   const {
     finalTranscript,
     nonFinalTranscript,
@@ -269,6 +273,7 @@ export function TranscriptDisplay({
             )}
           </div>
         )}
+        {currentSession && <div className="p-4"><SessionImages session={currentSession} getTime={getRecordingTime} live /><SessionImageViewer session={currentSession} /></div>}
       </div>
 
       {/* 滚动到底部按钮 */}
