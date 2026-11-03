@@ -3,7 +3,7 @@ import { autoUpdater } from 'electron-updater'
 import { getElectronStrings } from './i18n'
 
 autoUpdater.autoDownload = false
-autoUpdater.autoInstallOnAppQuit = true
+autoUpdater.autoInstallOnAppQuit = false
 
 interface SetupAutoUpdaterOptions {
   getMainWindow: () => BrowserWindow | null

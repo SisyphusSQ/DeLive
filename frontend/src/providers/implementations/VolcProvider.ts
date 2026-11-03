@@ -141,6 +141,9 @@ export class VolcProvider extends BaseASRProvider {
             clearTimeout(timer); this.ready = true; this.setState('connected'); resolve()
           } else if (msg.type === 'snapshot') {
             if (this.terminal) return
+            // 火山初始化响应只有 log_id，不是可替换当前稿的识别快照。
+            const result = msg.raw?.result
+            if (!msg.final && result?.text === undefined && result?.utterances === undefined && typeof result?.additions?.log_id === 'string') return
             if (typeof msg.sequence === 'number' && this.snapshot?.sequence !== undefined && Math.abs(msg.sequence) < Math.abs(this.snapshot.sequence)) return
             this.snapshot = parseVolcSnapshot(msg.raw, this.recognitionId, this.offsetMs ?? 0, ++this.revision, msg.final === true, msg.sequence)
             this.emit('onRealtime', this.snapshot)

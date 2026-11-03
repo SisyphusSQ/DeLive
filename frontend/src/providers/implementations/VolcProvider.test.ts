@@ -28,6 +28,19 @@ async function connected() {
 describe('Volc lifecycle (isolated WebSocket double)', () => {
   beforeEach(() => { vi.useFakeTimers(); Socket.instances = []; vi.stubGlobal('WebSocket', Socket) })
   afterEach(() => { vi.useRealTimers(); vi.unstubAllGlobals() })
+  it('ignores real-service metadata acknowledgements without dropping text or accepting malformed final frames', async () => {
+    const { provider, ws, events } = await connected()
+    const metadata = { result: { additions: { log_id: 'fixture-log-id' } } }
+    ws.message({ type: 'snapshot', final: false, raw: metadata })
+    expect(events).toHaveLength(0)
+    ws.message({ type: 'snapshot', raw })
+    ws.message({ type: 'snapshot', final: false, raw: metadata })
+    expect(events).toHaveLength(1)
+    expect(events[0].text).toBe('合成文本')
+    ws.message({ type: 'snapshot', final: true, raw: metadata })
+    expect(events[1]).toMatchObject({ text: '合成文本', status: 'incomplete', errorCode: 'PROTOCOL_ERROR' })
+    await provider.disconnect()
+  })
   it('keeps credentials out of URL and waits for final, flushing ordered PCM before end', async () => {
     const { provider, ws, events } = await connected()
     expect(ws.url).not.toContain('synthetic-secret')

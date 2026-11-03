@@ -259,7 +259,7 @@ const electronAPI: ElectronAPI = {
   safeStorageAvailable: () => ipcRenderer.invoke('safe-storage-available') as Promise<boolean>,
 
   supportsAutoLaunch: process.platform === 'win32' || process.platform === 'darwin',
-  supportsAutoUpdate: process.platform !== 'linux' || Boolean(process.env.APPIMAGE),
+  supportsAutoUpdate: false,
 }
 
 contextBridge.exposeInMainWorld('electronAPI', electronAPI)

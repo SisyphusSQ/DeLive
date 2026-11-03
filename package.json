@@ -1,5 +1,5 @@
 {
-  "name": "delive",
+  "name": "delive-sq",
   "version": "2.3.0-beta.2",
   "description": "DeLive",
   "private": true,
@@ -51,8 +51,8 @@
     "wait-on": "^8.0.0"
   },
   "build": {
-    "appId": "com.delive.app",
-    "productName": "DeLive",
+    "appId": "io.github.sisyphussq.delive",
+    "productName": "DeLive SQ",
     "copyright": "Copyright © 2024 XimilalaXiang",
     "icon": "build/icon",
     "directories": {
@@ -66,7 +66,8 @@
       "build/icon.ico",
       "build/icon.png",
       "build/icon.icns",
-      "build/icon-16.png"
+      "build/icon-16.png",
+      "LICENSE"
     ],
     "asarUnpack": [
       "local-runtimes/**/*",
@@ -127,14 +128,12 @@
         {
           "target": "dmg",
           "arch": [
-            "x64",
             "arm64"
           ]
         },
         {
           "target": "zip",
           "arch": [
-            "x64",
             "arm64"
           ]
         }
@@ -142,8 +141,8 @@
       "artifactName": "${productName}-${version}-mac-${arch}.${ext}",
       "category": "public.app-category.utilities",
       "extendInfo": {
-        "NSMicrophoneUsageDescription": "DeLive needs microphone access for real-time audio transcription",
-        "NSAudioCaptureUsageDescription": "DeLive needs to capture system audio for real-time transcription"
+        "NSMicrophoneUsageDescription": "DeLive SQ needs microphone access for real-time audio transcription",
+        "NSAudioCaptureUsageDescription": "DeLive SQ needs to capture system audio for real-time transcription"
       }
     },
     "linux": {
@@ -171,17 +170,12 @@
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": "always",
       "createStartMenuShortcut": true,
-      "shortcutName": "DeLive"
+      "shortcutName": "DeLive SQ"
     },
     "portable": {
       "artifactName": "${productName}-${version}-portable.${ext}"
     },
-    "publish": {
-      "provider": "github",
-      "owner": "XimilalaXiang",
-      "repo": "DeLive",
-      "releaseType": "release"
-    }
+    "publish": null
   },
   "engines": {
     "node": ">=18.0.0"
@@ -190,12 +184,13 @@
     "@aws-sdk/client-s3": "^3.1031.0",
     "@aws-sdk/lib-storage": "3.1031.0",
     "@aws-sdk/s3-request-presigner": "3.1031.0",
-    "adm-zip": "^0.5.16",
+    "adm-zip": "^0.6.1",
     "cors": "^2.8.5",
-    "electron-updater": "^6.7.3",
-    "express": "^4.21.2",
+    "electron-updater": "^6.8.11",
+    "express": "^4.22.3",
     "https-proxy-agent": "^7.0.6",
     "pako": "^2.1.0",
-    "ws": "^8.19.0"
-  }
+    "ws": "^8.22.1"
+  },
+  "productName": "DeLive SQ"
 }

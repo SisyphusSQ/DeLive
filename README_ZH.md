@@ -1,3 +1,5 @@
+> 本 fork 的独立应用名为 **DeLive SQ**（macOS arm64，ad-hoc DMG/ZIP），应用内更新关闭，数据与原版分开且不自动迁移。下文官网、版本徽章及下载链接属于上游项目；本 fork 当前仅本地打包，见 [构建说明](docs/zh/development/build.md) 和 [TOO-686 验收状态](docs/zh/development/evidence-too-686-live.md)。
+
 <div align="center">
 
 <img src="assets/header.png" width="100%" alt="DeLive Banner" />

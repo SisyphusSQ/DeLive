@@ -16,7 +16,7 @@ export function registerUpdaterIpc(options: RegisterUpdaterIpcOptions): void {
       return { error: '开发模式下不支持自动更新' }
     }
     if (!options.isAutoUpdateSupported()) {
-      return { error: '当前安装方式不支持自动更新（Linux 仅 AppImage 支持）' }
+      return { error: '此发行版未启用应用内更新' }
     }
     try {
       const result = await autoUpdater.checkForUpdates()
@@ -38,7 +38,7 @@ export function registerUpdaterIpc(options: RegisterUpdaterIpcOptions): void {
       return { error: '开发模式下不支持自动更新' }
     }
     if (!options.isAutoUpdateSupported()) {
-      return { error: '当前安装方式不支持自动更新（Linux 仅 AppImage 支持）' }
+      return { error: '此发行版未启用应用内更新' }
     }
     try {
       await autoUpdater.downloadUpdate()
@@ -56,7 +56,7 @@ export function registerUpdaterIpc(options: RegisterUpdaterIpcOptions): void {
     if (!options.isAutoUpdateSupported()) {
       const mainWindow = options.getMainWindow()
       if (mainWindow && !mainWindow.isDestroyed()) {
-        mainWindow.webContents.send('update-error', '当前安装方式不支持自动更新（Linux 仅 AppImage 支持）')
+        mainWindow.webContents.send('update-error', '此发行版未启用应用内更新')
       }
       return
     }
