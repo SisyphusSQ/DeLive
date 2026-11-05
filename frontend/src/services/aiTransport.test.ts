@@ -38,6 +38,16 @@ describe('AI transport', () => {
     expect(onDelta).toHaveBeenCalledWith('计划发布。')
   })
 
+  it.each(['low', 'medium', 'high', 'xhigh', 'max'] as const)('sends %s effort on Responses requests only', async reasoningEffort => {
+    const fetch = vi.fn().mockResolvedValue(new Response(JSON.stringify({ status: 'completed', output: [{ content: [{ type: 'output_text', text: '完成' }] }] })))
+    vi.stubGlobal('fetch', fetch)
+    expect(await completeAi({ ...config, reasoningEffort }, request)).toBe('完成')
+    expect(JSON.parse(fetch.mock.calls[0][1].body).reasoning).toEqual({ effort: reasoningEffort })
+    expect(buildAiBody({ protocol: 'responses', reasoningEffort }, request, true)).toMatchObject({ reasoning: { effort: reasoningEffort }, stream: true })
+    expect(buildAiBody(config, request, false)).not.toHaveProperty('reasoning')
+    expect(buildAiBody({ reasoningEffort }, request, false)).not.toHaveProperty('reasoning')
+  })
+
   it.each([
     [[{ type: 'response.output_text.delta', delta: '半截' }], /中断/],
     [[{ type: 'response.failed', response: { error: { message: 'quota exceeded' } } }], /quota exceeded/],

@@ -51,7 +51,7 @@ export function resolveModelForFeature(
   if (assigned?.trim()) return assigned.trim()
   if (config.defaultModel?.trim()) return config.defaultModel.trim()
   if (config.model?.trim()) return config.model.trim()
-  return ''
+  return config.selectedModels?.find(model => model.trim())?.trim() || ''
 }
 
 interface AiBriefingPayload {
@@ -491,11 +491,11 @@ function buildMindMapUserPrompt(
   ].filter(Boolean).join('\n\n')
 }
 
-export function isAiPostProcessConfigured(settings: AppSettings): boolean {
+export function isAiPostProcessConfigured(settings: AppSettings, feature: AiFeatureKey = 'briefing'): boolean {
   const config = getAiConfig(settings)
   return Boolean(
     config.enabled
-    && resolveModelForFeature(config, 'briefing'),
+    && resolveModelForFeature(config, feature),
   )
 }
 
@@ -623,15 +623,14 @@ export async function askQuestionForSessionStreaming(
   const promptLanguage = config.promptLanguage || DEFAULT_PROMPT_LANGUAGE
   const normalizedQuestion = question.trim()
 
-  if (!config.enabled) throwUserError('aiPostProcessDisabled')
-  if (!model) throwUserError('aiModelNotConfigured')
-  if (!resolveInputText(session, config.preferCorrectedText) && !session.images?.length) throwUserError('noTranscriptForQa')
-  if (!normalizedQuestion) throwUserError('enterQuestion')
-
-  const conversationId = options?.conversationId?.trim()
-
   let fullText = ''
   try {
+    if (!config.enabled) throwUserError('aiPostProcessDisabled')
+    if (!model) throwUserError('aiModelNotConfigured')
+    if (!resolveInputText(session, config.preferCorrectedText) && !session.images?.length) throwUserError('noTranscriptForQa')
+    if (!normalizedQuestion) throwUserError('enterQuestion')
+
+    const conversationId = options?.conversationId?.trim()
     const { content, ...stamp } = await completeSessionAi(session, config, { model, schema: qaSchema, messages: [
       { role: 'system', content: buildAskSystemPrompt(promptLanguage) },
       { role: 'user', content: buildAskUserPrompt({ ...session,

@@ -226,6 +226,8 @@ export function useASR(options: UseASROptions = {}) {
         }
       }
     } catch (error) {
+      console.error('[useASR] 启动录音失败:', error)
+      useRecordingStore.getState().update({ error: (error as Error).message })
       options.onError?.((error as Error).message)
       await stopRecordingRef.current()
     }

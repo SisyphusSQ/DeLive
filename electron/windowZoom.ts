@@ -43,7 +43,7 @@ export function installWindowZoom(window: BrowserWindow): void {
     if (replacement) return { id: role, label: replacement.label, accelerator: replacement.accelerator,
       click: () => { if (!window.isDestroyed() && BrowserWindow.getFocusedWindow() === window) apply(replacement.direction) },
     }
-    return { label: item.label, role: item.role, type: item.type, accelerator: item.accelerator,
+    return { label: item.label, role: item.role, type: item.type, accelerator: item.accelerator ?? undefined,
       enabled: item.enabled, visible: item.visible, checked: item.checked, click: (...args) => item.click(...args),
       submenu: item.submenu ? replace(item.submenu) : undefined }
   })

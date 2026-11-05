@@ -52,3 +52,17 @@ describe('current session autosave', () => {
     expect(saveProgress).toHaveBeenCalledTimes(1)
   })
 })
+
+
+it('settles a streaming chat turn when model validation fails', async () => {
+  const { useSettingsStore } = await import('../settingsStore')
+  useSettingsStore.setState({ settings: { apiKey: '', languageHints: [], aiPostProcess: { enabled: true } } })
+  const id = useSessionStore.getState().startNewSession()
+  useSessionStore.getState().applyTranscriptEvent({ type: 'final-text', text: '验证对话校验错误。' })
+  useSessionStore.getState().endCurrentSession()
+  await useSessionStore.getState().askSessionQuestionStreaming(id, '这段文字讲了什么？')
+  const history = useSessionStore.getState().sessions.find(session => session.id === id)?.askHistory
+  expect(history).toHaveLength(1)
+  expect(history![0]).toMatchObject({ status: 'error', error: expect.any(String), answeredAt: expect.any(Number) })
+  expect(history!.some(turn => turn.status === 'pending')).toBe(false)
+})

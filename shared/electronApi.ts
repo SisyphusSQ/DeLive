@@ -285,6 +285,7 @@ export interface ElectronAPI {
   localRuntimeDownloadBinary: (runtimeId: string, urlString: string) => Promise<PathOperationResult>
   localRuntimeStart: (runtimeId: string, options?: LocalRuntimeLaunchOptions) => Promise<RuntimeCommandResult>
   localRuntimeStop: (runtimeId: string, options?: LocalRuntimeLaunchOptions) => Promise<RuntimeCommandResult>
+  ensureRecordingPermissions: (sources: { system: boolean; microphone: boolean }) => Promise<string | null>
   getDesktopSources: () => Promise<DesktopSource[]>
   selectSource: (sourceId: string) => Promise<boolean>
   cancelSourceSelection: () => Promise<void>

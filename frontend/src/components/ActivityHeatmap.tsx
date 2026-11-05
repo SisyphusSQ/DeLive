@@ -153,12 +153,10 @@ export function ActivityHeatmap({ sessions, onDateClick, activeDate }: ActivityH
 
   const handleMouseEnter = useCallback((e: React.MouseEvent, data: DayData) => {
     if (data.count < 0) return
-    const rect = (e.target as HTMLElement).getBoundingClientRect()
-    const parent = (e.target as HTMLElement).closest('[data-heatmap]')?.getBoundingClientRect()
-    if (!parent) return
+    const cell = e.currentTarget as HTMLElement
     setTooltip({
-      x: rect.left - parent.left + rect.width / 2,
-      y: rect.top - parent.top - 16,
+      x: cell.offsetLeft + cell.offsetWidth / 2,
+      y: cell.offsetTop - 8,
       data,
     })
   }, [])
@@ -279,10 +277,11 @@ export function ActivityHeatmap({ sessions, onDateClick, activeDate }: ActivityH
         {/* Tooltip — positioned above cell with caret */}
         {tooltip && (
           <div
-            className="absolute z-50 pointer-events-none -translate-x-1/2"
+            role="tooltip"
+            className="absolute z-50 w-max pointer-events-none"
             style={{ left: tooltip.x, top: tooltip.y, transform: 'translate(-50%, -100%)' }}
           >
-            <div className="rounded-lg border border-border bg-popover px-3 py-2 text-xs shadow-md mb-1.5">
+            <div className="rounded-lg border border-border bg-popover px-3 py-2 text-xs shadow-md">
               <p className="font-medium text-foreground">{tooltip.data.date}</p>
               <p className="text-muted-foreground whitespace-nowrap">
                 {tooltip.data.count === 0
@@ -290,7 +289,7 @@ export function ActivityHeatmap({ sessions, onDateClick, activeDate }: ActivityH
                   : `${tooltip.data.count} ${copy.recording}${tooltip.data.duration > 0 ? ` · ${formatDuration(tooltip.data.duration)}` : ''}`}
               </p>
             </div>
-            <div className="flex justify-center -mt-1.5">
+            <div className="absolute left-1/2 top-full -mt-1 -translate-x-1/2">
               <div className="w-2 h-2 rotate-45 bg-popover border-r border-b border-border" />
             </div>
           </div>

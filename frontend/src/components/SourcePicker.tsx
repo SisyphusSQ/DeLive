@@ -13,6 +13,7 @@ interface SourcePickerProps {
 export function SourcePicker({ isOpen, onSelect, onCancel }: SourcePickerProps) {
   const { t } = useUIStore()
   const [sources, setSources] = useState<DesktopSource[]>([])
+  const [loadError, setLoadError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const [selectedId, setSelectedId] = useState<string | null>(null)
 
@@ -21,6 +22,9 @@ export function SourcePicker({ isOpen, onSelect, onCancel }: SourcePickerProps) 
     if (!window.electronAPI?.getDesktopSources) return
     
     setLoading(true)
+    setLoadError(null)
+    setSources([])
+    setSelectedId(null)
     try {
       const desktopSources = await window.electronAPI.getDesktopSources()
       setSources(desktopSources)
@@ -31,10 +35,13 @@ export function SourcePicker({ isOpen, onSelect, onCancel }: SourcePickerProps) 
       }
     } catch (error) {
       console.error(t.sourcePicker.loadFailed, error)
+      setLoadError(String(error).includes('SCREEN_CAPTURE_PERMISSION_REQUIRED')
+        ? t.sourcePicker.screenPermissionRequired
+        : t.sourcePicker.loadFailed)
     } finally {
       setLoading(false)
     }
-  }, [t.sourcePicker.loadFailed])
+  }, [t.sourcePicker.loadFailed, t.sourcePicker.screenPermissionRequired])
 
   useEffect(() => {
     if (isOpen) {
@@ -194,7 +201,7 @@ export function SourcePicker({ isOpen, onSelect, onCancel }: SourcePickerProps) 
               {sources.length === 0 && !loading && (
                 <div className="text-center py-12 text-muted-foreground">
                   <Monitor className="w-12 h-12 mx-auto mb-3 opacity-50" />
-                  <p>{t.sourcePicker.noSources}</p>
+                  <p role={loadError ? 'alert' : undefined}>{loadError || t.sourcePicker.noSources}</p>
                 </div>
               )}
             </>

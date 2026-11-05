@@ -68,6 +68,8 @@ export class CaptureManager {
     this.options = options
     if (!options.system && !options.microphone) throw new Error('请至少启用一个音频来源')
     try {
+      const permissionError = await window.electronAPI?.ensureRecordingPermissions?.({ system: options.system, microphone: options.microphone })
+      if (permissionError) throw new Error(permissionError)
       for (const source of ['system', 'microphone'] as const) {
         if (!options[source]) { this.state(source, 'disabled'); continue }
         this.state(source, 'requesting')

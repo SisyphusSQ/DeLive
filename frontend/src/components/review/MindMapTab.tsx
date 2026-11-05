@@ -177,7 +177,7 @@ export function MindMapTab({ session }: MindMapTabProps) {
     return () => document.removeEventListener('keydown', handleKey)
   }, [isFullscreen])
 
-  const aiConfigured = isAiPostProcessConfigured(settings)
+  const aiConfigured = isAiPostProcessConfigured(settings, 'mindmap')
   const generating = session.mindMap?.status === 'pending'
   const hasTranscript = Boolean((resolveInputText(session, 'auto') || session.images?.length))
   const hasMindMap = Boolean(draftMarkdown.trim())

@@ -473,7 +473,7 @@ export const ko: Translations = {
     mindMapEmptyHint: '먼저 AI 마인드맵을 생성하거나, 편집기에 Markdown을 직접 작성하세요.',
     mindMapMarkdownPlaceholder: '# 주제\n## 가지\n### 항목',
     mindMapNoTranscript: '이 세션에는 마인드맵 생성에 쓸 전사본이 없습니다.',
-    aiNotConfigured: '먼저 설정 > 일반에서 AI 후처리를 켜고 구성하세요.',
+    aiNotConfigured: '설정 > AI 후처리에서 AI를 켜고 기본 모델 또는 기능별 모델을 선택하세요.',
     aiUsingCorrectedText: '교정본 사용 중',
     aiUsingOriginalText: '원본 전사 사용 중',
     aiCorrectionInProgress: '교정이 진행 중이라 원본 텍스트를 사용합니다',
@@ -537,6 +537,7 @@ export const ko: Translations = {
     captureHint: '선택한 화면/창의 시스템 오디오를 캡처합니다',
     startCapture: '캡처 시작',
     loadFailed: '데스크톱 소스를 불러오지 못했습니다:',
+    screenPermissionRequired: '시스템 설정 → 개인정보 보호 및 보안 → 화면 및 시스템 오디오 녹음의 위쪽 목록에서 DeLive SQ를 켠 다음 앱을 완전히 종료하고 다시 여세요. 아래쪽 시스템 오디오 녹음만 허용하면 화면이나 창을 불러올 수 없습니다.',
     selectFailed: '소스 선택에 실패했습니다',
   },
 

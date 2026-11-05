@@ -25,7 +25,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'
           cache: 'npm'
           cache-dependency-path: |
             package-lock.json
@@ -76,7 +76,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'
           cache: 'npm'
           cache-dependency-path: |
             package-lock.json
@@ -95,19 +95,15 @@ jobs:
         working-directory: ./server
 
       - name: Build and Package
+        env:
+          # CI has no signing certificate; these artifacts require fresh macOS consent after updates.
+          DELIVE_ALLOW_ADHOC: '1'
         run: npm run build && npx electron-builder --${{ matrix.platform }} --publish never
 
       - name: Verify macOS code signing
         if: matrix.platform == 'mac'
         run: |
-          echo "=== 验证 macOS 代码签名 ==="
-          for app in release/mac*/DeLive.app; do
-            if [ -d "$app" ]; then
-              echo "检查: $app"
-              codesign --verify --deep --strict --verbose=2 "$app"
-              echo "✅ $app 签名验证通过"
-            fi
-          done
+          codesign --verify --deep --strict --verbose=2 "release/mac-arm64/DeLive SQ.app"
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4

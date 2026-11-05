@@ -473,7 +473,7 @@ export const en: Translations = {
     mindMapEmptyHint: 'Generate an AI mind map first, or write Markdown directly in the editor.',
     mindMapMarkdownPlaceholder: '# Topic\n## Branch\n### Point',
     mindMapNoTranscript: 'This session has no transcript available for mind map generation.',
-    aiNotConfigured: 'Enable and configure AI post-process in Settings > General first.',
+    aiNotConfigured: 'Enable AI and select a default or feature model in Settings > AI Post-process first.',
     aiUsingCorrectedText: 'Using corrected text',
     aiUsingOriginalText: 'Using original transcript',
     aiCorrectionInProgress: 'Correction in progress, using original text',
@@ -537,6 +537,7 @@ export const en: Translations = {
     captureHint: 'System audio from the selected screen/window will be captured',
     startCapture: 'Start Capture',
     loadFailed: 'Failed to load desktop sources:',
+    screenPermissionRequired: 'Enable DeLive SQ in the upper Screen & System Audio Recording list in System Settings → Privacy & Security, then quit and reopen the app. Enabling only System Audio Recording does not allow loading screens or windows.',
     selectFailed: 'Failed to select source',
   },
 

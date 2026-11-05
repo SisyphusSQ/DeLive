@@ -11,7 +11,7 @@ import {
   RefreshCw,
   AlertCircle,
 } from 'lucide-react'
-import { Switch } from '../ui'
+import { Button, Switch } from '../ui'
 import type { Translations } from '../../i18n'
 import type {
   CloudBackupConfig,
@@ -174,7 +174,7 @@ export function CloudBackupPanel({
           {/* Provider selector */}
           <div className="space-y-2">
             <label className="text-xs font-medium text-muted-foreground">{ts.cloudBackupProvider}</label>
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
               {(['s3', 'webdav', 'quark'] as CloudBackupProviderType[]).map((p) => (
                 <button
                   key={p}
@@ -193,11 +193,11 @@ export function CloudBackupPanel({
           </div>
 
           {provider === 'quark' && <div className="space-y-2">
-            <label className="block text-xs">本机受限 CLI 入口（绝对路径）
-              <input aria-label="夸克 CLI 入口" className="w-full p-2 rounded border bg-background" value={cloudBackupConfig.quark?.runtimeScript||''} onChange={e=>void updateCloudBackupConfig({quark:{directory:'ai-agent/coding/delive/backups/',...cloudBackupConfig.quark,runtimeScript:e.target.value}})} />
+            <label className="block space-y-2 text-xs font-medium text-muted-foreground">本机受限 CLI 入口（绝对路径）
+              <input aria-label="夸克 CLI 入口" className="block h-9 w-full rounded-md border border-input bg-background px-3 py-2 text-xs font-normal text-foreground ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2" value={cloudBackupConfig.quark?.runtimeScript||''} onChange={e=>void updateCloudBackupConfig({quark:{directory:'ai-agent/coding/delive/backups/',...cloudBackupConfig.quark,runtimeScript:e.target.value}})} />
             </label>
-            <label className="block text-xs">云端目录
-              <input aria-label="夸克备份目录" className="w-full p-2 rounded border bg-background" value={cloudBackupConfig.quark?.directory||'ai-agent/coding/delive/backups/'} onChange={e=>void updateCloudBackupConfig({quark:{runtimeScript:'',...cloudBackupConfig.quark,directory:e.target.value}})} />
+            <label className="block space-y-2 text-xs font-medium text-muted-foreground">云端目录
+              <input aria-label="夸克备份目录" className="block h-9 w-full rounded-md border border-input bg-background px-3 py-2 text-xs font-normal text-foreground ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2" value={cloudBackupConfig.quark?.directory||'ai-agent/coding/delive/backups/'} onChange={e=>void updateCloudBackupConfig({quark:{runtimeScript:'',...cloudBackupConfig.quark,directory:e.target.value}})} />
             </label>
             <p className="text-xs text-muted-foreground">复用本机 CLI 登录。应用不登录、不读取凭据、不安装升级。支持受限 runtimeScript 入口的 status / run 协议；首次备份才创建云目录。</p>
           </div>}
@@ -308,7 +308,7 @@ export function CloudBackupPanel({
             </div>
           )}
 
-          <label className="flex gap-2 text-xs"><input type="checkbox" checked={cloudBackupConfig.includeAudio!==false} onChange={e=>void updateCloudBackupConfig({includeAudio:e.target.checked})} />包含原音（默认）；取消后备份明确标为“不含原音”</label>
+          <label className="flex items-center gap-2 text-xs text-muted-foreground cursor-pointer"><input className="rounded accent-primary" type="checkbox" checked={cloudBackupConfig.includeAudio!==false} onChange={e=>void updateCloudBackupConfig({includeAudio:e.target.checked})} />包含原音（默认）；取消后备份明确标为“不含原音”</label>
           {/* Auto backup toggle */}
           <label className="flex items-center gap-2 text-xs text-muted-foreground cursor-pointer">
             <input
@@ -321,7 +321,7 @@ export function CloudBackupPanel({
           </label>
 
           {/* Action buttons */}
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             <button
               type="button"
               onClick={handleTest}
@@ -369,13 +369,37 @@ export function CloudBackupPanel({
             <p className="text-xs text-destructive">{uploadError}</p>
           )}
 
-          {progress && <p role="status" className="text-xs">{progress.message}{progress.total ? ` · ${Math.round((progress.completed||0)/progress.total*100)}%` : ''}</p>}
-          {prepared && <div className="p-3 border rounded space-x-3 text-sm">
-            <p>已校验恢复材料：{JSON.parse(prepared.metadataJson).sessions.length} 个会话，{prepared.files} 个素材文件。{prepared.legacy?'旧版仅文字':prepared.includeAudio?'含原音':'不含原音'}</p>
-            <button onClick={()=>void applyRestore('merge')}>合并（同 ID 保留本地）</button><button onClick={()=>void applyRestore('overwrite')}>覆盖恢复</button><button onClick={()=>setPrepared(null)}>取消</button>
-          </div>}
-          {jobs.filter(j=>j.state!=='complete').map(job=><div key={job.id} className="text-xs p-2 border rounded"><p>{job.artifact.name} · {job.state} · {job.error}</p><button className="text-primary" onClick={()=>{void window.electronAPI!.completeBackup.resume(buildIpcConfig(cloudBackupConfig),job.id).then(refreshTasks).catch(error=>setUploadError(error.message))}}>检查 / 继续原任务</button></div>)}
-          {rollbacks.length>0 && <div className="text-xs space-y-1"><p>本地恢复回退包</p>{rollbacks.map(item=><button key={item.id} className="block text-primary" onClick={()=>{void window.electronAPI!.completeBackup.prepareRollback(item.id).then(setPrepared).catch(error=>setUploadError(error.message))}}>恢复回退包 {item.name}（{item.sessions} 个会话）</button>)}</div>}
+          {progress && <p role="status" className="rounded-lg bg-muted/50 p-3 text-xs text-muted-foreground">{progress.message}{progress.total ? ` · ${Math.round((progress.completed||0)/progress.total*100)}%` : ''}</p>}
+          {prepared && (
+            <div className="space-y-3 rounded-lg border border-border/40 bg-background p-3">
+              <p className="text-sm font-medium">已校验恢复材料</p>
+              <p className="text-xs leading-5 text-muted-foreground">{JSON.parse(prepared.metadataJson).sessions.length} 个会话，{prepared.files} 个素材文件。{prepared.legacy ? '旧版仅文字' : prepared.includeAudio ? '含原音' : '不含原音'}</p>
+              <div className="flex flex-wrap gap-2">
+                <Button size="sm" onClick={() => void applyRestore('merge')}>合并（同 ID 保留本地）</Button>
+                <Button variant="danger" size="sm" onClick={() => void applyRestore('overwrite')}>覆盖恢复</Button>
+                <Button variant="secondary" size="sm" onClick={() => setPrepared(null)}>取消</Button>
+              </div>
+            </div>
+          )}
+          {jobs.filter(j => j.state !== 'complete').map(job => (
+            <div key={job.id} className="space-y-2 rounded-lg border border-border/40 bg-background p-3">
+              <p className="break-words text-xs font-medium">{job.artifact.name}</p>
+              <p className="text-xs text-muted-foreground">{job.state}</p>
+              {job.error && <p className="break-words text-xs text-destructive">{job.error}</p>}
+              <Button variant="secondary" size="sm" onClick={() => { void window.electronAPI!.completeBackup.resume(buildIpcConfig(cloudBackupConfig), job.id).then(refreshTasks).catch(error => setUploadError(error.message)) }}>检查 / 继续原任务</Button>
+            </div>
+          ))}
+          {rollbacks.length > 0 && (
+            <div className="space-y-2">
+              <p className="text-xs font-medium text-muted-foreground">本地恢复回退包</p>
+              {rollbacks.map(item => (
+                <div key={item.id} className="flex flex-wrap items-center gap-2 rounded-lg bg-background p-3">
+                  <p className="min-w-0 flex-1 break-words text-xs text-muted-foreground">{item.name}（{item.sessions} 个会话）</p>
+                  <Button variant="secondary" size="sm" onClick={() => { void window.electronAPI!.completeBackup.prepareRollback(item.id).then(setPrepared).catch(error => setUploadError(error.message)) }}>恢复回退包</Button>
+                </div>
+              ))}
+            </div>
+          )}
           {/* Backup history */}
           <div className="space-y-2">
             <div className="flex items-center justify-between">

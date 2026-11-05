@@ -52,7 +52,7 @@ export function AiSidePanel({
     [askHistory, sidePanelConversationId],
   )
 
-  const aiConfigured = isAiPostProcessConfigured(settings)
+  const aiConfigured = isAiPostProcessConfigured(settings, 'chat')
   const isPending = panelHistory.some((turn) => turn.status === 'pending')
   const hasTranscript = !!session.transcript.trim()
 
@@ -319,7 +319,7 @@ export function AiSidePanel({
             value={draft}
             onChange={(e) => setDraft(e.target.value)}
             onKeyDown={(e) => {
-              if (e.key === 'Enter' && !e.shiftKey) {
+              if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
                 e.preventDefault()
                 void handleSend()
               }
