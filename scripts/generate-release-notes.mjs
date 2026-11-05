@@ -31,22 +31,22 @@ const previousSection = sections[currentIndex + 1]
 const downloadRows = collectDownloadRows(workspace, version)
 
 if (downloadRows.length === 0) {
-  fail('No release assets were found in release-win, release-mac, or release-linux')
+  fail('No release assets were found in release/<version>')
 }
 
 const lines = [
-  `## DeLive ${version}`,
+  `## DeLive SQ ${version}`,
   '',
 ]
 
 if (currentSection.date) {
-  lines.push(`> 发布日期 / Release Date: ${currentSection.date}`, '')
+  lines.push(`> 发布日期： ${currentSection.date}`, '')
 }
 
 lines.push(
-  '### 📥 下载 / Downloads',
+  '### 下载',
   '',
-  '| 平台 / Platform | 文件 / File | 说明 / Description |',
+  '| 平台 | 文件 | 说明 |',
   '|-----------------|-------------|---------------------|',
 )
 
@@ -56,18 +56,18 @@ for (const row of downloadRows) {
 
 lines.push(
   '',
-  '### 🔄 更新内容 / What\'s Changed',
+  '### 更新内容',
   '',
   currentSection.body,
   '',
-  '### 📖 使用说明 / Usage',
+  '### 使用说明',
   '',
   '1. 下载对应平台的安装包',
-  '2. 运行安装或直接打开',
+  '2. 打开 DMG，将 DeLive SQ.app 拖到“应用程序”；也可解压 ZIP 后安装',
   '3. 在设置中配置 ASR 服务商的 API 密钥',
-  '4. 开始录制并享受实时转录',
+  '4. 授予所选音源的系统权限后开始录制；后续版本需手动下载安装',
   '',
-  '> ⚠️ macOS 用户注意：应用未经 Apple 签名，首次打开需右键选择"打开"，或在"系统设置 > 隐私与安全性"中允许运行。',
+  '> 本版本已使用 Developer ID Application 签名，未进行 Apple 公证。首次从互联网下载后，系统可能阻止打开；请确认来源后在“系统设置 → 隐私与安全性”中允许运行，不要关闭系统安全保护。',
 )
 
 if (repo && previousSection) {
@@ -75,7 +75,7 @@ if (repo && previousSection) {
     '',
     '---',
     '',
-    `**Full Changelog**: https://github.com/${repo}/compare/v${previousSection.version}...v${version}`,
+    `**完整变更记录**： https://github.com/${repo}/compare/v${previousSection.version}...v${version}`,
   )
 }
 
@@ -102,40 +102,22 @@ function collectDownloadRows(rootDir, releaseVersion) {
   const escapedVersion = escapeRegExp(releaseVersion)
   const specs = [
     {
-      dir: 'release-win',
-      platform: '🪟 Windows',
-      pattern: new RegExp(`^DeLive-${escapedVersion}-x64\\.exe$`),
-      description: 'Windows 安装包 / Installer',
+      dir: path.join('release', releaseVersion),
+      platform: 'macOS arm64',
+      pattern: new RegExp(`^DeLive-SQ-${escapedVersion}-mac-arm64\\.dmg$`),
+      description: 'Apple Silicon 安装包',
     },
     {
-      dir: 'release-win',
-      platform: '🪟 Windows',
-      pattern: new RegExp(`^DeLive-${escapedVersion}-portable\\.exe$`),
-      description: '便携版 / Portable',
+      dir: path.join('release', releaseVersion),
+      platform: 'macOS arm64',
+      pattern: new RegExp(`^DeLive-SQ-${escapedVersion}-mac-arm64\\.zip$`),
+      description: 'Apple Silicon ZIP 归档',
     },
     {
-      dir: 'release-mac',
-      platform: '🍎 macOS',
-      pattern: new RegExp(`^DeLive-${escapedVersion}-mac-x64\\.dmg$`),
-      description: 'macOS Intel 安装包',
-    },
-    {
-      dir: 'release-mac',
-      platform: '🍎 macOS',
-      pattern: new RegExp(`^DeLive-${escapedVersion}-mac-arm64\\.dmg$`),
-      description: 'macOS Apple Silicon 安装包',
-    },
-    {
-      dir: 'release-linux',
-      platform: '🐧 Linux',
-      pattern: new RegExp(`^DeLive-${escapedVersion}-linux-x64\\.AppImage$`),
-      description: 'Linux AppImage',
-    },
-    {
-      dir: 'release-linux',
-      platform: '🐧 Linux',
-      pattern: new RegExp(`^DeLive-${escapedVersion}-linux-x64\\.deb$`),
-      description: 'Debian/Ubuntu 安装包',
+      dir: path.join('release', releaseVersion),
+      platform: '校验文件',
+      pattern: /^SHA256SUMS$/,
+      description: 'DMG 与 ZIP 的 SHA-256 校验值',
     },
   ]
 

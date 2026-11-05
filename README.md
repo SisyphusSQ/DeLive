@@ -1,4 +1,4 @@
-> This fork builds **DeLive SQ** for macOS arm64 (ad-hoc DMG/ZIP), with in-app updates disabled and separate user data without automatic migration. The website, release badges and download links below refer to upstream. This fork currently has local artifacts only; see the [build notes](docs/zh/development/build.md) and [TOO-686 acceptance record](docs/zh/development/evidence-too-686-live.md).
+> [DeLive SQ 2.3.0-sq.1 prerelease](https://github.com/SisyphusSQ/DeLive/releases/tag/v2.3.0-sq.1) provides Developer ID signed macOS Apple Silicon (arm64) DMG/ZIP files, without notarization or in-app updates. Data is separate from upstream and is not automatically migrated. The website, badges and other download links below belong to upstream; see the [SQ build and release notes](docs/zh/development/build.md) for installation and permission recovery.
 
 <div align="center">
 

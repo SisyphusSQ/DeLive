@@ -11,31 +11,45 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+---
+
+## [2.3.0-sq.1] - 2026-11-05
+
+### Added / 新增
+- 双来源原音录制：分别保存系统声音、麦克风和混音，支持录音中断恢复。
+- 火山实时转写 2.0 支持匿名说话人、完整快照修订与持久化；标准文件转写支持任务恢复和独立会后稿。
+- 原音回放、时间轴定位、稿件版本校对与选版导出。
+- OpenAI 与本机 Codex AI 后处理，支持模型和推理强度配置、会话对话及图片时间轴上下文。
+- 完整备份与恢复覆盖原音、图片和稿件，支持夸克 CLI；主界面支持快捷键缩放与恢复比例。
+
+### Changed / 变更
+- 首次发布独立应用 DeLive SQ，仅提供 macOS Apple Silicon（arm64）的 DMG、ZIP 和 SHA-256 清单。
+- 使用 Developer ID Application 正式签名，保持固定开发团队及 appId；应用内更新继续关闭，采用手动下载安装。
+- 移除继承的标签自动发布流水线，避免把临时签名的 CI 包发布为正式签名发行包。
+
+### Notes / 使用与验收范围
+- 本版本未进行 Apple 公证，不上架 App Store；从互联网首次下载安装时，系统可能阻止打开，需本人在“系统设置 → 隐私与安全性”确认来源后允许运行。
+- 从旧临时签名包首次升级时，可能需要重新授予录屏、系统声音、麦克风或钥匙串访问权限；如系统仍保留旧身份，按构建文档中已确认身份失配的处理步骤恢复，仅针对 DeLive SQ，不清理录音或其他应用权限。
+- 与原版使用独立数据目录，不自动迁移原版数据；本机已有 DeLive SQ 数据原位保留。安装包不包含个人录音、API 密钥、签名私钥或公证凭据。
+- 已有实机证据覆盖正式签名迁移、换包后的双音源采集与保存；本轮按约定不重复测试，云转写、长会议、回声和音质未复测。
+
 ### Security / 安全
-- 🔒 **Local server is localhost-only** — the proxy and Open API now listen on `127.0.0.1` (and `::1`) instead of every network interface, and requests with a non-local `Host` header are refused (DNS rebinding)
 - 🔒 **本地服务仅限本机** — 代理和 Open API 改为只监听 `127.0.0.1`（及 `::1`），不再对局域网开放；`Host` 头不是本机的请求一律拒绝（防 DNS rebinding）
-- 🔑 **Open API token is required** — an empty token no longer means "no auth"; enabling the API (or starting with it enabled and no token) generates a random token. Copy it into your MCP / script configuration
 - 🔑 **Open API 必须使用令牌** — 令牌为空不再表示不鉴权；开启 API（或以开启且无令牌的状态启动）时会自动生成随机令牌，请复制到 MCP / 脚本配置中
-- 🙈 **No transcript text in diagnostics** — proxy logs record only the length of recognized text, so exported diagnostics no longer contain meeting content
 - 🙈 **诊断日志不含转录内容** — 代理日志只记录识别文本的长度，导出的诊断文件不再包含会议内容
 
 ### Fixed / 修复
-- 📡 **`/ws/live` works again** — the proxy closed every `/ws/live` connection before the Open API could accept it; web-page origins are now refused on it and on the provider proxies
+- 修复开发文档的占位符格式与校验清单链接，解除文档构建阻塞。
+- macOS 换包后录屏、系统声音和麦克风授权失效：从绑定构建哈希的临时签名切换为稳定 Developer ID 身份，并提供权限恢复入口。
+- Electron 升级至 40.10.6，修复退出时的原生对象回收崩溃；完善 AI 配置保存、对话推理强度、流式输出和滚动交互。
+- 修复火山无文字转写结束时误报协议错误，保留原音并正常结束录制。
 - 📡 **`/ws/live` 可以连接了** — 之前代理会在 Open API 接手前关闭所有 `/ws/live` 连接；现在该接口和各 Provider 代理都会拒绝来自网页的连接
-- 🔀 **Concurrent Open API requests** — parallel requests (e.g. from MCP tools) no longer receive each other's data or time out with 404
 - 🔀 **Open API 并发请求** — 并行请求（如 MCP 工具同时调用）不再拿到彼此的数据或超时返回 404
-- 💾 **Autosave during continuous audio** — the recording is saved at least every 10 seconds even when transcript events never pause, so crash recovery no longer loses everything since the last pause
 - 💾 **连续音频时的自动保存** — 即使转录事件一直不停，也至少每 10 秒保存一次，崩溃恢复不再丢失上次停顿之后的全部内容
-### Fixed / 修复
-- 📁 **whisper.cpp file transcription (#26)** — file jobs no longer ask for an API Key; the local runtime is started, the file is decoded to 16 kHz mono WAV and sent to whisper-server `/inference` (auto language detection unless a hint is set)
 - 📁 **whisper.cpp 文件转录 (#26)** — 不再要求 API Key；启动本地 runtime，将文件解码为 16 kHz 单声道 WAV 后发送到 whisper-server `/inference`（未设置语言提示时自动识别语言）
-- 🔀 **No more Soniox fallback (#17)** — providers without a file-transcription implementation are no longer listed or silently routed to Soniox; 60db file transcription now uses its own REST `/stt` API (files up to 10 MB)
 - 🔀 **去掉 Soniox 兜底 (#17)** — 没有文件转录实现的服务不再显示，也不会被悄悄转给 Soniox；60db 文件转录改走它自己的 REST `/stt` 接口（单文件最大 10MB）
-- ⚠️ **Visible config errors** — missing credentials on the file transcription page now show as a failed job instead of doing nothing
 - ⚠️ **配置错误可见** — 文件转录缺少配置时会显示为失败任务，而不是没有任何反应
-- 🧩 **FunASR / SenseVoice (#10)** — removed the `paraformer-en` model that funasr-server rejects (saved configs fall back to `sensevoice`); start command now mentions `--device cpu` / `mps`; local services without CORS headers now work in dev mode too
 - 🧩 **FunASR / SenseVoice (#10)** — 移除 funasr-server 不支持的 `paraformer-en`（已保存的配置回退到 `sensevoice`）；启动命令补充 `--device cpu` / `mps`；开发模式下无 CORS 头的本地服务也能连接
-- 🔌 **Proxy port exhaustion (#16)** — if ports 23456–23460 are all taken the proxy uses a free system port, and the main window opens even if the proxy cannot start
 - 🔌 **代理端口耗尽 (#16)** — 23456–23460 全被占用时改用系统分配的空闲端口；代理无法启动时主窗口仍会打开
 
 ---

@@ -47,11 +47,11 @@ TOO-684 的开发实现。真实云端联调和正式验收由 TOO-686 执行；
 ## 持久化、恢复与版本迁移
 
 - 原音沿用 recording-assets.md 的目录与手动保留策略。任何云端清理都不删除本地原音。用户配置配额，达到配额时停止写入并保留已提交分片。
-- userData/file-transcription-jobs/<UUID>.json 保存身份、会话/原音关联、状态、对象键、访问到期时刻、进度、清理状态、独立结果版本；临时写入、fsync 后替换。签名地址和服务凭据不入 JSON。
+- `userData/file-transcription-jobs/<UUID>.json` 保存身份、会话/原音关联、状态、对象键、访问到期时刻、进度、清理状态、独立结果版本；临时写入、fsync 后替换。签名地址和服务凭据不入 JSON。
 - 提交前先持久化 submitting；重启将其恢复为 submission-unknown。准备/上传中断恢复为明确本地失败，待清理状态保留。重启删除同任务的衍生上传 WAV，不动原音。
 - unknown、queued、processing 阻止同录音新增任务。45000001（可能重复）、55 系列、网络断开、HTTP/协议不确定均保守保留待查询；查询权限/额度/未知状态不擅自认定失败。
 - 会话 schema 升至 4。旧会话不依赖新字段；首次追加会后稿时保存原稿快照。versions[] 按 ID 幂等追加，selectedVersionId 保持旧选择；correction、原稿和旧姓名不被覆盖。首次纯音频转写填入兼容展示字段，同时保留独立版本。
-- 每份会后稿编号以 file-<job UUID>:speaker:<原编号> 限定作用域。与实时稿相同整数不表示同一个人。speakerMapping 仅表示用户显式确认的 sourceVersionId、confirmedAt 和版本内 ID 配对；缺省未确认。没有自动跨版本/跨会议身份合并。
+- 每份会后稿编号以 `file-<job UUID>:speaker:<原编号>` 限定作用域。与实时稿相同整数不表示同一个人。speakerMapping 仅表示用户显式确认的 sourceVersionId、confirmedAt 和版本内 ID 配对；缺省未确认。没有自动跨版本/跨会议身份合并。
 - IndexedDB 保存失败向 UI 报错；主进程任务中的版本保留供下次导入。客户端启动和文件任务刷新都可补入完成版本。稿件、任务和原音是不同数据，不把来源 system/microphone 当作说话人身份。
 
 ## 开发验证与正式验收
