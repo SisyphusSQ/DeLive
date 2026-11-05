@@ -27,6 +27,7 @@ export function buildAiBody(config: AiConnection, request: AiRequest, stream: bo
       { type: 'input_image', image_url: image.dataUrl, detail: 'auto' },
     ]) })
     return { model: request.model, input, stream, store: false, tools: [],
+      ...(config.reasoningEffort ? { reasoning: { effort: config.reasoningEffort } } : {}),
       ...(request.schema ? { text: { format: { type: 'json_schema', name: 'delive_result', strict: true, schema: request.schema } } } : {}) }
   }
   const messages: object[] = [...request.messages]

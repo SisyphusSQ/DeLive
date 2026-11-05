@@ -1,6 +1,8 @@
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   parseAiBriefingResponse,
+  resolveModelForFeature,
+  askQuestionForSessionStreaming,
   parseSessionMindMapResponse,
   parseSessionQaResponse,
   isAiPostProcessConfigured,
@@ -199,5 +201,42 @@ describe('resolveTranscriptText', () => {
       .toBe('original raw transcript')
     expect(resolveTranscriptText(sessionWithCorrection, 'corrected'))
       .toBe('corrected clean transcript')
+  })
+})
+
+
+describe('AI model readiness and streaming validation', () => {
+  afterEach(() => vi.unstubAllGlobals())
+
+  it('uses selected models without overriding explicit defaults or feature assignments', () => {
+    const config = { enabled: true, selectedModels: [' ', ' chosen '] }
+    expect(resolveModelForFeature(config, 'chat')).toBe('chosen')
+    expect(resolveModelForFeature({ ...config, model: 'legacy' }, 'chat')).toBe('legacy')
+    expect(resolveModelForFeature({ ...config, defaultModel: 'default' }, 'chat')).toBe('default')
+    expect(resolveModelForFeature({ ...config, defaultModel: 'default', modelAssignment: { chat: 'chat-only' } }, 'chat')).toBe('chat-only')
+    expect(resolveModelForFeature({ enabled: true, availableModels: ['unselected'] }, 'chat')).toBe('')
+  })
+
+  it('checks the requested feature instead of always checking briefing', () => {
+    const settings = { apiKey: '', languageHints: [], aiPostProcess: { enabled: true, modelAssignment: { chat: 'chat-only' } } }
+    expect(isAiPostProcessConfigured(settings, 'chat')).toBe(true)
+    expect(isAiPostProcessConfigured(settings, 'briefing')).toBe(false)
+    expect(isAiPostProcessConfigured(settings, 'mindmap')).toBe(false)
+    expect(isAiPostProcessConfigured({ ...settings, aiPostProcess: { enabled: true, selectedModels: ['chosen'] } }, 'chat')).toBe(true)
+    expect(isAiPostProcessConfigured({ ...settings, aiPostProcess: { enabled: false, selectedModels: ['chosen'] } }, 'chat')).toBe(false)
+  })
+
+  it.each(['disabled', 'missing-model', 'missing-input', 'empty-question'])('settles streaming validation error: %s', async (reason) => {
+    const fetch = vi.fn()
+    vi.stubGlobal('fetch', fetch)
+    const callbacks = { onChunk: vi.fn(), onDone: vi.fn(), onError: vi.fn() }
+    const session: TranscriptSession = { id: 'qa', title: 'test', transcript: reason === 'missing-input' ? '' : 'transcript', segments: [], createdAt: 1, updatedAt: 1, date: '', time: '' }
+    await expect(askQuestionForSessionStreaming(session, reason === 'empty-question' ? ' ' : 'question', {
+      apiKey: '', languageHints: [], aiPostProcess: { enabled: reason !== 'disabled', model: reason === 'missing-model' ? '' : 'test' },
+    }, callbacks)).resolves.toBeUndefined()
+    expect(callbacks.onError).toHaveBeenCalledExactlyOnceWith(expect.any(Error))
+    expect(callbacks.onDone).not.toHaveBeenCalled()
+    expect(callbacks.onChunk).not.toHaveBeenCalled()
+    expect(fetch).not.toHaveBeenCalled()
   })
 })

@@ -1,9 +1,23 @@
 import { readFileSync } from 'node:fs'
 import { runInNewContext } from 'node:vm'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { CaptureManager } from './captureManager'
+beforeEach(() => vi.stubGlobal('window', {}))
 afterEach(() => vi.unstubAllGlobals())
 describe('dual source acquisition', () => {
+  it('stops before capture when the permission dialog is dismissed and allows another attempt', async () => {
+    const permissions = vi.fn().mockResolvedValue('需要录屏与系统录音权限')
+    const getDisplayMedia = vi.fn().mockRejectedValue(new Error('capture reached'))
+    vi.stubGlobal('window', { electronAPI: { ensureRecordingPermissions: permissions } })
+    vi.stubGlobal('navigator', { mediaDevices: { getDisplayMedia } })
+    const capture = new CaptureManager()
+    await expect(capture.acquireStream({ system: true, microphone: false })).rejects.toThrow('需要录屏')
+    expect(getDisplayMedia).not.toHaveBeenCalled()
+    expect(permissions).toHaveBeenCalledWith({ system: true, microphone: false })
+    permissions.mockResolvedValue(null)
+    await expect(capture.acquireStream({ system: true, microphone: false })).rejects.toThrow('capture reached')
+    expect(getDisplayMedia).toHaveBeenCalledOnce()
+  })
   it('reports denied microphone permission and releases the acquired system grant', async () => {
     const stop = vi.fn()
     const audio = { stop, label: 'synthetic system', onended: null }

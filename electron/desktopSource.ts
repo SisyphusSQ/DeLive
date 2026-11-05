@@ -1,4 +1,4 @@
-import { desktopCapturer, session, type BrowserWindow, type IpcMain } from 'electron'
+import { desktopCapturer, session, systemPreferences, type BrowserWindow, type IpcMain } from 'electron'
 
 // Electron 的 display media callback 类型在这里不稳定，沿用主进程旧实现的宽类型。
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -6,6 +6,12 @@ type DisplayMediaCallback = (result: any) => void
 
 interface DesktopSourceControllerOptions {
   getMainWindow: () => BrowserWindow | null
+}
+
+function assertScreenPermission(): void {
+  if (process.platform === 'darwin' && ['denied', 'restricted'].includes(systemPreferences.getMediaAccessStatus('screen'))) {
+    throw new Error('SCREEN_CAPTURE_PERMISSION_REQUIRED')
+  }
 }
 
 export function createDesktopSourceController(options: DesktopSourceControllerOptions) {
@@ -70,11 +76,14 @@ export function createDesktopSourceController(options: DesktopSourceControllerOp
   }
 
   async function listDesktopSources() {
+    assertScreenPermission()
     const sources = await desktopCapturer.getSources({
       types: ['screen', 'window'],
       thumbnailSize: { width: 320, height: 180 },
       fetchWindowIcons: true,
     })
+
+    assertScreenPermission()
 
     return sources.map((source) => ({
       id: source.id,
@@ -114,7 +123,7 @@ export function registerDesktopSourceIpc({ ipcMain, controller }: RegisterDeskto
       return await controller.listDesktopSources()
     } catch (error) {
       console.error('获取桌面源失败:', error)
-      return []
+      throw error
     }
   })
 }

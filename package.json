@@ -33,6 +33,7 @@
     "docs:preview": "vitepress preview docs"
   },
   "devDependencies": {
+    "@electron/osx-sign": "1.3.1",
     "@types/adm-zip": "^0.5.7",
     "@types/cors": "^2.8.17",
     "@types/express": "^5.0.0",
@@ -40,7 +41,7 @@
     "@types/ws": "^8.18.1",
     "concurrently": "^8.2.2",
     "cross-env": "^7.0.3",
-    "electron": "^40.0.0",
+    "electron": "40.10.6",
     "electron-builder": "^25.1.8",
     "mermaid": "^11.14.0",
     "png-to-ico": "^3.0.1",
@@ -178,7 +179,7 @@
     "publish": null
   },
   "engines": {
-    "node": ">=18.0.0"
+    "node": ">=22.12.0"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1031.0",

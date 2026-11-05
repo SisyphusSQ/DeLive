@@ -11,11 +11,11 @@ import {
   Sparkles,
   Star,
 } from 'lucide-react'
-import { Switch } from '../ui'
+import { Button, Switch } from '../ui'
 import type { Translations } from '../../i18n'
 import type { AiFeatureKey, AiPostProcessConfig } from '../../types'
 import { fetchAvailableModels } from '../../services/aiPostProcess'
-import { aiBaseUrl, redactAiError } from '../../../../shared/ai'
+import { aiBaseUrl, aiUsesResponses, redactAiError } from '../../../../shared/ai'
 
 interface AiPostProcessPanelProps {
   t: Translations
@@ -54,7 +54,7 @@ export function AiPostProcessPanel({
   const [manualModel, setManualModel] = useState('')
   const [modelSearch, setModelSearch] = useState('')
 
-  const effectiveDefault = cfg.defaultModel?.trim() || cfg.model?.trim() || ''
+  const effectiveDefault = cfg.defaultModel?.trim() || cfg.model?.trim() || cfg.selectedModels?.find(model => model.trim())?.trim() || ''
   const selected = cfg.selectedModels ?? []
 
   const filteredModels = useMemo(() => {
@@ -77,7 +77,7 @@ export function AiPostProcessPanel({
         setConnectionInfo(`Codex ${status.version} · ${pick('认证可用，复用默认 CODEX_HOME', 'Authenticated · default CODEX_HOME', '인증됨 · 기본 CODEX_HOME')}`)
       } else {
         const models = await fetchAvailableModels(aiBaseUrl(cfg), cfg.apiKey)
-        updateAiPostProcessConfig({ availableModels: models })
+        updateAiPostProcessConfig({ availableModels: cfg.provider === 'openai' ? models.filter(model => /^gpt-6(?:\.1)?-/.test(model)) : models })
       }
       setFetchStatus('success')
     } catch (err) {
@@ -92,17 +92,18 @@ export function AiPostProcessPanel({
         ? selected.filter((m) => m !== modelId)
         : [...selected, modelId]
       const patch: Partial<AiPostProcessConfig> = { selectedModels: next }
-      if (cfg.defaultModel === modelId && !next.includes(modelId)) {
+      if (!effectiveDefault || (effectiveDefault === modelId && !next.includes(modelId))) {
         patch.defaultModel = next[0] || ''
+        patch.model = patch.defaultModel
       }
       updateAiPostProcessConfig(patch)
     },
-    [selected, cfg.defaultModel, updateAiPostProcessConfig],
+    [selected, effectiveDefault, updateAiPostProcessConfig],
   )
 
   const setDefaultModel = useCallback(
     (modelId: string) => {
-      const patch: Partial<AiPostProcessConfig> = { defaultModel: modelId }
+      const patch: Partial<AiPostProcessConfig> = { defaultModel: modelId, model: modelId }
       if (!selected.includes(modelId)) {
         patch.selectedModels = [...selected, modelId]
       }
@@ -148,8 +149,8 @@ export function AiPostProcessPanel({
 
       {/* API connection */}
       <fieldset disabled={fetchStatus === 'loading'} className="workspace-panel-muted p-4 space-y-3">
-        <label className="block text-sm" htmlFor="ai-provider">{pick('AI 接入方式', 'AI provider', 'AI 공급자')}</label>
-        <select id="ai-provider" className="w-full rounded border border-input bg-background p-2" value={cfg.provider || 'openai-compatible'} onChange={event => {
+        <label className="block text-xs font-medium text-muted-foreground" htmlFor="ai-provider">{pick('AI 接入方式', 'AI provider', 'AI 공급자')}</label>
+        <select id="ai-provider" className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2" value={cfg.provider || 'openai-compatible'} onChange={event => {
           const provider = event.target.value as AiPostProcessConfig['provider']
           updateAiPostProcessConfig({ provider, model: '', defaultModel: '', selectedModels: [], availableModels: [], modelAssignment: {}, visionModels: [], apiKey: '',
             baseUrl: provider === 'openai' ? 'https://api.openai.com/v1' : 'http://127.0.0.1:11434/v1' })
@@ -161,8 +162,8 @@ export function AiPostProcessPanel({
         </select>
         <p className="text-xs text-muted-foreground">{pick('切换接入方式后请重新选择模型并填写所需密钥；不会自动切换服务。', 'Select models and credentials after switching providers. No automatic fallback.', '공급자 변경 후 모델과 인증 정보를 설정하세요. 자동 대체 없음.')}</p>
         {cfg.provider === 'codex' ? <>
-          <label className="block text-sm" htmlFor="codex-path">{pick('Codex 程序路径（留空自动探测）', 'Codex executable (blank: auto-detect)', 'Codex 경로 (비우면 자동 탐지)')}</label>
-          <input id="codex-path" className="w-full rounded border border-input bg-background p-2 font-mono text-sm" value={cfg.codexPath || ''} onChange={e => updateAiPostProcessConfig({ codexPath: e.target.value })} placeholder="/opt/homebrew/bin/codex" />
+          <label className="block text-xs font-medium text-muted-foreground" htmlFor="codex-path">{pick('Codex 程序路径（留空自动探测）', 'Codex executable (blank: auto-detect)', 'Codex 경로 (비우면 자동 탐지)')}</label>
+          <input id="codex-path" className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 font-mono" value={cfg.codexPath || ''} onChange={e => updateAiPostProcessConfig({ codexPath: e.target.value })} placeholder="/opt/homebrew/bin/codex" />
           <p className="text-xs text-muted-foreground">{pick('复用默认 CODEX_HOME 中的认证和服务配置，不修改全局配置。当前支持 Codex 0.156.x。', 'Uses default CODEX_HOME auth and provider settings without editing global config. Supports Codex 0.156.x.', '기본 CODEX_HOME 인증 및 설정 사용. 전역 설정 변경 없음. Codex 0.156.x 지원.')}</p>
         </> : <>
         <label className="text-sm font-medium leading-none flex items-center gap-2">
@@ -205,11 +206,25 @@ export function AiPostProcessPanel({
           <p className="text-xs text-muted-foreground">{t.settings.aiApiKeyDesc}</p>
         </div>
         {cfg.provider !== 'openai' && <>
-          <label className="block text-sm" htmlFor="ai-protocol">{pick('请求协议', 'Protocol', '프로토콜')}</label>
-          <select id="ai-protocol" className="w-full rounded border border-input bg-background p-2" value={cfg.protocol || 'chat-completions'} onChange={e => updateAiPostProcessConfig({ protocol: e.target.value as AiPostProcessConfig['protocol'] })}>
+          <label className="block text-xs font-medium text-muted-foreground" htmlFor="ai-protocol">{pick('请求协议', 'Protocol', '프로토콜')}</label>
+          <select id="ai-protocol" className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2" value={cfg.protocol || 'chat-completions'} onChange={e => updateAiPostProcessConfig({ protocol: e.target.value as AiPostProcessConfig['protocol'] })}>
             <option value="chat-completions">Chat Completions</option><option value="responses">Responses</option>
           </select>
         </>}
+        </>}
+
+        {cfg.provider !== 'codex' && aiUsesResponses(cfg) && <>
+          <label className="block text-xs font-medium text-muted-foreground" htmlFor="ai-reasoning-effort">{pick('推理强度（Effort）', 'Reasoning effort', '추론 강도')}</label>
+          <select id="ai-reasoning-effort" className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2" value={cfg.reasoningEffort || ''}
+            onChange={e => updateAiPostProcessConfig({ reasoningEffort: (e.target.value || undefined) as AiPostProcessConfig['reasoningEffort'] })}>
+            <option value="">{pick('使用模型默认值', 'Model default', '모델 기본값')}</option>
+            <option value="low">low</option>
+            <option value="medium">medium</option>
+            <option value="high">high</option>
+            <option value="xhigh">xhigh</option>
+            <option value="max">max</option>
+          </select>
+          <p className="text-xs text-muted-foreground">{pick('应用于所有 AI 功能的 Responses 请求。GPT-6.1 Sol 支持以上五档；其他模型请按服务支持选择，不支持推理的模型请使用默认值。强度越高，通常耗时和费用越高。', 'Applies to Responses requests for all AI features. GPT-6.1 Sol supports all five levels; choose model default for models without reasoning support. Higher effort usually increases latency and cost.', '모든 AI 기능의 Responses 요청에 적용됩니다. GPT-6.1 Sol은 다섯 단계를 지원합니다. 추론 미지원 모델은 기본값을 선택하세요. 높은 강도는 보통 시간과 비용을 늘립니다.')}</p>
         </>}
 
         <button
@@ -239,15 +254,15 @@ export function AiPostProcessPanel({
           <p className="text-xs text-destructive">{fetchError}</p>
         )}
         {connectionInfo && <p role="status" className="text-xs text-muted-foreground">{connectionInfo}</p>}
-        <label htmlFor="ai-manual-model" className="block text-sm">{pick('手动添加模型', 'Add model manually', '모델 직접 추가')}</label>
-        <div className="flex gap-2"><input id="ai-manual-model" className="min-w-0 flex-1 rounded border border-input bg-background p-2 text-sm" value={manualModel} onChange={e => setManualModel(e.target.value)} />
-          <button className="rounded border px-3 text-sm" disabled={!manualModel.trim()} onClick={() => {
+        <label htmlFor="ai-manual-model" className="block text-xs font-medium text-muted-foreground">{pick('手动添加模型', 'Add model manually', '모델 직접 추가')}</label>
+        <div className="flex gap-2"><input id="ai-manual-model" className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 min-w-0 flex-1 font-mono" value={manualModel} onChange={e => setManualModel(e.target.value)} />
+          <Button variant="secondary" size="lg" disabled={!manualModel.trim()} onClick={() => {
             const model = manualModel.trim()
             updateAiPostProcessConfig({ availableModels: [...new Set([...(cfg.availableModels || []), model])], selectedModels: [...new Set([...selected, model])], ...(!effectiveDefault ? { defaultModel: model, model } : {}) })
             setManualModel('')
-          }}>{pick('添加', 'Add', '추가')}</button></div>
-        <label htmlFor="ai-vision-models" className="block text-sm">{pick('已确认支持图片的模型（逗号分隔）', 'Confirmed vision models (comma separated)', '이미지 지원 확인 모델 (쉼표 구분)')}</label>
-        <input id="ai-vision-models" className="w-full rounded border border-input bg-background p-2 text-sm" key={`${cfg.provider}:${(cfg.visionModels || []).join(',')}`} defaultValue={(cfg.visionModels || []).join(', ')} onBlur={e => updateAiPostProcessConfig({ visionModels: [...new Set(e.target.value.split(',').map(m => m.trim()).filter(Boolean))] })} />
+          }}>{pick('添加', 'Add', '추가')}</Button></div>
+        <label htmlFor="ai-vision-models" className="block text-xs font-medium text-muted-foreground">{pick('已确认支持图片的模型（逗号分隔）', 'Confirmed vision models (comma separated)', '이미지 지원 확인 모델 (쉼표 구분)')}</label>
+        <input id="ai-vision-models" className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 font-mono" key={`${cfg.provider}:${(cfg.visionModels || []).join(',')}`} defaultValue={(cfg.visionModels || []).join(', ')} onBlur={e => updateAiPostProcessConfig({ visionModels: [...new Set(e.target.value.split(',').map(m => m.trim()).filter(Boolean))] })} />
         <p className="text-xs text-muted-foreground">{pick('Codex 根据模型能力填充；API 模型请根据服务说明确认。读取模型列表不代表已通过图文调用。', 'Codex supplies model capabilities; confirm API vision support with your provider. A model list is not an image test.', 'Codex 기능은 자동 입력됩니다. API 이미지 지원은 공급자에 확인하세요.')}</p>
       </fieldset>
 
@@ -431,20 +446,11 @@ export function AiPostProcessPanel({
             <Sparkles className="w-3.5 h-3.5 text-muted-foreground" />
             {pick('AI 流式输出', 'AI Streaming Output', 'AI 스트리밍 출력')}
           </label>
-          <button
-            onClick={() => updateAiPostProcessConfig({ enableStreaming: !(cfg.enableStreaming !== false) })}
-            className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full transition-colors duration-200 ease-in-out ${
-              cfg.enableStreaming !== false ? 'bg-primary' : 'bg-input'
-            }`}
-            role="switch"
-            aria-checked={cfg.enableStreaming !== false}
-          >
-            <span
-              className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-background shadow-sm ring-0 transition duration-200 ease-in-out ${
-                cfg.enableStreaming !== false ? 'translate-x-4' : 'translate-x-0.5'
-              } mt-0.5`}
-            />
-          </button>
+          <Switch
+            checked={cfg.enableStreaming !== false}
+            onChange={(enableStreaming) => updateAiPostProcessConfig({ enableStreaming })}
+            aria-label={pick('AI 流式输出', 'AI Streaming Output', 'AI 스트리밍 출력')}
+          />
         </div>
         <p className="text-xs text-muted-foreground">
           {pick(

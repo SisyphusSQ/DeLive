@@ -83,8 +83,11 @@ export function ChatTab({ session }: ChatTabProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null)
 
   const askHistory = useMemo(() => session.askHistory || [], [session.askHistory])
-  const aiConfigured = isAiPostProcessConfigured(settings)
+  const aiConfigured = isAiPostProcessConfigured(settings, 'chat')
   const askPending = askHistory.some((turn) => turn.status === 'pending')
+  const hasInput = Boolean(resolveInputText(session, settings.aiPostProcess?.preferCorrectedText) || session.images?.length)
+  const canAsk = aiConfigured && !askPending && hasInput
+  const canSend = canAsk && Boolean(questionDraft.trim())
 
   useEffect(() => {
     setQuestionDraft('')
@@ -165,7 +168,7 @@ export function ChatTab({ session }: ChatTabProps) {
   }, [questionDraft, adjustTextareaHeight])
 
   const handleAskQuestion = async () => {
-    if (!session || askPending || !questionDraft.trim()) return
+    if (!canSend) return
     const question = questionDraft
     setQuestionDraft('')
     if (textareaRef.current) textareaRef.current.style.height = 'auto'
@@ -212,7 +215,7 @@ export function ChatTab({ session }: ChatTabProps) {
   }, [])
 
   const handleRegenerate = useCallback(async (question: string) => {
-    if (askPending || !question.trim()) return
+    if (!canAsk || !question.trim()) return
     try {
       if (enableStreaming) {
         await askSessionQuestionStreaming(session.id, question, {
@@ -226,7 +229,7 @@ export function ChatTab({ session }: ChatTabProps) {
     } catch (error) {
       console.error('[ChatTab] Regenerate failed:', error)
     }
-  }, [askPending, session.id, activeConversationId, askSessionQuestion, askSessionQuestionStreaming, enableStreaming])
+  }, [canAsk, session.id, activeConversationId, askSessionQuestion, askSessionQuestionStreaming, enableStreaming])
 
   const getConversationLabel = (
     conversationId: string,
@@ -245,7 +248,6 @@ export function ChatTab({ session }: ChatTabProps) {
 
   const askSuggestions = t.preview.askSuggestions || []
   const showNewThreadPill = isNewThread && !hasActiveConversation
-  const canSend = aiConfigured && !askPending && (resolveInputText(session, 'auto') || session.images?.length) && questionDraft.trim()
 
   return (
     <div className="flex h-full flex-col overflow-hidden">
@@ -285,9 +287,9 @@ export function ChatTab({ session }: ChatTabProps) {
         </div>
         <button
           onClick={handleStartNewConversation}
-          disabled={!aiConfigured || !(resolveInputText(session, 'auto') || session.images?.length) || askPending}
+          disabled={!canAsk}
           className={`inline-flex shrink-0 items-center gap-1 rounded-md px-2.5 py-1.5 text-[11px] font-medium transition-colors ${
-            !aiConfigured || !(resolveInputText(session, 'auto') || session.images?.length) || askPending
+            !canAsk
               ? 'cursor-not-allowed text-muted-foreground/50'
               : 'text-muted-foreground hover:bg-accent hover:text-foreground'
           }`}
@@ -307,7 +309,7 @@ export function ChatTab({ session }: ChatTabProps) {
           {!aiConfigured && (
             <p className="mb-4 text-xs text-muted-foreground">{t.preview.aiNotConfigured}</p>
           )}
-          {!(resolveInputText(session, 'auto') || session.images?.length) && (
+          {!hasInput && (
             <p className="mb-4 text-xs text-muted-foreground">{t.preview.askNoTranscript}</p>
           )}
 
@@ -466,7 +468,7 @@ export function ChatTab({ session }: ChatTabProps) {
               value={questionDraft}
               onChange={(event) => setQuestionDraft(event.target.value)}
               onKeyDown={(event) => {
-                if (event.key === 'Enter' && !event.shiftKey) {
+                if (event.key === 'Enter' && !event.shiftKey && !event.nativeEvent.isComposing) {
                   event.preventDefault()
                   void handleAskQuestion()
                 }

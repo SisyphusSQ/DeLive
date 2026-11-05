@@ -7,6 +7,7 @@ export interface AiConnection {
   apiKey?: string
   codexPath?: string
   visionModels?: string[]
+  reasoningEffort?: 'low' | 'medium' | 'high' | 'xhigh' | 'max'
 }
 
 export interface AiMessage {

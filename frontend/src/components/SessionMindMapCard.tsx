@@ -111,7 +111,7 @@ export function SessionMindMapCard({ session }: SessionMindMapCardProps) {
     markmapRef.current = null
   }, [])
 
-  const aiConfigured = isAiPostProcessConfigured(settings)
+  const aiConfigured = isAiPostProcessConfigured(settings, 'mindmap')
   const generating = session.mindMap?.status === 'pending'
   const hasTranscript = Boolean(session.transcript.trim())
   const hasMindMap = Boolean(draftMarkdown.trim())

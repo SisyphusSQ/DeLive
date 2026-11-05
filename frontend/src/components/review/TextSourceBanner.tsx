@@ -26,7 +26,7 @@ export function TextSourceBanner({ session }: TextSourceBannerProps) {
     && typeof correction?.correctedText === 'string'
     && correction.correctedText.trim().length > 0
 
-  if (session.selectedVersionId) return <p className="text-xs text-muted-foreground">AI 文字来源：{versionLabel(selectedReviewVersion(session))}</p>
+  if (session.selectedVersionId) return <div className="inline-flex items-center gap-1.5 rounded-md bg-muted px-2.5 py-1 text-xs font-medium text-muted-foreground"><Info className="h-3 w-3 shrink-0" />AI 文字来源：{versionLabel(selectedReviewVersion(session))}</div>
 
   if (isCorrecting && preference !== 'original') {
     return (

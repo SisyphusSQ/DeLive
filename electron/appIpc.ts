@@ -1,5 +1,6 @@
 import { app, dialog, type BrowserWindow, type IpcMain } from 'electron'
 import fs from 'fs'
+import { ensureRecordingPermissions } from './recordingPermissions'
 import { assertTrustedSender, isPathAllowed } from './ipcSecurity'
 
 interface RegisterAppIpcOptions {
@@ -69,6 +70,12 @@ function clearWindowsAutoLaunchEntries(): void {
 }
 
 export function registerAppIpc(options: RegisterAppIpcOptions): void {
+  options.ipcMain.handle('ensure-recording-permissions', async (event, sources: { system: boolean; microphone: boolean }) => {
+    assertTrustedSender(event, 'ensure-recording-permissions')
+    if (!sources || typeof sources.system !== 'boolean' || typeof sources.microphone !== 'boolean') throw new Error('Invalid recording sources')
+    return ensureRecordingPermissions(sources, options.getMainWindow())
+  })
+
   options.ipcMain.handle('get-app-version', () => {
     return app.getVersion()
   })

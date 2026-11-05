@@ -79,6 +79,7 @@ const electronAPI: ElectronAPI = {
   localRuntimeStop: (runtimeId: string, options) =>
     ipcRenderer.invoke('local-runtime-stop', runtimeId, options),
 
+  ensureRecordingPermissions: sources => ipcRenderer.invoke('ensure-recording-permissions', sources),
   getDesktopSources: () => ipcRenderer.invoke('get-desktop-sources'),
   selectSource: (sourceId: string) => ipcRenderer.invoke('select-source', sourceId),
   cancelSourceSelection: () => ipcRenderer.invoke('cancel-source-selection'),

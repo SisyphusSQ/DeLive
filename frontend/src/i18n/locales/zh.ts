@@ -472,7 +472,7 @@ export const zh = {
     mindMapEmptyHint: '先生成一版 AI 思维导图，或者直接在左侧编写 Markdown。',
     mindMapMarkdownPlaceholder: '# 主题\n## 分支\n### 要点',
     mindMapNoTranscript: '当前会话没有可用于生成思维导图的转录内容',
-    aiNotConfigured: '请先到设置 > 通用设置 中启用并配置 AI 后处理',
+    aiNotConfigured: '请先到设置 > AI 后处理 中启用 AI 并选择默认模型或当前功能模型',
     aiUsingCorrectedText: '当前使用纠错后文本',
     aiUsingOriginalText: '当前使用原始转录文本',
     aiCorrectionInProgress: '纠错进行中，当前使用原始文本',
@@ -536,6 +536,7 @@ export const zh = {
     captureHint: '选择后将捕获该屏幕/窗口的系统音频',
     startCapture: '开始捕获',
     loadFailed: '加载桌面源失败:',
+    screenPermissionRequired: '请在“系统设置 → 隐私与安全 → 录屏与系统录音”中开启上方列表里的 DeLive SQ，然后完全退出并重开应用。只开启下方“仅系统录音”不足以加载屏幕或窗口。',
     selectFailed: '选择源失败',
   },
 
