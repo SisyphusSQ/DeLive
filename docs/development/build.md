@@ -1,106 +1,79 @@
 # Build & Release
 
-## Build Process
+DeLive SQ releases are built and signed locally, then uploaded manually to
+[GitHub Releases](https://github.com/SisyphusSQ/DeLive/releases).
+The first SQ prerelease is `2.3.0-sq.1`, for macOS Apple Silicon (arm64) only.
+It is Developer ID signed, without Apple notarization or in-app updates.
+
+See the [release procedure and signing evidence](../zh/development/build.md)
+for the authoritative instructions, migration steps, and acceptance limits.
+
+## Build
 
 ```bash
 npm run build
 ```
 
-This runs three steps:
-1. **`generate-icons`** — converts `frontend/public/favicon.svg` into PNGs, ICO, and ICNS
-2. **`build:client`** — TypeScript check + Vite production build of the React frontend
-3. **`build:electron`** — TypeScript compile of the Electron main process
+This generates icons, builds the frontend, and compiles Electron. Node.js
+22.12.0 or newer is required. The application version comes from the root
+`package.json`; the frontend package has its own independent version.
 
-## Platform Builds
+## Package
 
 ```bash
-npm run dist:win     # Windows (.exe + portable)
-npm run dist:mac     # macOS (.dmg for x64 and arm64)
-npm run dist:linux   # Linux (.AppImage + .deb)
-npm run dist:all     # All platforms
+env -u APPLE_KEYCHAIN_PROFILE -u DELIVE_ALLOW_ADHOC \
+  DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer \
+  npx electron-builder --mac --arm64 --publish never \
+  --config.directories.output=release/2.3.0-sq.1
 ```
 
-Artifacts are written to `release/`.
-
-### Electron Builder Configuration
-
-The `electron-builder` config lives in the root `package.json` under the `"build"` key:
+The signing hook selects a usable Developer ID Application identity from the
+local keychain, signs nested code, and checks signatures and certificate
+revocation. `APPLE_KEYCHAIN_PROFILE` explicitly enables optional notarization;
+leave it unset for a signed-only release. Never upload private signing keys or
+notarization credentials to the repository.
 
 | Setting | Value |
 |---------|-------|
-| App ID | `com.delive.app` |
-| Product Name | `DeLive` |
-| Output | `release/` |
-| Windows | NSIS installer + portable, x64 |
-| macOS | DMG + ZIP, x64 + arm64 |
-| Linux | AppImage + deb, x64 |
-| Publish | GitHub (`XimilalaXiang/DeLive`) |
+| App ID | `io.github.sisyphussq.delive` |
+| Product | `DeLive SQ` |
+| Release assets | arm64 DMG, ZIP, `SHA256SUMS` |
+| Publish config | `null`; manual GitHub prerelease |
+| In-app updates | Disabled |
 
-### whisper.cpp Runtime (Optional)
+The application uses a separate `DeLive SQ` user data directory and does not
+automatically migrate data from upstream DeLive. The release process does not
+replace an existing local installation.
 
-To bundle a whisper.cpp binary in the build:
+## CI and manual publication
 
-```bash
-npm run fetch:whisper-runtime -- --target win32
-npm run stage:whisper-runtime -- --binary /path/to/whisper-server --target linux
-```
+Normal development CI remains in `.github/workflows/ci.yml`. Release metadata
+commits use `[skip ci]` to reuse existing test evidence without rerunning tests
+during release finalization. Build, signing, archive, checksum, and release
+readback steps still run.
 
-If `local-runtimes/whisper_cpp/whisper-server` exists at build time, `electron-builder` packages it as an extra resource.
+The inherited `.github/workflows/release.yml` has been removed because its
+macOS artifacts were ad-hoc signed. Pushing a version tag no longer builds or
+publishes a release. The optional `test-build.yml` still produces temporary
+artifacts and is not a source of signed release packages.
 
-## CI/CD Pipelines
+After the release metadata is merged, tag that commit and create a draft
+prerelease with the locally signed DMG, ZIP, and checksum file. Review the
+assets and notes before publishing, and keep it excluded from `latest`.
+Do not upload build logs, previous installations, user data, or local evidence.
 
-### Continuous Integration (`.github/workflows/ci.yml`)
+Before hashing and upload, rename the DMG and ZIP from `DeLive SQ-...` to
+`DeLive-SQ-...` so GitHub does not rewrite their asset names. Keep the app
+bundle name unchanged. See the Chinese procedure for exact commands.
 
-Runs on every push (except tags) and every pull request:
-
-1. Ubuntu runner, Node 20
-2. `npm ci` for root, frontend, and server
-3. `npm run check` (lint + test + build)
-
-### Release (`.github/workflows/release.yml`)
-
-Triggered by pushing a tag matching `v*`:
-
-**Phase 1: Quality** (Ubuntu)
-- Lint, test, and verify build
-
-**Phase 2: Build** (3-platform matrix)
-- Windows, macOS, Linux runners
-- Full build + `electron-builder --publish never`
-- Upload artifacts
-
-**Phase 3: Release** (Ubuntu)
-- Download all platform artifacts
-- Generate release notes from `CHANGELOG.md`
-- Create GitHub Release with all platform files
-
-### Release Files
-
-| Platform | Files |
-|----------|-------|
-| Windows | `.exe`, `.blockmap`, `latest.yml` |
-| macOS | `.dmg`, `.zip`, `latest-mac.yml` |
-| Linux | `.AppImage`, `.deb`, `latest-linux.yml` |
-
-## Creating a Release
-
-1. Update `version` in `package.json`
-2. Update `CHANGELOG.md` with the new version entry
-3. Commit and push
-4. Create and push a tag:
+Generate release notes after packaging and generating `SHA256SUMS`:
 
 ```bash
-git tag v1.8.0
-git push origin v1.8.0
+GITHUB_REPOSITORY=SisyphusSQ/DeLive \
+  node scripts/generate-release-notes.mjs 2.3.0-sq.1 \
+  > release/2.3.0-sq.1/release-notes.md
 ```
 
-The release pipeline will automatically build all platforms and create a GitHub Release.
-
-## Helper Scripts
-
-| Script | Purpose |
-|--------|---------|
-| `scripts/generate-icons.mjs` | SVG → PNG (multiple sizes), ICO, ICNS, Linux icon directory |
-| `scripts/fetch-whisper-runtime.mjs` | Download whisper.cpp binary from GitHub releases |
-| `scripts/stage-whisper-runtime.mjs` | Copy local binary into packaging directory |
-| `scripts/generate-release-notes.mjs` | Parse CHANGELOG.md and generate bilingual release notes |
+The notes read the matching `CHANGELOG.md` section and the assets in
+`release/<version>/`. They identify the package as signed but not notarized,
+explain manual updates, and retain the documented acceptance limits.

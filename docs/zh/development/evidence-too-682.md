@@ -1,6 +1,6 @@
 # TOO-682 开发验证与 Review
 
-日期：2026-11-02。机器：sqmc04；macOS 27.0.1（26A434），Node 25.9.0，npm 11.12.1，Electron 40.0.0。基线 e411441786e56beac37d929430616e4d769ef517，分支 suqing/too-682-dual-recording。实现文件摘要见 [source.sha256](./evidence/too-682/source.sha256)，Git 提交与 PR 见对应 Linear 回写。
+日期：2026-11-02。机器：sqmc04；macOS 27.0.1（26A434），Node 25.9.0，npm 11.12.1，Electron 40.0.0。基线 e411441786e56beac37d929430616e4d769ef517，分支 suqing/too-682-dual-recording。实现文件摘要见 [source.sha256](https://github.com/SisyphusSQ/DeLive/blob/4d3ef5525b60d1e2b152abc6823f999784ee5b46/docs/zh/development/evidence/too-682/source.sha256)，Git 提交与 PR 见对应 Linear 回写。
 
 ## 结果
 

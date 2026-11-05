@@ -1,8 +1,10 @@
 # 构建与发布
 
+当前发行方式为 **本机 Developer ID 签名 → GitHub 预发布 → 手动下载安装**。首个 SQ 版本为 `2.3.0-sq.1`，仅提供 macOS arm64；应用内更新关闭，未进行 Apple 公证，不上架 App Store。后文带日期的验收记录是各阶段快照，不代表当前发行包已覆盖全部场景。
+
 2026-11-03 本机结果见 [TOO-686 验收记录](./evidence-too-686-live.md)：已修复两类真实响应误判；独立包的生成语音实时转写、落盘、重开、回放、校对与导出通过。现场设备、多人和长会测试仍待用户实测。
 
-## Fork 当前独立包（TOO-686）
+## Fork 独立包历史记录（TOO-686，2026-11-03）
 
 - 本机 sqmc03：`/Users/suqing/Coding/app/DeLive`。产品名 **DeLive SQ**，appId `io.github.sisyphussq.delive`，独立用户数据目录 `/Users/suqing/Library/Application Support/DeLive SQ`。与原版分开，不自动迁移旧数据。
 - arm64 DMG、ZIP 与 `release/SHA256SUMS` 已生成。采用 ad-hoc 签名，无 Developer ID / Apple 公证，不宣称 Gatekeeper trusted。首次打开可能需在“系统设置 → 隐私与安全性”选择“仍要打开”。
@@ -74,7 +76,7 @@ npm run dist:all     # 所有平台
 | Windows | NSIS 安装包 + 便携版，x64 |
 | macOS | DMG + ZIP，arm64 |
 | Linux | AppImage + deb，x64 |
-| 发布 | `null`，应用内更新关闭；仅本地打包 |
+| 发布 | `null`，应用内更新关闭；本机签名后手动上传 GitHub Release |
 
 ### whisper.cpp Runtime（可选）
 
@@ -87,7 +89,7 @@ npm run stage:whisper-runtime -- --binary /path/to/whisper-server --target linux
 
 如果构建时 `local-runtimes/whisper_cpp/whisper-server` 存在，`electron-builder` 将其打包为额外资源。
 
-## CI/CD 管线（继承上游，未作为本次发行入口）
+## CI 与发行入口
 
 ### 持续集成（`.github/workflows/ci.yml`）
 
@@ -97,38 +99,52 @@ npm run stage:whisper-runtime -- --binary /path/to/whisper-server --target linux
 2. `npm ci` 安装根目录、frontend 和 server
 3. `npm run check`（lint + 测试 + 构建）
 
-### 发布（`.github/workflows/release.yml`）
+### GitHub 预发布（本机正式签名）
 
-推送匹配 `v*` 的标签时触发：
+已移除继承的 `.github/workflows/release.yml`：该流程没有发行证书，会生成临时签名包。新标签不再自动构建或发布。`test-build.yml` 仍用于临时构建，其 macOS 包不用于覆盖持续使用的正式签名安装。
 
-**阶段 1：质量检查**（Ubuntu）
-- Lint、测试和验证构建
-
-**阶段 2：构建**（3 平台矩阵）
-- Windows、macOS、Linux runner
-- 完整构建 + `electron-builder --publish never`
-- 上传产物
-
-**阶段 3：发布**（Ubuntu）
-- 下载所有平台产物
-- 从 `CHANGELOG.md` 生成发布说明
-- 创建包含所有平台文件的 GitHub Release
-
-## 创建发布（历史机制，需另行授权）
-
-以下标签流程仍会触发仓库 Release workflow；`publish=null` 仅关闭 electron-builder 的发布配置，不禁用 GitHub Actions。此次未执行。
-
-1. 更新 `package.json` 中的 `version`
-2. 更新 `CHANGELOG.md` 的新版本条目
-3. 提交并推送
-4. 创建并推送标签：
+1. 更新根 `package.json` 和 `package-lock.json` 的版本，在 `CHANGELOG.md` 中整理对应版本条目，同步 README 顶部的 SQ 下载入口。前端子包版本不作为应用发行版本。
+2. 发版收尾复用已有开发验收证据，不重复运行 lint、单元测试、集成测试或 E2E。发行元数据提交使用 `[skip ci]`，避免推送和合并再次执行继承的质量流水线；业务开发阶段的正常 CI 保持原样。
+3. 在具有可用 Developer ID 私钥的 Mac 上构建和签名。产物写入 `release/<version>/`；不设置 `APPLE_KEYCHAIN_PROFILE`，因此本次仅签名，不提交公证。私钥留在本机钥匙串，不导出到 GitHub Actions。
 
 ```bash
-git tag v1.8.0
-git push origin v1.8.0
+DELIVE_VERSION=2.3.0-sq.1
+npm run build
+env -u APPLE_KEYCHAIN_PROFILE -u DELIVE_ALLOW_ADHOC \
+  DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer \
+  npx electron-builder --mac --arm64 --publish never \
+  --config.directories.output="release/$DELIVE_VERSION"
+for ext in dmg zip; do
+  mv "release/$DELIVE_VERSION/DeLive SQ-$DELIVE_VERSION-mac-arm64.$ext" \
+    "release/$DELIVE_VERSION/DeLive-SQ-$DELIVE_VERSION-mac-arm64.$ext"
+done
+(cd "release/$DELIVE_VERSION" && shasum -a 256 *.dmg *.zip > SHA256SUMS)
+GITHUB_REPOSITORY=SisyphusSQ/DeLive \
+  node scripts/generate-release-notes.mjs "$DELIVE_VERSION" \
+  > "release/$DELIVE_VERSION/release-notes.md"
 ```
 
-发布管线将自动构建所有平台并创建 GitHub Release。
+上传附件使用不含空格的 `DeLive-SQ-<version>-mac-arm64` 文件名，避免 GitHub 改写资产名称；应用 bundle 名仍为 `DeLive SQ.app`。
+
+4. 核对正式签名、团队、appId、版本、DMG/ZIP 归档及 SHA-256；确认包内没有个人数据或凭据。构建、签名、归档和发布结果检查属于发版步骤，不作为重复测试。签名 hook 会检查嵌套签名、Hardened Runtime 和证书 OCSP 状态。
+5. 将发行元数据合并到 `main`，在该提交上创建 `v<version>` 标签。创建 GitHub Release 草稿，只上传 DMG、ZIP 和 `SHA256SUMS`，不上传日志、备份安装或本机证据。回读资产与说明后发布为预发布，且不设为 latest。
+
+```bash
+git tag -a "v$DELIVE_VERSION" -m "DeLive SQ $DELIVE_VERSION 预发布"
+git push origin "v$DELIVE_VERSION"
+gh release create "v$DELIVE_VERSION" --repo SisyphusSQ/DeLive \
+  --verify-tag --draft --prerelease --latest=false \
+  --title "DeLive SQ $DELIVE_VERSION 预发布" \
+  --notes-file "release/$DELIVE_VERSION/release-notes.md" \
+  "release/$DELIVE_VERSION/DeLive-SQ-$DELIVE_VERSION-mac-arm64.dmg" \
+  "release/$DELIVE_VERSION/DeLive-SQ-$DELIVE_VERSION-mac-arm64.zip" \
+  "release/$DELIVE_VERSION/SHA256SUMS"
+gh release edit "v$DELIVE_VERSION" --repo SisyphusSQ/DeLive --draft=false --latest=false
+```
+
+本机原有 `/Applications/DeLive SQ.app` 不随发布自动替换；用户下载 DMG 后将应用拖到“应用程序”手动更新。保持 `io.github.sisyphussq.delive`、开发团队和 `DeLive SQ` 数据目录，避免身份变化。首次从 ad-hoc 包迁移时如出现已确认的权限身份失配，参考后文恢复步骤；日常更新不重置权限。
+
+发布说明必须标注 Developer ID 已签名、未公证、手动更新与已验证范围。需要对外顺畅分发时，再单独完成 Apple 公证并发布新的明确版本；不把自用短录音结果扩大为长会议、音质或完整云转写验收。
 
 ## 辅助脚本
 
@@ -145,7 +161,7 @@ git push origin v1.8.0
 
 重点审查独立 appId / productName / userData、关闭更新的主进程及 preload 能力、火山完整快照契约、录音资产和稿件版本契约，避免同步上游时恢复上游更新源或覆盖人工稿。凭据和已有录音不进入源码同步。
 
-开发或冲突修复阶段按受影响行为验证；提交/发版收尾复用已有证据，不重复测试。重新打包后核对签名、归档和 SHA256；若 ad-hoc 应用再次请求钥匙串访问，由用户在本机授权。保持原版数据分开，不自动迁移或清理；迁移需另行明确范围。公开发布与启用更新另需授权，不能直接把继承的标签发布流程当作已批准的发行入口。
+开发或冲突修复阶段按受影响行为验证；提交/发版收尾复用已有证据，不重复测试。重新打包后核对签名、归档和 SHA256；若 ad-hoc 应用再次请求钥匙串访问，由用户在本机授权。保持原版数据分开，不自动迁移或清理；迁移需另行明确范围。后续公开发布与启用应用内更新须遵循当次授权范围，不能恢复继承的临时签名标签发行流程。
 
 
 ### 退出崩溃修复（2026-11-04）
