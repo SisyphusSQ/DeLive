@@ -30,6 +30,19 @@ async function connected() {
 describe('Volc lifecycle (isolated WebSocket double)', () => {
   beforeEach(() => { vi.useFakeTimers(); Socket.instances = []; vi.stubGlobal('WebSocket', Socket) })
   afterEach(() => { vi.useRealTimers(); vi.unstubAllGlobals() })
+  it('stays connected through a textless provisional utterance and receives later text and the final frame', async () => {
+    const { provider, ws, events } = await connected(), error = vi.fn()
+    provider.on('onError', error)
+    const first = { text: '第一段', start_time: 15622, end_time: 21452, definite: true }
+    const pending = { start_time: 38821, end_time: 41301, definite: false }
+    ws.message({ type: 'snapshot', raw: { result: { text: '第一段', utterances: [first, pending] } }, sequence: 2 })
+    expect(provider.isConnected).toBe(true)
+    expect(events[events.length - 1]).toMatchObject({ text: '第一段', status: 'streaming' })
+    ws.message({ type: 'snapshot', raw: { result: { text: '第一段第二段', utterances: [first, { ...pending, text: '第二段', definite: true }] } }, sequence: -3, final: true })
+    expect(error).not.toHaveBeenCalled()
+    expect(events[events.length - 1]).toMatchObject({ text: '第一段第二段', status: 'complete' })
+    await provider.disconnect()
+  })
   it('completes a real-service silent final without errors and reconnects with a distinct recognition', async () => {
     const first = await connected(), error = vi.fn(), finished = vi.fn()
     first.provider.on('onError', error); first.provider.on('onFinished', finished)
@@ -78,6 +91,29 @@ describe('Volc lifecycle (isolated WebSocket double)', () => {
     ws.onmessage?.({ data: 'secret-response-not-json' })
     expect(error).toHaveBeenCalledWith(expect.objectContaining({ details: { stage: 'json', reason: '消息解析失败' } }))
     expect(JSON.stringify(error.mock.calls)).not.toContain('secret-response')
+    await provider.disconnect()
+  })
+  it.each([
+    { fields: { text: 'private-utterance', start_time: 200, end_time: 150, definite: false },
+      evidence: { textType: 'string', textPresent: true, startTime: 200, endTime: 150, definite: false } },
+    { fields: { start_time: 200, end_time: 300, definite: true },
+      evidence: { textType: 'undefined', textPresent: false, startTime: 200, endTime: 300, definite: true } },
+    { fields: { text: null, start_time: 'private-time', end_time: null, definite: 'private-state' },
+      evidence: { textType: 'null', textPresent: true, startTime: 'string', endTime: 'null', definite: 'string' } },
+  ])('identifies an invalid utterance without exposing its text or additions: $evidence', async ({ fields, evidence }) => {
+    const { provider, ws, events } = await connected(), error = vi.fn()
+    provider.on('onError', error)
+    ws.message({ type: 'snapshot', raw })
+    ws.message({ type: 'snapshot', sequence: 17, raw: { result: { text: 'private-transcript', utterances: [
+      raw.result.utterances[0],
+      { ...fields, additions: { accessKey: 'private-key' } },
+    ] } } })
+    expect(error).toHaveBeenCalledWith(expect.objectContaining({ code: 'PROTOCOL_ERROR', details: {
+      stage: 'snapshot', reason: '火山分句时间或状态错误', utteranceIndex: 1,
+      ...evidence,
+    } }))
+    expect(JSON.stringify(error.mock.calls)).not.toContain('private-')
+    expect(events[events.length - 1]).toMatchObject({ text: '合成文本', status: 'incomplete' })
     await provider.disconnect()
   })
   it('ignores real-service metadata acknowledgements without dropping text or accepting malformed final frames', async () => {

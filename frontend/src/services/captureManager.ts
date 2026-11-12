@@ -64,6 +64,19 @@ export class CaptureManager {
     this.diskFailed = true
     this.options.onError?.(error instanceof Error ? error : new Error(String(error)))
   }
+  private requireLiveTrack(source: AudioSource, stream: MediaStream): MediaStreamTrack {
+    const track = stream.getAudioTracks()[0]
+    const name = source === 'system' ? '系统声音' : '麦克风'
+    if (!track) {
+      this.state(source, 'error')
+      throw new Error(name + ' 未提供音频，请检查系统录音权限')
+    }
+    if (track.readyState === 'ended') {
+      this.state(source, 'ended', track.label)
+      throw new Error(name + '来源已结束，请检查设备与录音权限后重试')
+    }
+    return track
+  }
   async acquireStream(options: CaptureOptions = this.options): Promise<MediaStream> {
     this.options = options
     if (!options.system && !options.microphone) throw new Error('请至少启用一个音频来源')
@@ -83,9 +96,8 @@ export class CaptureManager {
           throw error
         }
         this.streams.set(source, stream)
-        if (!stream.getAudioTracks().length) throw new Error(source + ' 未提供音频，请检查系统录音权限')
-        const track = stream.getAudioTracks()[0]
-        this.state(source, 'active', track.label)
+        const track = this.requireLiveTrack(source, stream)
+        this.state(source, track.muted ? 'muted' : 'active', track.label)
         track.onmute = () => this.state(source, 'muted', track.label)
         track.onunmute = () => this.state(source, 'active', track.label)
         track.onended = () => {
@@ -95,8 +107,11 @@ export class CaptureManager {
         // Retain the display video track for the lifetime of the capture grant.
       }
       this.context = new AudioContext({ sampleRate: 48000 })
+      // Start the archive at a single audio frame boundary after begin().
       await this.context.suspend()
       await this.context.audioWorklet.addModule(new URL('./dual-recorder.worklet.js', window.location.href).href)
+      // 权限等待和工作线程加载期间，已取得的音轨仍可能结束。
+      for (const [source, stream] of this.streams) this.requireLiveTrack(source, stream)
       this.worklet = new AudioWorkletNode(this.context, 'dual-recorder', { numberOfInputs: 2, numberOfOutputs: 1, outputChannelCount: [1], channelCount: 1, channelCountMode: 'explicit' })
       const destination = this.context.createMediaStreamDestination()
       this.worklet.connect(destination)
@@ -111,8 +126,6 @@ export class CaptureManager {
         input.connect(analyser)
         this.meters.push({ source, analyser })
       }
-      // Start the archive at a single audio frame boundary after begin().
-      await this.context.suspend()
       this.worklet.port.onmessage = e => {
         if (e.data.flushed) { this.flushResolve?.(); return }
         if (!this.id || this.diskFailed) return

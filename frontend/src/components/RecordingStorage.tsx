@@ -1,3 +1,4 @@
+import { Select } from './ui/Select'
 import { useEffect, useState } from 'react'
 import { useRecordingStore } from '../stores/recordingStore'
 import { useSessionStore } from '../stores/sessionStore'
@@ -42,10 +43,10 @@ export function RecordingStorage() {
       <label><input type="checkbox" checked={capture.system} disabled={!idle} onChange={e => capture.update({ system: e.target.checked })} /> 系统声音</label>
       <label><input type="checkbox" checked={capture.microphone} disabled={!idle} onChange={e => capture.update({ microphone: e.target.checked })} /> 麦克风</label>
       <label><input type="checkbox" checked={capture.localOnly} disabled={!idle} onChange={e => capture.update({ localOnly: e.target.checked })} /> 仅录音（无需密钥）</label>
-      <select aria-label="麦克风设备" value={capture.microphoneId} disabled={!idle || !capture.microphone} onChange={e => capture.update({ microphoneId: e.target.value })} className="bg-background border rounded">
+      <Select aria-label="麦克风设备" value={capture.microphoneId} disabled={!idle || !capture.microphone} onChange={e => capture.update({ microphoneId: e.target.value })} className="bg-background border rounded">
         <option value="">系统默认麦克风</option>
         {devices.map((d, i) => <option key={d.deviceId || i} value={d.deviceId}>{d.label || '麦克风 ' + (i + 1)}</option>)}
-      </select>
+      </Select>
     </div>
     <p className="text-xs text-muted-foreground">麦克风启用系统回声消除。来源不代表说话人；外放回声效果待真实设备验收。</p>
     {capture.sources.map(source => <div key={source.source} className="flex gap-2 items-center">

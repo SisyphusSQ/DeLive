@@ -20,7 +20,7 @@ describe('dual source acquisition', () => {
   })
   it('reports denied microphone permission and releases the acquired system grant', async () => {
     const stop = vi.fn()
-    const audio = { stop, label: 'synthetic system', onended: null }
+    const audio = { stop, label: 'synthetic system', readyState: 'live', muted: false, onended: null }
     const display = { getAudioTracks: () => [audio], getTracks: () => [audio, { stop }] }
     vi.stubGlobal('navigator', { mediaDevices: { getDisplayMedia: vi.fn().mockResolvedValue(display), getUserMedia: vi.fn().mockRejectedValue(Object.assign(new Error('denied'), { name: 'NotAllowedError' })) } })
     const onSource = vi.fn()
@@ -36,6 +36,48 @@ describe('dual source acquisition', () => {
     vi.stubGlobal('navigator', { mediaDevices: { getDisplayMedia: vi.fn().mockResolvedValue({ getAudioTracks: () => [], getTracks: () => [{ stop }] }) } })
     await expect(new CaptureManager().acquireStream({ system: true, microphone: false })).rejects.toThrow(/音频/)
     expect(stop).toHaveBeenCalledOnce()
+  })
+  it.each(['system', 'microphone'] as const)('rejects an already-ended %s track and releases every acquired source', async source => {
+    const system = { label: 'system', readyState: source === 'system' ? 'ended' : 'live', muted: false, stop: vi.fn() }
+    const video = { stop: vi.fn() }
+    const microphone = { label: 'microphone', readyState: 'ended', muted: false, stop: vi.fn() }
+    const getUserMedia = vi.fn().mockResolvedValue({ getAudioTracks: () => [microphone], getTracks: () => [microphone] })
+    vi.stubGlobal('navigator', { mediaDevices: {
+      getDisplayMedia: vi.fn().mockResolvedValue({ getAudioTracks: () => [system], getTracks: () => [system, video] }),
+      getUserMedia,
+    } })
+    const onSource = vi.fn()
+    await expect(new CaptureManager().acquireStream({ system: true, microphone: true, onSource })).rejects.toThrow(/来源已结束/)
+    expect(onSource.mock.calls.some(([state]) => state.source === source && state.status === 'ended')).toBe(true)
+    expect(onSource.mock.calls.some(([state]) => state.source === source && state.status === 'active')).toBe(false)
+    expect(system.stop).toHaveBeenCalledOnce()
+    expect(video.stop).toHaveBeenCalledOnce()
+    if (source === 'microphone') expect(microphone.stop).toHaveBeenCalledOnce()
+    else expect(getUserMedia).not.toHaveBeenCalled()
+  })
+  it('rejects a source that ends while the audio worklet loads and closes the graph', async () => {
+    const system = { label: 'system', readyState: 'live', muted: true, stop: vi.fn() }
+    const video = { stop: vi.fn() }
+    const microphone = { label: 'microphone', readyState: 'live', muted: false, stop: vi.fn() }
+    const close = vi.fn().mockResolvedValue(undefined)
+    vi.stubGlobal('window', { location: { href: 'file:///delive/index.html' } })
+    vi.stubGlobal('navigator', { mediaDevices: {
+      getDisplayMedia: vi.fn().mockResolvedValue({ getAudioTracks: () => [system], getTracks: () => [system, video] }),
+      getUserMedia: vi.fn().mockResolvedValue({ getAudioTracks: () => [microphone], getTracks: () => [microphone] }),
+    } })
+    vi.stubGlobal('AudioContext', class {
+      suspend = vi.fn().mockResolvedValue(undefined)
+      close = close
+      audioWorklet = { addModule: async () => { system.readyState = 'ended' } }
+    })
+    const onSource = vi.fn()
+    await expect(new CaptureManager().acquireStream({ system: true, microphone: true, onSource })).rejects.toThrow(/来源已结束/)
+    expect(onSource.mock.calls.some(([state]) => state.source === 'system' && state.status === 'muted')).toBe(true)
+    expect(onSource.mock.calls[onSource.mock.calls.length - 1]?.[0]).toMatchObject({ source: 'system', status: 'ended' })
+    expect(system.stop).toHaveBeenCalledOnce()
+    expect(video.stop).toHaveBeenCalledOnce()
+    expect(microphone.stop).toHaveBeenCalledOnce()
+    expect(close).toHaveBeenCalledOnce()
   })
 })
 describe('audio-thread timeline and mix', () => {

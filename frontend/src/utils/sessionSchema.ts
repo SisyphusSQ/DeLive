@@ -20,7 +20,7 @@ import type {
 } from '../types'
 import { formatDate, formatTime, generateId } from './storageUtils'
 
-export const CURRENT_SESSION_SCHEMA_VERSION = 5
+export const CURRENT_SESSION_SCHEMA_VERSION = 6
 const DEFAULT_SESSION_STATUS: TranscriptSessionStatus = 'completed'
 
 function isRecord(value: unknown): value is Record<string, unknown> {

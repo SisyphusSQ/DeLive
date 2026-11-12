@@ -6,6 +6,9 @@ import { useSessionStore } from '../stores/sessionStore'
 import { sessionRepository } from './sessionRepository'
 import { createDraftSession } from './sessionLifecycle'
 import { addPostMeetingVersion } from './transcriptVersions'
+import { addReconciledVersion, reconciliationBase } from './transcriptMerge'
+import { reviewVersions } from './reviewVersions'
+import { useReviewDraftStore } from '../stores/reviewDraftStore'
 
 export function volcFileCredentials() {
   const config = useSettingsStore.getState().settings.providerConfigs?.volc
@@ -18,27 +21,63 @@ export function fileTaskApi() {
   if (!api) throw new Error('标准文件转写需要桌面客户端，以保存任务与管理私有音频副本')
   return api
 }
-export async function startRecordingFileTask(sessionId: string, recordingId: string): Promise<FileTask> {
-  return fileTaskApi().start(sessionId, recordingId, volcFileCredentials(), useSettingsStore.getState().settings.providerConfigs?.volc?.enableDdc === true)
+export async function startRecordingFileTask(sessionId: string, recordingId: string, reconcile = false): Promise<FileTask> {
+  let baseId: string | undefined
+  if (reconcile) {
+    if (useReviewDraftStore.getState().drafts[sessionId]) throw new Error('请先保存或放弃当前校对草稿')
+    const sessions = await sessionRepository.mutateDurable(sessionId, current => {
+      baseId = reconciliationBase(current).id
+      return { versions: reviewVersions(current) }
+    })
+    useSessionStore.setState({ sessions })
+  }
+  return fileTaskApi().start(sessionId, recordingId, volcFileCredentials(), useSettingsStore.getState().settings.providerConfigs?.volc?.enableDdc === true, baseId)
 }
-let ingestion: Promise<void> = Promise.resolve()
-export function ingestFileTasks(jobs: FileTask[]): Promise<void> {
-  ingestion = ingestion.catch(() => {}).then(async () => {
+let ingestion: Promise<Record<string, string>> = Promise.resolve({})
+export function ingestFileTasks(jobs: FileTask[]): Promise<Record<string, string>> {
+  ingestion = ingestion.catch(() => ({})).then(async () => {
+  const errors: Record<string, string> = {}
   for (const job of jobs) {
     if (!job.version) continue
     const session = useSessionStore.getState().sessions.find(item => item.id === job.sessionId)
     if (!session) continue // Do not recreate a session the user deleted.
-    const next = addPostMeetingVersion(session, job.version)
-    if (next === session) continue
-    const sessions = await sessionRepository.mutateDurable(session.id, current => {
-      const updated = addPostMeetingVersion(current, job.version!)
-      return { versions: updated.versions, selectedVersionId: updated.selectedVersionId, transcript: updated.transcript,
-        segments: updated.segments, speakers: updated.speakers }
-    })
-    useSessionStore.setState({ sessions })
+    try {
+      if (addPostMeetingVersion(session, job.version) !== session) {
+        const sessions = await sessionRepository.mutateDurable(session.id, current => {
+          const updated = addPostMeetingVersion(current, job.version!)
+          return { versions: updated.versions, selectedVersionId: updated.selectedVersionId, transcript: updated.transcript,
+            segments: updated.segments, speakers: updated.speakers }
+        })
+        useSessionStore.setState({ sessions })
+      }
+    } catch { errors[job.id] = '会后稿待保存到会议；结果已保留，请恢复存储后重试'; continue }
+    if (!job.reconcileBaseId || !job.version.text.trim()) continue
+    if (useReviewDraftStore.getState().error) { errors[job.id] = '会后稿已保存；请先恢复校对草稿存储，再重试本地合并'; continue }
+    if (useReviewDraftStore.getState().drafts[session.id]) { errors[job.id] = '会后稿已保存；保存或放弃校对草稿后继续自动合并'; continue }
+    const latest = useSessionStore.getState().sessions.find(s=>s.id===session.id)
+    if (latest?.versions?.some(v=>v.merge?.postVersionId===job.version!.id && v.merge.baseVersionId===job.reconcileBaseId)) continue
+    try {
+      const sessions = await sessionRepository.mutateDurable(session.id, current => {
+        // Recheck at the serialized write boundary, after any intervening manual save.
+        if (useReviewDraftStore.getState().drafts[session.id]) throw new Error('校对草稿尚未保存')
+        if (current.versions?.some(v=>v.merge?.postVersionId===job.version!.id && v.merge.baseVersionId===job.reconcileBaseId)) return {}
+        return { versions: addReconciledVersion(current, job.version!.id, job.reconcileBaseId!).versions }
+      })
+      useSessionStore.setState({ sessions })
+    } catch (e) { errors[job.id] = '会后稿已保存，自动合并未完成：'+(e as Error).message+'；可重试本地合并，无需重新识别' }
   }
+  return errors
   })
   return ingestion
+}
+
+export async function generateReconciledVersion(sessionId: string, postId: string): Promise<void> {
+  if (useReviewDraftStore.getState().drafts[sessionId]) throw new Error('请先保存或放弃当前校对草稿')
+  const sessions = await sessionRepository.mutateDurable(sessionId, current => {
+    const next = addReconciledVersion(current, postId, reconciliationBase(current).id)
+    return { versions: next.versions }
+  })
+  useSessionStore.setState({ sessions })
 }
 async function readDuration(file: File): Promise<number> {
   const url = URL.createObjectURL(file), audio = new Audio()

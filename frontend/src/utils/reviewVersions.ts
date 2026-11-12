@@ -2,7 +2,7 @@ import type { TranscriptSession } from '../types'
 import type { TranscriptVersion } from '../../../shared/fileTranscription'
 
 export function versionLabel(version: TranscriptVersion): string {
-  const kind = version.editNote?.startsWith('历史译文') ? '历史译文' : { realtime:'实时稿', 'post-meeting':'会后稿', edited:'人工修订', legacy:'历史原稿' }[version.kind]
+  const kind = version.editNote?.startsWith('历史译文') ? '历史译文' : { realtime:'实时稿', 'post-meeting':'会后稿', edited:'人工修订', legacy:'历史原稿', reconciled:'自动校正版' }[version.kind]
   return kind + ' · ' + new Date(version.createdAt).toLocaleString()
 }
 export function reviewVersions(session: TranscriptSession): TranscriptVersion[] {
@@ -45,7 +45,14 @@ export function editedVersion(source: TranscriptVersion, draft: TranscriptVersio
   }
   return { ...structuredClone(draft),id:'edit-'+crypto.randomUUID(),kind:'edited',parentVersionId:source.id,
     createdAt:Date.now(),text:draft.segments.length?draft.segments.map(s=>s.text).join('\n'):draft.text,
-    response:undefined,editNote:note }
+    response:undefined,editNote:note,
+    merge: draft.merge ? { ...structuredClone(draft.merge), groups: draft.merge.groups.map(group => {
+      const previous=source.merge?.groups.find(g=>g.id===group.id)
+      if(previous && JSON.stringify(previous)!==JSON.stringify(group))return group
+      const before = source.segments.filter(s => group.outputIds.includes(s.id ?? ''))
+      const after = draft.segments.filter(s => group.outputIds.includes(s.id ?? ''))
+      return JSON.stringify(before) === JSON.stringify(after) ? group : { ...group, outputIds: after.map(s => s.id!), status: 'confirmed', decision: 'edited' }
+    }) } : undefined }
 }
 /** Explicit mapping copies confirmed names into a NEW revision; IDs and both input versions stay intact. */
 export function mapSpeakers(target: TranscriptVersion, source: TranscriptVersion, pairs: Record<string,string>): TranscriptVersion {
@@ -91,7 +98,8 @@ export function reviewExport(session: TranscriptSession, format:'txt'|'md'|'srt'
     const time=s.startMs===undefined?'无时间':timestamp(s.startMs)
     return '['+time+'] ['+label(s.speakerId)+']'+(s.isFinal===false?' [临时片段]':'')+' '+s.text
   }).join('\n\n'):version.text
-  const title=session.title+' · '+versionLabel(version)
+  const pending = version.merge?.groups.filter(group=>group.status==='pending').length ?? 0
+  const title=session.title+' · '+versionLabel(version)+(pending ? ` · ${pending} 处待确认（尚未全部校对）` : '')
   return (format==='md'?'# ':'')+title+'\n\n'+content+'\n'
 }
 export function downloadReview(session: TranscriptSession, format:'txt'|'md'|'srt'|'vtt') {

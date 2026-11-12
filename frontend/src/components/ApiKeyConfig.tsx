@@ -1,3 +1,4 @@
+import { FileStorageSettings } from './settings/FileStorageSettings'
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react'
 import { Settings, Check, Volume2, Palette, Bot, Globe, Cloud, HardDrive, Info, Subtitles } from 'lucide-react'
 import { Button } from './ui'
@@ -33,7 +34,7 @@ import {
 import { testProviderConfig } from '../utils/providerConfigTest'
 import { getDefaultSettings } from '../utils/storageShared'
 
-type SettingsGroup = 'provider' | 'appearance' | 'caption' | 'aiPostProcess' | 'openApi' | 'cloudBackup' | 'dataManagement' | 'about'
+type SettingsGroup = 'provider' | 'fileStorage' | 'appearance' | 'caption' | 'aiPostProcess' | 'openApi' | 'cloudBackup' | 'dataManagement' | 'about'
 
 interface ApiKeyConfigProps {
   isOpen: boolean
@@ -44,6 +45,7 @@ interface ApiKeyConfigProps {
 
 const NAV_ITEMS: { id: SettingsGroup; icon: typeof Settings; labelKey: string }[] = [
   { id: 'provider', icon: Volume2, labelKey: 'groupProvider' },
+  { id: 'fileStorage', icon: Cloud, labelKey: '火山文件存储' },
   { id: 'appearance', icon: Palette, labelKey: 'groupAppearance' },
   { id: 'caption', icon: Subtitles, labelKey: 'groupCaption' },
   { id: 'aiPostProcess', icon: Bot, labelKey: 'groupAi' },
@@ -68,7 +70,7 @@ export function ApiKeyConfig({ isOpen, onClose, mode = 'modal', onViewChangelog 
   const { loadSessions } = useSessionStore()
   const { loadTags } = useTagStore()
 
-  const [activeGroup, setActiveGroup] = useState<SettingsGroup>('provider')
+  const [activeGroup, setActiveGroup] = useState<SettingsGroup>(useUIStore.getState().settingsSection)
 
   const currentVendor = settings.currentVendor || 'soniox'
   const currentProvider = availableProviders.find(p => p.id === currentVendor)
@@ -336,7 +338,7 @@ export function ApiKeyConfig({ isOpen, onClose, mode = 'modal', onViewChangelog 
       <nav className="w-48 shrink-0 border-r border-border/40 p-3 space-y-1 overflow-y-auto">
         {NAV_ITEMS.map(item => {
           const Icon = item.icon
-          const label = (t.settings as unknown as Record<string, string>)?.[item.labelKey] ?? item.id
+          const label = (t.settings as unknown as Record<string, string>)?.[item.labelKey] ?? item.labelKey
           const active = activeGroup === item.id
           return (
             <button
@@ -361,6 +363,7 @@ export function ApiKeyConfig({ isOpen, onClose, mode = 'modal', onViewChangelog 
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
         <div className="flex-1 overflow-y-auto p-6">
           <div className="mx-auto max-w-2xl space-y-6">
+            {activeGroup === 'fileStorage' && <FileStorageSettings />}
             {activeGroup === 'provider' && (
               <ServiceSettingsPanel
                 t={t}

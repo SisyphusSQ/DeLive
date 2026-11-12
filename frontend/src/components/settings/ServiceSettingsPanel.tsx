@@ -1,3 +1,4 @@
+import { Select } from '../ui/Select'
 import type { ReactNode } from 'react'
 import {
   AlertCircle,
@@ -125,7 +126,7 @@ export function ServiceSettingsPanel({
             {getFieldIcon(field)}
             {field.label}
           </label>
-          <select
+          <Select
             value={getStringFieldValue(field.key)}
             onChange={(e) => updateFormField(field.key, e.target.value)}
             className={commonInputClassName}
@@ -136,7 +137,7 @@ export function ServiceSettingsPanel({
                 {option.label}
               </option>
             ))}
-          </select>
+          </Select>
           {renderFieldDescription(field)}
         </div>
       )

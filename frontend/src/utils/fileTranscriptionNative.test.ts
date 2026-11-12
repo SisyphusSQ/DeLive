@@ -52,7 +52,8 @@ describe('standard file task lifecycle',()=>{
   it('uploads, persists identity before submission, queries and cleans without deleting original',async()=>{
     const t=setup()
     t.service.submit.mockImplementation(async()=>{const disk=JSON.parse(fs.readFileSync(path.join(t.jobs,t.manager.list()[0].id+'.json'),'utf8'));expect(disk.status).toBe('submitting');return {code:'20000000'}})
-    const job=await t.manager.start('session','audio',credentials)
+    const job=await t.manager.start('session','audio',credentials,false,'base-version')
+    expect(job.reconcileBaseId).toBe('base-version')
     await idle(t.manager,job.id)
     expect(t.storage.signedUrl).toHaveBeenCalledWith(job.objectKey,86400)
     const done=await t.manager.query(job.id,credentials)
@@ -64,6 +65,7 @@ describe('standard file task lifecycle',()=>{
     const disk=fs.readFileSync(path.join(t.jobs,job.id+'.json'),'utf8')
     expect(disk).not.toMatch(/synthetic-secret|private-signature|must disappear/)
     expect(t.make().list()[0].version).toEqual(done.version)
+    expect(t.make().list()[0].reconcileBaseId).toBe('base-version')
   })
   it('keeps unknown submit and resumes exactly the same task after restart without resubmission',async()=>{
     const t=setup();t.service.submit.mockRejectedValueOnce(new Error('lost response'))
@@ -198,5 +200,31 @@ describe('standard protocol and version persistence',()=>{
     const unknown=parseFileResult({...raw,result:{text:'?',utterances:[{text:'?',start_time:0,end_time:1}]}})
     expect(fileVersion('unknown',unknown,'200').speakers).toEqual([])
     expect(normalizeTranscriptSession({transcript:'legacy'}).versions).toBeUndefined()
+  })
+  it('keeps full text and sentence timing when the service emits untimed spaces',()=>{
+    const response = {audio_info:{duration:1500},result:{text:'one two',utterances:[{
+      text:'one two',start_time:0,end_time:1500,words:[
+        {text:'one',start_time:0,end_time:500},
+        {text:' ',start_time:-1,end_time:-1},
+        {text:'two',start_time:1000,end_time:1500},
+      ],
+    }]}}
+    const parsed = parseFileResult(response)
+    expect(parsed.text).toBe('one two')
+    expect(parsed.utterances[0]).toMatchObject({text:'one two',startMs:0,endMs:1500})
+    expect(parsed.utterances[0].words).toEqual([
+      {text:'one',startMs:0,endMs:500},{text:'two',startMs:1000,endMs:1500},
+    ])
+    for (const word of [
+      {text:'one',start_time:-1,end_time:-1},
+      {text:' ',start_time:-1,end_time:100},
+      {text:' ',start_time:100,end_time:0},
+    ]) {
+      response.result.utterances[0].words = [word]
+      expect(()=>parseFileResult(response)).toThrow('分句时间无效')
+    }
+    response.result.utterances[0].words = []
+    response.result.utterances[0].start_time = -1
+    expect(()=>parseFileResult(response)).toThrow('分句时间无效')
   })
 })
