@@ -13,6 +13,7 @@ const { registerSafeStorageIpc } = require('../dist-electron/electron/safeStorag
 registerRecordingIpc(ipcMain)
 registerSafeStorageIpc(ipcMain)
 for (const [name, result] of Object.entries({ 'get-app-version': '2.3.0-beta.2', 'window-is-maximized': false, 'get-auto-launch': false, 'get-proxy-port': 0, 'lang:change': null, 'caption-update-style': null, 'caption-clear': null, 'caption-get-status': {visible:false}, 'caption-update-text': null, 'check-for-updates': null })) ipcMain.handle(name, () => result)
+for (const [name, result] of Object.entries({ 'complete-backup:pendingRestore': null, 'session-images:cleanup': null, 'file-tasks:list': [], 'ensure-recording-permissions': null })) ipcMain.handle(name, () => result)
 let win
 let failed = false
 const delay = ms => new Promise(resolve => setTimeout(resolve, ms))
@@ -26,9 +27,11 @@ async function run() {
   await win.loadFile(path.join(root, 'frontend/dist/index.html'))
   const js = source => win.webContents.executeJavaScript(source, true)
   for (let i = 0; i < 100; i++) {
+    await js("[...document.querySelectorAll('aside button')].find(e => e.textContent.trim() === '录制')?.click()")
     if (await js("Boolean(document.querySelector('[aria-label=\"录音来源与原音存储\"]'))")) break
     await delay(100)
   }
+  assert(await js("Boolean(document.querySelector('[aria-label=\"录音来源与原音存储\"]'))"), 'recording controls must finish initialization')
   await js("[...document.querySelectorAll('button')].find(e => e.textContent.trim() === '知道了')?.click()")
   if (process.argv.includes('--visual-only')) {
     win.showInactive()
@@ -81,8 +84,11 @@ async function run() {
   await js("document.querySelector('[aria-label=\"录音来源与原音存储\"]').scrollIntoView({block:'center'})")
   await delay(100)
   fs.writeFileSync(path.join(root, 'tmp/evidence/682-ui.png'), (await win.webContents.capturePage()).toPNG())
-  const audio = await js(`window.electronAPI.recording.readBlock('${list[0].sessionId}',0,'mix')`)
-  assert.equal(Buffer.from(audio).toString('ascii', 0, 4), 'RIFF')
+  for (const track of ['system', 'microphone', 'mix']) {
+    const audio = Buffer.from(await js(`window.electronAPI.recording.readBlock('${list[0].sessionId}',0,'${track}')`))
+    assert.equal(audio.toString('ascii', 0, 4), 'RIFF')
+    assert(audio.subarray(44).some(byte => byte !== 0), `${track} must contain non-silent PCM`)
+  }
   // Missing ASR configuration must leave the physical recording lifecycle independent.
   await js("[...document.querySelectorAll('label')].find(e => e.textContent.includes('仅录音')).querySelector('input').click()")
   await delay(100)
@@ -113,7 +119,7 @@ async function run() {
   const reopened = await js('window.electronAPI.recording.list()')
   assert(reopened.some(a => a.sessionId === list[0].sessionId && a.status === 'completed'))
   assert(reopened.some(a => a.sessionId === beforeCrash.sessionId && a.status === 'interrupted' && a.blocks.length > 0))
-  console.log(JSON.stringify({ status: 'PASS', machine: os.hostname(), electron: process.versions.electron, source: 'synthetic 440/880 Hz oscillators; mediaDevices test doubles; network denied', blocks: list[0].blocks.length, durationMs: list[0].durationMs, checks: ['local-only UI', 'dual-source WAV persistence', 'source ended', 'device change', 'stop flush', 'reload', 'ASR unavailable', 'quota failure', 'renderer crash recovery', 'no network'] }, null, 2))
+  console.log(JSON.stringify({ status: 'PASS', machine: os.hostname(), electron: process.versions.electron, source: 'synthetic 440/880 Hz oscillators; mediaDevices test doubles; network denied', blocks: list[0].blocks.length, durationMs: list[0].durationMs, checks: ['local-only UI', 'dual-source WAV persistence', 'non-silent system/microphone/mix', 'source ended', 'device change', 'stop flush', 'reload', 'ASR unavailable', 'quota failure', 'renderer crash recovery', 'no network'] }, null, 2))
 }
 run().catch(error => { failed = true; console.error(error) }).finally(() => {
   win?.destroy()

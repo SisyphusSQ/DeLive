@@ -1,5 +1,5 @@
 import type { RealtimeRecognition } from '../../types/realtime'
-import { parseVolcSnapshot } from '../../utils/volcTranscript'
+import { parseVolcSnapshot, VolcUtteranceError } from '../../utils/volcTranscript'
 /**
  * 火山引擎 ASR Provider 实现
  * 
@@ -167,7 +167,8 @@ export class VolcProvider extends BaseASRProvider {
           // 只暴露本地校验原因，JSON 错误正文可能包含服务响应或敏感文本。
           const reason = error instanceof Error && ['火山响应缺少 result.text', '火山分句格式错误', '火山分句时间或状态错误'].includes(error.message)
             ? error.message : '消息解析失败'
-          fail('PROTOCOL_ERROR', '转写响应不符合消息契约', { stage, reason })
+          fail('PROTOCOL_ERROR', '转写响应不符合消息契约', { stage, reason,
+            ...(error instanceof VolcUtteranceError ? error.details : {}) })
         }
       }
       ws.onerror = () => fail('NETWORK_ERROR', '转写网络连接失败，原音继续保存')

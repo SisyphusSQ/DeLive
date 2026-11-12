@@ -58,8 +58,12 @@ export interface UIState {
 
   currentView: WorkspaceView
   reviewSessionId: string | null
+  reviewVersionId: string | null
+  fileSessionId: string | null
+  settingsSection: 'provider' | 'fileStorage'
+  openFileSettings: (sessionId?: string) => void
   setView: (view: WorkspaceView, reviewSessionId?: string | null) => void
-  openReview: (sessionId: string) => void
+  openReview: (sessionId: string, versionId?: string) => void
   backToLive: () => void
 
   commandPaletteOpen: boolean
@@ -108,8 +112,12 @@ export const useUIStore = create<UIState>((set, get) => ({
   },
   currentView: 'live',
   reviewSessionId: null,
+  reviewVersionId: null,
+  fileSessionId: null,
+  settingsSection: 'provider',
+  openFileSettings: (sessionId) => set({ currentView: 'settings', settingsSection: 'fileStorage', fileSessionId: sessionId ?? null }),
   setView: (view, reviewSessionId = null) => set({ currentView: view, reviewSessionId }),
-  openReview: (sessionId) => set({ currentView: 'review', reviewSessionId: sessionId }),
+  openReview: (sessionId, versionId) => set({ currentView: 'review', reviewSessionId: sessionId, reviewVersionId: versionId ?? null }),
   backToLive: () => set({ currentView: 'live', reviewSessionId: null }),
 
   commandPaletteOpen: false,

@@ -49,7 +49,7 @@ export function registerFileTaskIpc(ipc: IpcMain, owner: (id: string) => Recordi
       fs.renameSync(file + '.tmp', file)
     },
     list: () => getManager().list(),
-    start: (sessionId: string, recordingId: string, credentials: VolcCredentials, enableDdc?: boolean) => getManager().start(sessionId, recordingId, credentials, enableDdc),
+    start: (sessionId: string, recordingId: string, credentials: VolcCredentials, enableDdc?: boolean, reconcileBaseId?: string) => getManager().start(sessionId, recordingId, credentials, enableDdc, reconcileBaseId),
     query: (id: string, credentials: VolcCredentials) => getManager().query(id, credentials),
     cleanup: (id: string) => getManager().cleanup(id),
     cancel: (id: string) => getManager().cancel(id),

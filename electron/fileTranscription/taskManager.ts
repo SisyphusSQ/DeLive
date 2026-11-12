@@ -50,9 +50,10 @@ export class FileTaskManager {
   private get(id: string) { const job = this.jobs.get(id); if (!job) throw new Error('文件任务不存在'); return job }
   list() { return [...this.jobs.values()].sort((a,b) => b.createdAt - a.createdAt).map(job => structuredClone(job)) }
   hasPendingObjects() { return this.list().some(job => !terminal(job) || job.cleanup === 'pending' || job.cleanup === 'failed') }
-  async start(sessionId: string, recordingId: string, credentials: VolcCredentials, enableDdc = false): Promise<FileTask> {
+  async start(sessionId: string, recordingId: string, credentials: VolcCredentials, enableDdc = false, reconcileBaseId?: string): Promise<FileTask> {
     fileHeaders(credentials, 'validate')
     if (!/^[a-zA-Z0-9_-]{1,128}$/.test(sessionId)) throw new Error('无效会话 ID')
+    if (reconcileBaseId !== undefined && (typeof reconcileBaseId !== 'string' || !reconcileBaseId.trim() || reconcileBaseId.length > 256)) throw new Error('无效校正基线版本')
     if (this.list().some(job => job.recordingId === recordingId && !terminal(job))) throw new Error('该录音已有未结束任务，请查询现有任务，勿重复计费提交')
     const config = this.config()
     const recording = this.owner(recordingId).read(recordingId)
@@ -61,7 +62,7 @@ export class FileTaskManager {
     const id = randomUUID(), now = Date.now()
     const job: FileTask = { id, taskId: id, sessionId, recordingId, createdAt: now, updatedAt: now, status: 'preparing',
       durationMs: recording.durationMs, sizeBytes: 0, uploadedBytes: 0, objectKey: config.prefix.replace(/\/$/,'') + '/' + id + '.wav',
-      ssdVersion: recording.durationMs > 180000 ? '300' : '200', enableDdc, cleanup: 'none' }
+      ssdVersion: recording.durationMs > 180000 ? '300' : '200', enableDdc, reconcileBaseId, cleanup: 'none' }
     this.jobs.set(id, job); this.save(job)
     const controller = new AbortController(); this.aborts.set(id, controller)
     const run = this.execute(job, config, credentials, controller.signal).catch(() => { job.error = { code: 'PERSISTENCE_FAILED', message: '任务记录写入失败，请检查磁盘；禁止未经查询重复提交' } }).finally(() => { this.active.delete(id); this.aborts.delete(id) })

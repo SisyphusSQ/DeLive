@@ -85,9 +85,9 @@ export function SessionImages({ session, getTime, onSeek, live = false }: { sess
     document.addEventListener('paste', paste); document.addEventListener('dragover', drag); document.addEventListener('drop', drop)
     return () => { document.removeEventListener('paste', paste); document.removeEventListener('dragover', drag); document.removeEventListener('drop', drop) }
   }, [add, busy, getTime])
-  return <section ref={section} aria-label="图片时间轴" tabIndex={0} className="workspace-panel-muted space-y-3 p-4 ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2">
+  return <section ref={section} aria-label="图片时间轴" tabIndex={0} className={(session.images?.length?'workspace-panel-muted space-y-3 p-4 ':'space-y-2 py-1 ')+'ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2'}>
     <div className="flex flex-wrap items-center gap-3"><Button variant="secondary" size="sm" loading={busy} onClick={() => { selection.current = { sessionId: session.id, atMs: getTime() }; picker.current?.click() }}><ImagePlus className="h-3.5 w-3.5" />{busy ? '正在保存图片…' : '插入图片'}</Button>
-      <span className="text-xs text-muted-foreground">{live ? '选择、拖入或在此粘贴图片，关联当前录音时间' : '选择、拖入或在此粘贴图片，关联当前回放位置；可编辑时间'}</span>
+      <span className="text-xs text-muted-foreground">{!session.images?.length&&!live?'图片随回放位置保存':live ? '选择、拖入或在此粘贴图片，关联当前录音时间' : '选择、拖入或在此粘贴图片，关联当前回放位置；可编辑时间'}</span>
       <input ref={picker} type="file" accept="image/png,image/jpeg,image/webp" multiple hidden aria-label="选择时间轴图片" onChange={e => { void add(Array.from(e.target.files || []), selection.current.atMs, selection.current.sessionId); e.target.value = '' }} /></div>
     {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
     {[...(session.images || [])].sort((a, b) => a.atMs - b.atMs).map(image => <ImageCard key={image.id} sessionId={session.id} image={image} onSeek={onSeek} onError={setError} />)}

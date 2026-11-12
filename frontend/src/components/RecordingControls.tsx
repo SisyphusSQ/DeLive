@@ -1,3 +1,4 @@
+import { Select } from './ui/Select'
 import { RecordingStorage } from './RecordingStorage'
 import { useState } from 'react'
 import { Mic, Square, Loader2, Settings2, RefreshCw } from 'lucide-react'
@@ -226,7 +227,7 @@ export function RecordingControls({ startRecording, stopRecording, switchConfig,
               <label className="text-sm text-foreground shrink-0">
                 Provider
               </label>
-              <select
+              <Select
                 value={currentVendor}
                 onChange={(e) => void switchProvider(e.target.value as ASRVendor)}
                 disabled={isSwitching}
@@ -235,7 +236,7 @@ export function RecordingControls({ startRecording, stopRecording, switchConfig,
                 {configuredProviders.map(p => (
                   <option key={p.id} value={p.id}>{getProviderName(p, t)}</option>
                 ))}
-              </select>
+              </Select>
             </div>
           )}
 
@@ -257,7 +258,7 @@ export function RecordingControls({ startRecording, stopRecording, switchConfig,
                   <label className="text-xs text-muted-foreground shrink-0">
                     {t.recording?.translationTarget || 'Target'}
                   </label>
-                  <select
+                  <Select
                     value={translationTarget}
                     onChange={(e) => void handleChangeTranslationTarget(e.target.value)}
                     disabled={isSwitching}
@@ -266,7 +267,7 @@ export function RecordingControls({ startRecording, stopRecording, switchConfig,
                     {TRANSLATION_OPTIONS.map(opt => (
                       <option key={opt.value} value={opt.value}>{opt.label}</option>
                     ))}
-                  </select>
+                  </Select>
                 </div>
               )}
             </div>

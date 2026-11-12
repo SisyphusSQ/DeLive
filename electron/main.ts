@@ -26,6 +26,8 @@ import { refreshElectronLang, getElectronStrings } from './i18n'
 installLogInterceptor()
 
 if (process.platform === 'darwin') {
+  // shortcut: Electron 40 的 CoreAudio Tap 权限失败时返回已结束音轨，升级 Electron 45 前重新评估此开关。
+  app.commandLine.appendSwitch('disable-features', 'MacCatapLoopbackAudioForScreenShare')
   app.commandLine.appendSwitch('enable-features', 'ScreenCaptureKitAudio,ScreenCaptureKitStreamPickerSonoma')
 }
 

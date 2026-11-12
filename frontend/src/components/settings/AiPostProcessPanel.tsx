@@ -1,3 +1,4 @@
+import { Select } from '../ui/Select'
 import { useState, useCallback, useMemo, useRef, useEffect } from 'react'
 import {
   Check,
@@ -150,7 +151,7 @@ export function AiPostProcessPanel({
       {/* API connection */}
       <fieldset disabled={fetchStatus === 'loading'} className="workspace-panel-muted p-4 space-y-3">
         <label className="block text-xs font-medium text-muted-foreground" htmlFor="ai-provider">{pick('AI 接入方式', 'AI provider', 'AI 공급자')}</label>
-        <select id="ai-provider" className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2" value={cfg.provider || 'openai-compatible'} onChange={event => {
+        <Select id="ai-provider" className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2" value={cfg.provider || 'openai-compatible'} onChange={event => {
           const provider = event.target.value as AiPostProcessConfig['provider']
           updateAiPostProcessConfig({ provider, model: '', defaultModel: '', selectedModels: [], availableModels: [], modelAssignment: {}, visionModels: [], apiKey: '',
             baseUrl: provider === 'openai' ? 'https://api.openai.com/v1' : 'http://127.0.0.1:11434/v1' })
@@ -159,7 +160,7 @@ export function AiPostProcessPanel({
           <option value="openai-compatible">OpenAI-compatible</option>
           <option value="openai">OpenAI API (Responses)</option>
           <option value="codex">{pick('本机 Codex', 'Local Codex', '로컬 Codex')}</option>
-        </select>
+        </Select>
         <p className="text-xs text-muted-foreground">{pick('切换接入方式后请重新选择模型并填写所需密钥；不会自动切换服务。', 'Select models and credentials after switching providers. No automatic fallback.', '공급자 변경 후 모델과 인증 정보를 설정하세요. 자동 대체 없음.')}</p>
         {cfg.provider === 'codex' ? <>
           <label className="block text-xs font-medium text-muted-foreground" htmlFor="codex-path">{pick('Codex 程序路径（留空自动探测）', 'Codex executable (blank: auto-detect)', 'Codex 경로 (비우면 자동 탐지)')}</label>
@@ -207,15 +208,15 @@ export function AiPostProcessPanel({
         </div>
         {cfg.provider !== 'openai' && <>
           <label className="block text-xs font-medium text-muted-foreground" htmlFor="ai-protocol">{pick('请求协议', 'Protocol', '프로토콜')}</label>
-          <select id="ai-protocol" className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2" value={cfg.protocol || 'chat-completions'} onChange={e => updateAiPostProcessConfig({ protocol: e.target.value as AiPostProcessConfig['protocol'] })}>
+          <Select id="ai-protocol" className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2" value={cfg.protocol || 'chat-completions'} onChange={e => updateAiPostProcessConfig({ protocol: e.target.value as AiPostProcessConfig['protocol'] })}>
             <option value="chat-completions">Chat Completions</option><option value="responses">Responses</option>
-          </select>
+          </Select>
         </>}
         </>}
 
         {cfg.provider !== 'codex' && aiUsesResponses(cfg) && <>
           <label className="block text-xs font-medium text-muted-foreground" htmlFor="ai-reasoning-effort">{pick('推理强度（Effort）', 'Reasoning effort', '추론 강도')}</label>
-          <select id="ai-reasoning-effort" className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2" value={cfg.reasoningEffort || ''}
+          <Select id="ai-reasoning-effort" className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2" value={cfg.reasoningEffort || ''}
             onChange={e => updateAiPostProcessConfig({ reasoningEffort: (e.target.value || undefined) as AiPostProcessConfig['reasoningEffort'] })}>
             <option value="">{pick('使用模型默认值', 'Model default', '모델 기본값')}</option>
             <option value="low">low</option>
@@ -223,7 +224,7 @@ export function AiPostProcessPanel({
             <option value="high">high</option>
             <option value="xhigh">xhigh</option>
             <option value="max">max</option>
-          </select>
+          </Select>
           <p className="text-xs text-muted-foreground">{pick('应用于所有 AI 功能的 Responses 请求。GPT-6.1 Sol 支持以上五档；其他模型请按服务支持选择，不支持推理的模型请使用默认值。强度越高，通常耗时和费用越高。', 'Applies to Responses requests for all AI features. GPT-6.1 Sol supports all five levels; choose model default for models without reasoning support. Higher effort usually increases latency and cost.', '모든 AI 기능의 Responses 요청에 적용됩니다. GPT-6.1 Sol은 다섯 단계를 지원합니다. 추론 미지원 모델은 기본값을 선택하세요. 높은 강도는 보통 시간과 비용을 늘립니다.')}</p>
         </>}
 

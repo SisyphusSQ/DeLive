@@ -42,7 +42,12 @@ export function parseFileResult(raw: unknown): FileRecognitionResult {
   return { text: result.text, durationMs, utterances: result.utterances.map(value => {
     const u = object(value), additions = u.additions ? object(u.additions) : {}
     return { ...span(u), speaker: typeof additions.speaker === 'string' && additions.speaker ? additions.speaker : undefined,
-      words: Array.isArray(u.words) ? u.words.map(span) : undefined }
+      words: Array.isArray(u.words) ? u.words.flatMap(value => {
+        const word = object(value)
+        // 火山会返回没有音频时间的空格；完整文字仍保留在分句中。
+        if (word.start_time === -1 && word.end_time === -1 && typeof word.text === 'string' && /^\s+$/.test(word.text)) return []
+        return [span(word)]
+      }) : undefined }
   }) }
 }
 export function fileVersion(id: string, result: FileRecognitionResult, ssdVersion: '200' | '300'): TranscriptVersion {

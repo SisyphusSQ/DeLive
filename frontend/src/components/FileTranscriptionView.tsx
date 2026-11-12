@@ -28,6 +28,10 @@ export function FileTranscriptionView() {
   )
 
   const [selectedProviderId, setSelectedProviderId] = useState<string>(() => {
+    const saved = localStorage.getItem('delive_file_provider')
+    if (fileProviders.some(p=>p.id===saved)) return saved!
+    const configured = fileProviders.find(p=>isProviderConfigured(p,buildProviderConnectConfig(p,settings.providerConfigs?.[p.id],settings)))
+    if (configured) return configured.id
     if (fileProviders.length > 0) return fileProviders[0].id
     return 'soniox'
   })
@@ -55,6 +59,7 @@ export function FileTranscriptionView() {
   }, [isOpen])
 
   const handleSelect = (vendorId: string) => {
+    localStorage.setItem('delive_file_provider',vendorId)
     setSelectedProviderId(vendorId)
     setIsOpen(false)
   }
@@ -231,7 +236,7 @@ export function FileTranscriptionView() {
 
   return (
     <div className="flex flex-col h-full overflow-y-auto">
-      <div className="max-w-2xl mx-auto w-full px-6 py-8 space-y-6">
+      <div className="max-w-3xl mx-auto w-full px-5 py-6 space-y-5">
         {/* Header */}
         <div className="flex items-center gap-3">
           <div className="rounded-lg bg-primary/10 p-2">
@@ -268,7 +273,7 @@ export function FileTranscriptionView() {
               {selectedProvider ? getProviderName(selectedProvider, t) : 'Soniox'}
             </div>
             <div className="text-xs text-muted-foreground">
-              {selectedProvider ? getProviderDescription(selectedProvider, t) : t.file?.selectProviderFallback || 'Click to select service'}
+              {selectedProviderId==='volc'?'标准文件转写 2.0 · 支持已有会议原音':selectedProvider?.type==='local'?'本机文件转写':'云端文件转写'}
             </div>
           </div>
           <ChevronDown className="w-5 h-5 text-muted-foreground" />
@@ -292,14 +297,10 @@ export function FileTranscriptionView() {
           </div>
         )}
 
-        {selectedProviderId === 'volc' && <FileTaskPanel />}
         {nativeError && <p role="alert" className="text-red-600">{nativeError}</p>}
         {importing && <p>正在导入本地音频，请等待完成；尚未创建云端任务时不会计费。</p>}
         {/* Drop Zone */}
-        <FileDropZone
-          onFilesSelected={handleFilesSelected}
-          disabled={!hasApiKey || isProcessing || importing}
-        />
+        {selectedProviderId === 'volc' ? <FileTaskPanel recognitionReady={hasApiKey}><FileDropZone onFilesSelected={handleFilesSelected} disabled={!hasApiKey || isProcessing || importing}/></FileTaskPanel> : <FileDropZone onFilesSelected={handleFilesSelected} disabled={!hasApiKey || isProcessing || importing}/>}
 
         {/* Job Progress */}
         <FileTranscriptionProgress
@@ -310,7 +311,7 @@ export function FileTranscriptionView() {
         />
 
         {/* Help */}
-        {jobs.length === 0 && (
+        {jobs.length === 0 && selectedProviderId !== 'volc' && (
           <div className="text-center py-4">
             <p className="text-xs text-muted-foreground">
               {t.file?.helpText || 'After transcription completes, a Session is automatically created.'}

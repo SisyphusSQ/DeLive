@@ -42,6 +42,29 @@ describe('full snapshots and recognition-scoped identities', () => {
   it('does not invent timestamps or speaker labels from malformed responses', () => {
     expect(() => parseVolcSnapshot({ result: { text: 'x', utterances: [{ text: 'x' }] } }, 'a', 0, 1, false)).toThrow()
   })
+  it('keeps confirmed text while a provisional utterance has no text, then accepts its next revision', () => {
+    const first = { text: '第一段', start_time: 15622, end_time: 21452, definite: true }
+    const pending = { start_time: 38821, end_time: 41301, definite: false }
+    const snapshot = parseVolcSnapshot({ result: { text: '第一段', utterances: [first, pending] } }, 'a', 0, 1, false)
+    expect(snapshot.text).toBe('第一段')
+    expect(snapshot.segments).toHaveLength(1)
+    expect(snapshot.segments[0]).toMatchObject({ id: 'a:0', text: '第一段', isFinal: true })
+    expect(snapshot.response.utterances[1]).toMatchObject({ text: '', start_time: 38821, end_time: 41301, definite: false })
+    const state = applyTranscriptEvent(createEmptyTranscriptRuntimeState(), { type: 'realtime', snapshot })
+    const saved = normalizeTranscriptSession({ id: 'session', ...buildSessionSnapshot({ runtimeState: state }) })
+    expect(buildRuntimeStateFromSession(saved).currentTranscript).toBe('第一段')
+    const next = parseVolcSnapshot({ result: { text: '第一段第二段', utterances: [first, { ...pending, text: '第二段', end_time: 42411, definite: true }] } }, 'a', 0, 2, true)
+    const updated = applyTranscriptEvent(state, { type: 'realtime', snapshot: next })
+    expect(updated.currentTranscript).toBe('第一段第二段')
+    expect(updated.currentSegments[1]).toMatchObject({ id: 'a:1', text: '第二段', isFinal: true })
+    expect(updated.realtime?.[0].status).toBe('complete')
+  })
+  it.each([
+    { definite: true }, { text: null, definite: false }, { text: 123, definite: false },
+    { definite: false, end_time: 90 },
+  ])('rejects malformed text or times instead of treating them as a pending utterance: %j', patch => {
+    expect(() => parseVolcSnapshot({ result: { text: '第一段', utterances: [{ start_time: 100, end_time: 200, ...patch }] } }, 'a', 0, 1, false)).toThrow()
+  })
   it('accepts omitted zero start_time from live reconnect but rejects invalid explicit times', () => {
     const utterance = { text: '元', end_time: 1199, definite: false, additions: { source: 'stream' } }
     const parse = (u: Record<string, unknown>) => parseVolcSnapshot({ result: { text: '元', utterances: [u] } }, 'reconnect', 9000, 1, false)
