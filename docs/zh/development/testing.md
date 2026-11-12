@@ -86,6 +86,8 @@ describe('yourFunction', () => {
 
 ## DeLive 会议开发证据
 
+- [核心工作台 Storybook 设计预览](./workspace-design-storybook.md)：录制、文件、设置、主题和跨页合成自检。
+
 - [回顾页 Storybook 设计预览](./review-design-storybook.md)：现有页面与笔记式提案对照、主题切换和合成交互自检；不是正式业务验收。
 
 - [原音存储与恢复](./recording-assets.md) / [TOO-682 证据](./evidence-too-682.md)

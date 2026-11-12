@@ -1,53 +1,18 @@
 import { useEffect, useState } from 'react'
 import type { Meta, StoryObj } from '@storybook/react-vite'
-import { expect, userEvent, within } from 'storybook/test'
+import { expect, fireEvent, userEvent, within } from 'storybook/test'
 import { Moon, Sun, RotateCcw } from 'lucide-react'
 import { Sidebar } from '../../components/Sidebar'
 import { ReviewDeskView } from '../../components/ReviewDeskView'
 import { ActionDialog } from '../../components/ActionDialog'
 import { Select } from '../../components/ui/Select'
 import { useUIStore } from '../../stores/uiStore'
-import { useSessionStore } from '../../stores/sessionStore'
-import { useSettingsStore } from '../../stores/settingsStore'
-import { useFileTaskStore } from '../../stores/fileTaskStore'
-import { useTagStore } from '../../stores/tagStore'
-import { useReviewDraftStore } from '../../stores/reviewDraftStore'
-import { saveSessions } from '../../utils/sessionStorage'
-import { sessionRepository } from '../../utils/sessionRepository'
 import { colorThemes, type ColorThemeId } from '../../themes'
-import { getTranslations } from '../../i18n'
-import { meeting, meetings, corrected, job, manifest, silentBlock } from './fixtures'
+import { preparePreview } from './preparePreview'
 import type { ReviewTab } from './NotebookInsights'
-import { previewStates, type PreviewState } from './NotebookExtras'
+import { previewStates, type PreviewState } from './previewStates'
 import { NotebookReview, type ReviewScenario } from './NotebookReview'
 import './review-design.css'
-
-const blocked = async () => { throw new Error('设计预览不连接真实服务，也不修改桌面数据') }
-
-async function preparePreview() {
-  if (window.electronAPI?.isElectron) throw new Error('请在独立浏览器 Storybook 中打开设计预览')
-  window.electronAPI = {
-    platform: 'darwin',
-    recording: { read: async () => manifest, readBlock: async () => silentBlock() },
-    fileTasks: {
-      settings: async () => ({ configured: true }), list: async () => [job],
-      start: blocked, query: blocked, configure: blocked, cleanup: blocked, cancel: blocked,
-    },
-  } as unknown as typeof window.electronAPI
-  await saveSessions(structuredClone(meetings))
-  const loaded = await sessionRepository.loadForLaunch()
-  useSessionStore.setState({ sessions: loaded.sessions })
-  useFileTaskStore.setState({ jobs: [job], error: '' })
-  useTagStore.setState({ tags: [], selectedTagIds: [], searchQuery: '' })
-  useReviewDraftStore.setState({ drafts: {}, error: '' })
-  useSettingsStore.setState(s => ({ settings: { ...s.settings, currentVendor: 'volc', providerConfigs: {}, aiPostProcess: { enabled: false } } }))
-  useUIStore.setState({ language: 'zh', t: getTranslations('zh') })
-  const ui = useUIStore.getState()
-  ui.setTheme(ui.theme)
-  ui.setColorTheme(ui.colorTheme)
-  useUIStore.getState().openReview(meeting.id, corrected.id)
-  document.title = 'DeLive · 回顾页设计预览'
-}
 
 const names: Record<ColorThemeId, string> = { violet: '鸢尾紫', cyan: '青蓝', rose: '玫瑰', green: '森林', amber: '琥珀', pink: '樱粉', slate: '石墨', orange: '暖橙' }
 
@@ -131,7 +96,7 @@ export const InsightInteractions: Story = {
     await userEvent.click(canvas.getByRole('button', { name: '对话' }))
     await userEvent.click(canvas.getByRole('button', { name: '接下来要做哪些事？' }))
     await expect(canvas.getByText(/会议没有为每项工作明确负责人/)).toBeVisible()
-    await userEvent.type(canvas.getByRole('textbox', { name: '向会议提问' }), '新的问题')
+    await fireEvent.change(canvas.getByRole('textbox', { name: '向会议提问' }), { target: { value: '新的问题' } })
     await userEvent.click(canvas.getByRole('button', { name: '发送问题' }))
     await expect(canvas.getByText(/暂时不能回答新的问题/)).toBeVisible()
     await userEvent.click(canvas.getByRole('button', { name: '思维导图' }))
@@ -164,7 +129,7 @@ export const CoverageInteractions: Story = {
     const canvas = within(canvasElement), body = within(document.body)
     await userEvent.click(await canvas.findByRole('button', { name: '编辑文字与说话人' }, { timeout: 15000 }))
     const paragraph = canvas.getByRole('textbox', { name: '第 1 段正文' })
-    await userEvent.clear(paragraph); await userEvent.type(paragraph, '未保存的合成修订')
+    await fireEvent.change(paragraph, { target: { value: '未保存的合成修订' } })
     await userEvent.click(canvas.getByRole('button', { name: '保存为新修订版' }))
     await expect(paragraph).toHaveValue('未保存的合成修订')
     await expect(canvas.getByRole('button', { name: '采用此稿' })).toBeDisabled()
@@ -178,7 +143,9 @@ export const CoverageInteractions: Story = {
     await expect(canvas.getByRole('button', { name: /^播放第 12 段/ })).toBeInTheDocument()
     await userEvent.click(canvas.getByRole('button', { name: '对话' }))
     await userEvent.click(canvas.getByRole('button', { name: '新建对话' }))
-    await userEvent.type(canvas.getByRole('textbox', { name: '向会议提问' }), '本地新问题{enter}')
+    const question = canvas.getByRole('textbox', { name: '向会议提问' })
+    await fireEvent.change(question, { target: { value: '本地新问题' } })
+    await fireEvent.keyDown(question, { key: 'Enter' })
     await expect(canvas.getByText(/暂时不能回答新的问题/)).toBeVisible()
     await userEvent.click(canvas.getByRole('combobox', { name: '历史对话' }))
     await userEvent.click(body.getByRole('option', { name: '回顾页设计决策' }))
@@ -186,7 +153,7 @@ export const CoverageInteractions: Story = {
     await userEvent.click(canvas.getByRole('button', { name: '思维导图' }))
     await userEvent.click(canvas.getByRole('button', { name: '编辑 Markdown' }))
     const markdown = canvas.getByRole('textbox', { name: '导图 Markdown' })
-    await userEvent.clear(markdown); await userEvent.type(markdown, '# 合成导图\n## 保留编辑草稿')
+    await fireEvent.change(markdown, { target: { value: '# 合成导图\n## 保留编辑草稿' } })
     await userEvent.click(canvas.getByRole('button', { name: '转录文本' }))
     await userEvent.click(canvas.getByRole('button', { name: '思维导图' }))
     await expect(canvas.getByRole('textbox', { name: '导图 Markdown' })).toHaveValue('# 合成导图\n## 保留编辑草稿')

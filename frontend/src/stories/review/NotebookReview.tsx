@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { ArrowUpRight, Check, ChevronRight, Clock3, Download, FileText, Headphones, Pause, Play, Search, Sparkles, X, Image as ImageIcon } from 'lucide-react'
+import type { PreviewState } from './previewStates'
 import { Select } from '../../components/ui/Select'
 import { ActionDialog } from '../../components/ActionDialog'
 import { useRecordingPlayback } from '../../hooks/useRecordingPlayback'
@@ -8,24 +9,39 @@ import type { AudioTrack } from '../../../../shared/recording'
 import type { TranscriptVersion } from '../../../../shared/fileTranscription'
 import { corrected, meeting, meetings, post } from './fixtures'
 import { NotebookInsights, type ReviewTab } from './NotebookInsights'
-import { PreviewImages, PreviewStateNotice, PreviewTasks, type PreviewImage, type PreviewState } from './NotebookExtras'
+import { PreviewImages, PreviewStateNotice, PreviewTasks, type PreviewImage, type PreviewTaskWorkflow } from './NotebookExtras'
 import { NotebookTranscriptEditor } from './NotebookTranscriptEditor'
 
 const tabs = ['转录文本', '摘要', '对话', '思维导图'] as const
 const versionNames: Record<TranscriptVersion['kind'], string> = { realtime: '实时稿', 'post-meeting': '会后稿', reconciled: '自动校正版', edited: '人工修订', legacy: '历史稿' }
 const time = (ms: number) => `${Math.floor(ms / 60000).toString().padStart(2, '0')}:${Math.floor(ms / 1000 % 60).toString().padStart(2, '0')}`
-export type ReviewScenario = 'normal' | 'untimed' | 'empty' | 'long' | 'imagesOnly'
+export type ReviewScenario = 'normal' | 'untimed' | 'empty' | 'long' | 'imagesOnly' | 'fileOnly'
+const anonymousPost = { ...post, speakers: post.speakers.map(speaker => ({ ...speaker, displayName: undefined })) }
+interface WorkspaceReview {
+  task: PreviewState
+  setTask: (state: PreviewState) => void
+  taskWorkflow: PreviewTaskWorkflow
+  images?: PreviewImage[]
+  onConfigureAi: () => void
+  title?: string
+  visible: boolean
+  audioAvailable?: boolean
+  sourceDeleted?: boolean
+  onDeleteSource?: () => void
+  openRequest?: { versionId?: string }
+}
 
-export function NotebookReview({ scenario, initialTab = '转录文本', state, onState }: { scenario: ReviewScenario; initialTab?: ReviewTab; state: PreviewState; onState: (state: PreviewState) => void }) {
+export function NotebookReview({ scenario, initialTab = '转录文本', state, onState, workspace }: { scenario: ReviewScenario; initialTab?: ReviewTab; state: PreviewState; onState: (state: PreviewState) => void; workspace?: WorkspaceReview }) {
+  const fileOnly = scenario === 'fileOnly'
   const [selected, setSelected] = useState(meeting.id), [search, setSearch] = useState(''), [tab, setTab] = useState<ReviewTab>(initialTab)
-  const [versionId, setVersionId] = useState(scenario === 'untimed' ? 'preview-legacy' : corrected.id), [versions, setVersions] = useState<TranscriptVersion[]>(() => structuredClone(scenario === 'untimed' ? [...meeting.versions!, { ...post, id: 'preview-legacy', kind: 'legacy', segments: [], speakers: [], text: meeting.transcript }] : meeting.versions!)), [adoptedId, setAdoptedId] = useState(scenario === 'untimed' ? 'preview-legacy' : post.id)
+  const [versionId, setVersionId] = useState(scenario === 'untimed' ? 'preview-legacy' : fileOnly ? post.id : corrected.id), [versions, setVersions] = useState<TranscriptVersion[]>(() => structuredClone(scenario === 'untimed' ? [...meeting.versions!, { ...post, id: 'preview-legacy', kind: 'legacy', segments: [], speakers: [], text: meeting.transcript }] : fileOnly ? [anonymousPost] : meeting.versions!)), [adoptedId, setAdoptedId] = useState(scenario === 'untimed' ? 'preview-legacy' : post.id)
   const [reviewing, setReviewing] = useState(false), [groupIndex, setGroupIndex] = useState(0), [speaker, setSpeaker] = useState(''), [onlyPending, setOnlyPending] = useState(true), [manual, setManual] = useState<string | null>(null)
   const [notice, setNotice] = useState(''), [dialog, setDialog] = useState<'adopt' | 'delete' | 'discard' | 'recovery' | ''>('')
   const [imagesOpen, setImagesOpen] = useState(scenario === 'imagesOnly'), [detailsOpen, setDetailsOpen] = useState(false), [exportOpen, setExportOpen] = useState(false), [exportFormat, setExportFormat] = useState('TXT')
   const [titles, setTitles] = useState<Record<string, string>>({}), [deleted, setDeleted] = useState<string[]>([]), [collapsedDates, setCollapsedDates] = useState<string[]>([])
   const [metadata, setMetadata] = useState<Record<string, { tags: string; topic: string }>>({ [meeting.id]: { tags: '阅读体验', topic: '产品设计' } }), [editingInfo, setEditingInfo] = useState({ title: '', tags: '', topic: '' }), [compare, setCompare] = useState(''), [draft, setDraft] = useState<TranscriptVersion | null>(null)
   const [recovered, setRecovered] = useState(false), [seedQuestion, setSeedQuestion] = useState(''), [materialsChanged, setMaterialsChanged] = useState(false)
-  const [images, setImages] = useState<PreviewImage[]>(scenario === 'empty' ? [] : [{ id: 1, caption: '回顾页阅读布局草图', seconds: 428 }])
+  const [images, setImages] = useState<PreviewImage[]>(workspace?.images ?? (scenario === 'empty' ? [] : [{ id: 1, caption: '回顾页阅读布局草图', seconds: 428 }]))
   const reviewButton = useRef<HTMLButtonElement>(null), transcriptRef = useRef<HTMLDivElement>(null)
   const [jumpTo, setJumpTo] = useState<number | null>(null)
   useEffect(() => {
@@ -34,16 +50,32 @@ export function NotebookReview({ scenario, initialTab = '转录文本', state, o
       target?.scrollIntoView({ block: 'center' }); target?.focus({ preventScroll: true })
     }
   }, [tab, jumpTo, versionId])
-  const session = meetings.find(s => s.id === selected)
-  const isMain = selected === meeting.id, untimed = scenario === 'untimed' && !recovered, empty = scenario === 'empty' || scenario === 'imagesOnly'
-  const hasAudio = isMain && !empty && scenario !== 'untimed'
-  const playback = useRecordingPlayback(hasAudio ? meeting.id : undefined)
+  const mainDeleted = deleted.includes(meeting.id) || workspace?.sourceDeleted === true
+  const visibleMeetings = meetings.filter(s => s.id === meeting.id ? !mainDeleted : !deleted.includes(s.id))
+  const openRequest = workspace?.openRequest
+  const appliedOpenRequest = useRef<WorkspaceReview['openRequest']>()
+  useEffect(() => {
+    if (!openRequest || openRequest === appliedOpenRequest.current || mainDeleted) return
+    appliedOpenRequest.current = openRequest
+    setSelected(meeting.id)
+    setTab('转录文本')
+    setExportOpen(false)
+    if (openRequest.versionId && !draft && manual === null) {
+      setVersionId(openRequest.versionId)
+      setSpeaker('')
+      setCompare('')
+      setReviewing(false)
+    }
+  }, [openRequest, mainDeleted, draft, manual])
+  const session = visibleMeetings.find(s => s.id === selected)
+  const isMain = session?.id === meeting.id, untimed = scenario === 'untimed' && !recovered, empty = scenario === 'empty' || scenario === 'imagesOnly' || (fileOnly && !workspace?.taskWorkflow.hasResult)
+  const hasAudio = isMain && (fileOnly || !empty) && scenario !== 'untimed' && workspace?.audioAvailable !== false
+  const playback = useRecordingPlayback(hasAudio && workspace?.visible !== false ? meeting.id : undefined)
   const version = versions.find(v => v.id === versionId)!, adopted = versions.find(v => v.id === adoptedId)!
   const pending = isMain && !untimed && !empty ? version.merge?.groups.filter(g => g.status === 'pending') ?? [] : []
   const groups = onlyPending ? pending : version.merge?.groups ?? [], group = groups[Math.min(groupIndex, groups.length - 1)]
   const groupText = (versionId: string | undefined, ids: string[] | undefined) => versions.find(v => v.id === versionId)?.segments.filter(s => ids?.includes(s.id!)).map(s => s.text).join('\n') ?? ''
-  const visibleMeetings = meetings.filter(s => !deleted.includes(s.id))
-  const title = titles[selected] ?? (scenario === 'long' && isMain ? '从一次会议到一份可读的笔记：回顾页的信息层级、原音联动与多主题体验设计评审' : session?.title ?? '')
+  const title = titles[selected] ?? (isMain && workspace?.title ? workspace.title : scenario === 'long' && isMain ? '从一次会议到一份可读的笔记：回顾页的信息层级、原音联动与多主题体验设计评审' : session?.title ?? '')
   const adoptedTimed = isMain && !untimed && !empty && adopted.segments.length > 0 && adopted.segments.every(s => s.startMs !== undefined && s.endMs !== undefined)
   const saveRevision = (value: TranscriptVersion) => {
     if (state === 'saveFailed') { setNotice('保存失败，草稿仍保留；请重试后继续保存。'); return }
@@ -58,6 +90,18 @@ export function NotebookReview({ scenario, initialTab = '转录文本', state, o
     setNotice('已保存本次审阅结果；采用稿不会随审阅自动改变')
   }
   const closeReview = () => { setReviewing(false); reviewButton.current?.focus() }
+  const deleteCurrentMeeting = () => {
+    if (isMain) {
+      workspace?.onDeleteSource?.()
+      setDraft(null)
+      setManual(null)
+    }
+    setDeleted(previous => [...previous, selected])
+    setSelected(visibleMeetings.find(item => item.id !== selected)?.id ?? '')
+    setReviewing(false)
+    setDetailsOpen(false)
+    setNotice('会议已从本次预览列表移除')
+  }
   const recover = () => {
     if (state === 'saveFailed') { setNotice('恢复保存失败，原稿保留。请重试保存后继续。'); return }
     if (!versions.some(v => v.id === 'preview-recovered')) {
@@ -69,26 +113,26 @@ export function NotebookReview({ scenario, initialTab = '转录文本', state, o
     <aside className="notes-list" aria-label="会议笔记列表"><div className="notes-list-heading"><div><span className="note-eyebrow">YOUR MEETINGS</span><h2>会议笔记<span>{visibleMeetings.length}</span></h2></div></div>
       <label className="notes-search"><Search size={15} /><input aria-label="搜索合成会议" placeholder="找一场会议…" value={search} onChange={e => setSearch(e.target.value)} /></label>
       <div className="notes-list-scroll">{['2026-11-12', '2026-11-11'].map(date => <section key={date}><h3><button aria-expanded={!collapsedDates.includes(date)} onClick={() => setCollapsedDates(c => c.includes(date) ? c.filter(d => d !== date) : [...c, date])}>{date === '2026-11-12' ? '11 月 12 日 · 周四' : '11 月 11 日 · 周三'} · {collapsedDates.includes(date) ? '展开' : '收起'}</button></h3>
-        {!collapsedDates.includes(date) && visibleMeetings.filter(s => s.date === date && ((titles[s.id] ?? s.title) + s.transcript).includes(search)).map(s => <button key={s.id} className={`note-list-item ${selected === s.id ? 'selected' : ''}`} aria-current={selected === s.id ? 'true' : undefined} onClick={() => { setSelected(s.id); setReviewing(false); setNotice(''); setTab('转录文本'); setJumpTo(null); setDetailsOpen(false); setExportOpen(false) }}><span className="note-list-item-top"><FileText size={14} /><time>{s.time}</time>{s.id === meeting.id && <span className="note-dot" />}</span><strong>{titles[s.id] ?? s.title}</strong><p>{s.postProcess?.summary || s.transcript}</p><span className="note-list-meta">{s.id === meeting.id ? '26 分钟 · 3 位说话人' : '会议记录'}</span></button>)}
+        {!collapsedDates.includes(date) && visibleMeetings.filter(s => s.date === date && ((titles[s.id] ?? s.title) + s.transcript).includes(search)).map(s => <button key={s.id} className={`note-list-item ${selected === s.id ? 'selected' : ''}`} aria-current={selected === s.id ? 'true' : undefined} onClick={() => { setSelected(s.id); setReviewing(false); setNotice(''); setTab('转录文本'); setJumpTo(null); setDetailsOpen(false); setExportOpen(false) }}><span className="note-list-item-top"><FileText size={14} /><time>{s.time}</time>{s.id === meeting.id && <span className="note-dot" />}</span><strong>{titles[s.id] ?? (s.id === meeting.id ? workspace?.title ?? s.title : s.title)}</strong><p>{s.postProcess?.summary || s.transcript}</p><span className="note-list-meta">{s.id === meeting.id ? empty ? '26 分钟 · 待转写' : '26 分钟 · 3 位说话人' : '会议记录'}</span></button>)}
       </section>)}{!visibleMeetings.some(s => ((titles[s.id] ?? s.title) + s.transcript).includes(search)) && <p className="notes-no-results">没有找到这场会议。试试别的关键词。</p>}</div><div className="notes-list-footer"><span className="note-dot" />合成会议资料</div>
     </aside>
     <main className="notebook-main" aria-label="笔记式回顾页">
       <header className="notebook-topbar"><div><span>回顾</span><ChevronRight size={13} /><span className="notebook-breadcrumb">会议笔记</span></div><div><button className="note-text-button" disabled={!session} onClick={() => { setEditingInfo({ title, tags: metadata[selected]?.tags ?? '', topic: metadata[selected]?.topic ?? '' }); setDetailsOpen(v => !v) }} aria-expanded={detailsOpen}>会议信息</button><button className="note-text-button" disabled={!isMain} onClick={() => { setImagesOpen(v => !v); setTab('转录文本') }} aria-expanded={imagesOpen}><ImageIcon size={15} />图片资料</button><button className="note-text-button" disabled={!session} onClick={() => { setExportOpen(v => !v); setExportFormat('TXT') }}><Download size={15} />导出</button></div></header>
       <div className="notebook-scroll"><div className="notebook-paper">
         {!session ? <div className="note-empty"><h2>会议已移除</h2><p>从列表选择另一场会议，或重置合成预览。</p></div> : <>
-        <div className="note-heading"><span className="note-eyebrow"><span className="note-dot" />会议回顾</span><h1>{title}</h1><div className="note-metadata"><span>2026 年 11 月 {session.date.endsWith('12') ? '12' : '11'} 日</span><span>·</span><span>{session.time}</span>{hasAudio && <><span>·</span><Clock3 size={13} /><span>26 分钟 · 3 位说话人</span></>}</div></div>
+        <div className="note-heading"><span className="note-eyebrow"><span className="note-dot" />会议回顾</span><h1 tabIndex={-1}>{title}</h1><div className="note-metadata"><span>2026 年 11 月 {session.date.endsWith('12') ? '12' : '11'} 日</span><span>·</span><span>{session.time}</span>{hasAudio && <><span>·</span><Clock3 size={13} /><span>{empty ? '26 分钟 · 待转写' : '26 分钟 · 3 位说话人'}</span></>}</div></div>
         {detailsOpen && <section className="note-disclosure note-form" aria-label="会议信息"><label>会议标题<input value={editingInfo.title} onChange={e => setEditingInfo(t => ({ ...t, title: e.target.value }))} /></label><label>标签<input value={editingInfo.tags} onChange={e => setEditingInfo(t => ({ ...t, tags: e.target.value }))} placeholder="用逗号分隔" /></label><label>所属专题<Select value={editingInfo.topic} onChange={e => setEditingInfo(t => ({ ...t, topic: e.target.value }))}><option value="">不归入专题</option><option>产品设计</option><option>团队周会</option></Select></label><div className="note-tools"><button className="note-text-button" onClick={() => { if (!editingInfo.title.trim()) { setNotice('会议标题不能为空'); return } if (state === 'saveFailed') { setNotice('保存失败，会议信息输入保留'); return } setTitles(t => ({ ...t, [selected]: editingInfo.title })); setMetadata(m => ({ ...m, [selected]: { tags: editingInfo.tags, topic: editingInfo.topic } })); setDetailsOpen(false); setNotice('会议信息已保留在本次预览') }}>保存会议信息</button><button className="note-text-button" onClick={() => setDetailsOpen(false)}>取消编辑</button><button className="note-text-button" onClick={() => setDialog('delete')}>删除会议</button></div></section>}
         {exportOpen && <section className="note-disclosure note-panel-content" aria-label="导出采用稿"><strong>导出当前采用稿 · {untimed || !isMain ? '历史稿' : versionNames[adopted.kind]}</strong><p>切换查看稿件不改变导出来源。TXT / MD 保留文字与真实标签，SRT / VTT 需要有效逐句时间。</p><div className="note-tools">{['TXT', 'MD', 'SRT', 'VTT'].map(format => <button key={format} className="note-text-button" aria-pressed={exportFormat === format} disabled={!adoptedTimed && ['SRT', 'VTT'].includes(format)} onClick={() => setExportFormat(format)}>{format}</button>)}</div>{!adoptedTimed && <p>此采用稿没有有效逐句时间，无法导出字幕。</p>}{!!adopted.merge?.groups.some(g => g.status === 'pending') && <p>采用稿仍有待确认区段；导出前请确认内容。</p>}<div className="note-tools"><button className="note-primary" onClick={() => { setNotice(`已预览 ${exportFormat} 导出来源与限制；本入口不写出会议文件`); setExportOpen(false) }}>确认导出预览</button><button className="note-text-button" onClick={() => setExportOpen(false)}>取消导出</button></div></section>}
         <nav className="notebook-tabs" aria-label="会议内容">{tabs.map(name => <button key={name} aria-current={tab === name ? 'page' : undefined} onClick={() => { setTab(name); setReviewing(false); setJumpTo(null) }}>{name}</button>)}</nav>
-        <PreviewStateNotice state={state} onState={onState} />
+        <PreviewStateNotice state={state} onState={onState} onConfigureAi={workspace?.onConfigureAi} />
         {(draft || manual !== null) && <div className="note-state"><p>人工修订尚未保存 · 切换页签或会议后仍保留在本次预览</p><button className="note-text-button" onClick={() => { setSelected(meeting.id); setTab('转录文本'); if (manual !== null) setReviewing(true) }}>继续编辑</button></div>}
         {tab === '转录文本' && <>
           {isMain && !empty && !untimed && <div className="note-version-row"><div><Select aria-label="查看预览稿件" className="note-version-select" disabled={manual !== null} value={versionId} onChange={e => { setVersionId(e.target.value); setReviewing(false); setSpeaker(''); setCompare('') }}>{versions.map((v, i) => <option key={v.id} value={v.id}>{versionNames[v.kind]}{v.kind === 'edited' ? ` · ${i - 2}` : ''}</option>)}</Select><span className="note-version-status">{versionId === adoptedId ? '已采用' : '未采用'}</span></div><Select aria-label="预览说话人筛选" className="note-speaker-select" value={speaker} onChange={e => setSpeaker(e.target.value)}><option value="">全部说话人</option><option value="unknown">未知说话人</option>{version.speakers.map(s => <option key={s.id} value={s.id}>{s.displayName || s.label}</option>)}</Select></div>}
           {isMain && !empty && <><div className="note-tools note-transcript-tools"><button className="note-text-button" disabled={!!draft} onClick={() => setDraft(structuredClone(untimed ? { ...post, id: 'preview-legacy', kind: 'legacy', segments: [], speakers: [], text: meeting.transcript } : version))}>编辑文字与说话人</button><Select aria-label="对照稿件" value={compare} onChange={e => setCompare(e.target.value)}><option value="">对照版本…</option>{versions.filter(v => v.id !== versionId).map((v, i) => <option key={v.id} value={v.id}>{versionNames[v.kind]} · {i + 1}</option>)}</Select><button className="note-text-button" onClick={() => { const selection = window.getSelection()?.toString().trim(); setSeedQuestion(selection ? `请解释这段内容：${selection}` : '请解释这场会议的关键决定'); setTab('对话') }}>选中文字问 AI</button></div>
             {compare && <section className="note-compare note-disclosure" aria-label="版本对照"><div className="note-review-columns"><div><span>正在查看 · {versionNames[version.kind]}</span><p>{untimed ? meeting.transcript : version.text}</p></div><div><span>对照 · {versionNames[versions.find(v => v.id === compare)!.kind]}</span><p>{versions.find(v => v.id === compare)!.text}</p></div></div><button className="note-text-button" onClick={() => setCompare('')}>关闭对照</button></section>}
             {draft && <NotebookTranscriptEditor draft={draft} onChange={setDraft} onSave={() => saveRevision(draft)} onCancel={() => setDialog('discard')} saveFailed={state === 'saveFailed'} />}
-            {hasAudio && <PreviewTasks state={state} onState={onState} onCorrect={() => { setVersionId(corrected.id); setNotice('已打开现有校正版，无需重新识别') }} />}
           </>}
+          {hasAudio && <PreviewTasks state={workspace?.task ?? state} onState={workspace?.setTask ?? onState} workflow={workspace?.taskWorkflow} onCorrect={() => { setVersionId(corrected.id); setNotice('已打开现有校正版，无需重新识别') }} />}
           {!!pending.length && <div className="note-review-notice"><div><Sparkles size={16} /><span>有 <strong>{pending.length} 处</strong>内容，值得再听一遍。</span></div><button ref={reviewButton} aria-label={`审阅 ${pending.length} 处待确认`} onClick={() => { setReviewing(v => !v) }}>逐句审阅<ArrowUpRight size={15} /></button></div>}
           {reviewing && <section className="note-review-panel" aria-label="逐句审阅" onKeyDown={e => { if (e.key === 'Escape') closeReview() }}><header><strong>{group ? `${onlyPending ? '待确认' : '全部区段'} ${Math.min(groupIndex + 1, groups.length)} / ${groups.length}` : '本次审阅已完成'}</strong><button className="note-icon" aria-label="退出审阅" onClick={closeReview}><X size={16} /></button></header><label className="note-review-filter"><input type="checkbox" checked={onlyPending} disabled={manual !== null} onChange={e => { setOnlyPending(e.target.checked); setGroupIndex(0); setManual(null) }} />只看待确认</label>
             {group ? <><p className="note-review-reason">{group.reason} · {group.status === 'pending' ? '待确认' : '已处理'}</p><div className="note-review-columns"><div><span>原稿</span><p>{groupText(version.merge?.currentVersionId, group.currentIds)}</p></div><div><span>会后建议</span><p>{groupText(version.merge?.postVersionId, group.postIds)}</p></div></div>
@@ -98,21 +142,21 @@ export function NotebookReview({ scenario, initialTab = '转录文本', state, o
           {isMain && !empty && !untimed && <div className="note-adoption"><span>{versionId === adoptedId ? '当前稿件用于导出与 AI' : `导出与 AI 仍使用${versionNames[adopted.kind]}`}</span>{versionId !== adoptedId && <button disabled={!!draft || manual !== null || state === 'saveFailed'} onClick={() => setDialog('adopt')}>采用此稿<ChevronRight size={12} /></button>}</div>}
           {imagesOpen && isMain && <PreviewImages images={images} onChange={value => { setImages(value); setMaterialsChanged(true) }} hasAudio={hasAudio} onJump={seconds => void playback.seek(seconds * 1000, true)} />}
           {scenario === 'untimed' && !versions.some(v => v.id === 'preview-recovered') && isMain && <aside className="note-state"><div><strong>可从结构化会后稿恢复</strong><p>保留历史全文，使用已有会后稿另建修订版，不重新识别。无法可靠对应的人工修改需要核对。</p></div><button className="note-text-button" onClick={() => setDialog('recovery')}>恢复说话人与时间轴</button></aside>}
-          {empty ? <div className="note-empty"><FileText size={28} /><h2>文字还没有来到这里</h2><p>{images.length ? '可以继续查看图片，也可以基于已有图片使用 AI。' : '这条示例没有文字或图片，也没有可用原音。会议信息仍保留。'}</p></div> : untimed || !isMain ? <div className="note-legacy"><span>历史文字稿 · 无逐句时间</span><p>{isMain ? meeting.transcript : session.transcript}</p><div className="note-muted-callout">文字可阅读、导出和用于 AI；没有逐句时间，不能定位原音或导出带时间字幕。</div></div> : <div className="note-transcript" ref={transcriptRef}>
+          {empty ? <div className="note-empty"><FileText size={28} /><h2>{fileOnly ? '此会议尚未转写' : '文字还没有来到这里'}</h2><p>{fileOnly ? '原音已保存，可以回听或手动提交会后转写。' : images.length ? '可以继续查看图片，也可以基于已有图片使用 AI。' : '这条示例没有文字或图片，也没有可用原音。会议信息仍保留。'}</p></div> : untimed || !isMain ? <div className="note-legacy"><span>历史文字稿 · 无逐句时间</span><p>{isMain ? meeting.transcript : session.transcript}</p><div className="note-muted-callout">文字可阅读、导出和用于 AI；没有逐句时间，不能定位原音或导出带时间字幕。</div></div> : <div className="note-transcript" ref={transcriptRef}>
             {!version.segments.length && <p className="note-legacy">{version.text}</p>}
             {version.segments.filter(s => !speaker || (speaker === 'unknown' ? !s.speakerId : s.speakerId === speaker)).map((s, i) => {
               const who = version.speakers.find(p => p.id === s.speakerId), active = s.startMs !== undefined && playback.state.positionMs >= s.startMs && playback.state.positionMs < s.endMs!
-              return <article key={s.id} data-start-ms={s.startMs} className={`note-passage ${active ? 'is-playing' : ''}`}><div className="note-speaker-line"><span className={`note-avatar avatar-${version.speakers.findIndex(p => p.id === s.speakerId)}`}>{who?.displayName?.slice(-1) || '?'}</span><strong>{who?.displayName || who?.label || '未知说话人'}</strong><button disabled={s.startMs === undefined || !hasAudio} aria-label={`定位 ${s.startMs === undefined ? '无时间' : time(s.startMs)}`} onClick={() => void playback.seek(s.startMs!, true)}>{s.startMs === undefined ? '无时间' : time(s.startMs)}</button>{pending.some(g => g.outputIds.includes(s.id!)) && <span className="note-pending-dot">待确认</span>}{active && <span className="note-playing-label">{playback.state.playing ? '正在播放' : '已定位'}</span>}</div><button className="note-paragraph" aria-label={`播放第 ${i + 1} 段：${s.text}`} onClick={() => { if (s.startMs !== undefined && hasAudio) void playback.seek(s.startMs, true) }}>{s.text}</button></article>
+              return <article key={s.id} data-start-ms={s.startMs} className={`note-passage ${active ? 'is-playing' : ''}`}><div className="note-speaker-line"><span className={`note-avatar avatar-${version.speakers.findIndex(p => p.id === s.speakerId)}`}>{who?.displayName?.slice(-1) || (who ? who.label.replace('说话人 ', '') : '?')}</span><strong>{who?.displayName || who?.label || '未知说话人'}</strong><button disabled={s.startMs === undefined || !hasAudio} aria-label={`定位 ${s.startMs === undefined ? '无时间' : time(s.startMs)}`} onClick={() => void playback.seek(s.startMs!, true)}>{s.startMs === undefined ? '无时间' : time(s.startMs)}</button>{pending.some(g => g.outputIds.includes(s.id!)) && <span className="note-pending-dot">待确认</span>}{active && <span className="note-playing-label">{playback.state.playing ? '正在播放' : '已定位'}</span>}</div><button className="note-paragraph" aria-label={`播放第 ${i + 1} 段：${s.text}`} onClick={() => { if (s.startMs !== undefined && hasAudio) void playback.seek(s.startMs, true) }}>{s.text}</button></article>
             })}{speaker && !version.segments.some(s => speaker === 'unknown' ? !s.speakerId : s.speakerId === speaker) && <p className="note-muted-callout">此版本没有该说话人的段落。</p>}<div className="note-end"><span />这场讨论，先记到这里<span /></div>
           </div>}
         </>}
-        <NotebookInsights key={scenario} imagesOnly={scenario === 'imagesOnly'} tab={tab} available={isMain && (scenario !== 'empty' || images.length > 0)} timed={!untimed && scenario !== 'imagesOnly'} stale={adoptedId !== post.id || materialsChanged} state={state} onState={onState} seedQuestion={seedQuestion} hasImages={images.length > 0} onImage={() => { setImagesOpen(true); setTab('转录文本') }} onApply={kind => { if (state === 'saveFailed') { setNotice('保存失败，建议保留，请重试'); return } if (kind === 'title') setTitles(t => ({ ...t, [selected]: scenario === 'imagesOnly' ? '回顾页布局草图' : '让回顾，像读一页笔记' })); else setMetadata(m => ({ ...m, [selected]: { topic: m[selected]?.topic ?? '', tags: Array.from(new Set([...(m[selected]?.tags ?? '').split('，').filter(Boolean), '阅读体验', '原音联动', '保留主题'])).join('，') } })); setNotice(kind === 'title' ? '已应用建议标题' : '已合并建议标签，原标签保留') }} onRevise={text => saveRevision({ ...adopted, segments: adopted.segments.map((s, i) => i === 0 ? { ...s, text } : s), text })} onJump={seconds => { setTab('转录文本'); setReviewing(false); setSpeaker(''); setVersionId(post.id); setJumpTo(untimed ? null : seconds); if (hasAudio) void playback.seek(seconds * 1000, false) }} />
+        <NotebookInsights key={scenario} imagesOnly={scenario === 'imagesOnly' || (fileOnly && empty)} tab={tab} available={isMain && (!empty || images.length > 0)} timed={!untimed && !empty} stale={adoptedId !== post.id || materialsChanged} state={state} onState={onState} seedQuestion={seedQuestion} hasImages={images.length > 0} onImage={() => { setImagesOpen(true); setTab('转录文本') }} onApply={kind => { if (state === 'saveFailed') { setNotice('保存失败，建议保留，请重试'); return } if (kind === 'title') setTitles(t => ({ ...t, [selected]: scenario === 'imagesOnly' ? '回顾页布局草图' : '让回顾，像读一页笔记' })); else setMetadata(m => ({ ...m, [selected]: { topic: m[selected]?.topic ?? '', tags: Array.from(new Set([...(m[selected]?.tags ?? '').split('，').filter(Boolean), '阅读体验', '原音联动', '保留主题'])).join('，') } })); setNotice(kind === 'title' ? '已应用建议标题' : '已合并建议标签，原标签保留') }} onRevise={text => saveRevision({ ...adopted, segments: adopted.segments.map((s, i) => i === 0 ? { ...s, text } : s), text })} onJump={seconds => { setTab('转录文本'); setReviewing(false); setSpeaker(''); setVersionId(post.id); setJumpTo(untimed ? null : seconds); if (hasAudio) void playback.seek(seconds * 1000, false) }} />
         </>}
         {notice && <div className="note-local-feedback" role="status"><Check size={14} />{notice}<button className="note-icon" aria-label="关闭提示" onClick={() => setNotice('')}><X size={14} /></button></div>}
       </div></div>
       {state === 'gap' && <div className="note-state"><p>这段原音不可用，已有文字保留。</p><button className="note-text-button" onClick={() => { void playback.seek(244000, false); onState('ready') }}>跳到下一可播放位置</button></div>}
       <footer className="notebook-player" aria-label="原音播放器">{hasAudio ? <><button className="note-play" aria-label={playback.state.playing ? '暂停原音预览' : '播放静音原音预览'} disabled={!playback.manifest} onClick={() => playback.state.playing ? playback.pause() : void playback.play()}>{playback.state.playing ? <Pause size={18} /> : <Play size={18} fill="currentColor" />}</button><div className="note-player-progress"><div><span>原音回放 <small>· 静音示例</small></span><time>{time(playback.state.positionMs)}<span> / 26:00</span></time></div><input aria-label="预览播放位置" type="range" min={0} max={meeting.duration} step={1000} value={playback.state.positionMs} onChange={e => void playback.seek(Number(e.target.value), playback.state.playing)} /></div><Select aria-label="预览音轨" className="note-track" value={playback.track} onChange={e => playback.changeTrack(e.target.value as AudioTrack)}><option value="mix">同步混音</option><option value="system">系统声音</option><option value="microphone">麦克风</option></Select></> : <><Headphones size={18} /><p>此记录没有可用原音，会议资料仍保留</p></>}{playback.state.message && hasAudio && <span role="status" className="note-playback-error">{playback.state.message}</span>}</footer>
     </main>
-    <ActionDialog open={!!dialog} title={dialog === 'adopt' ? '采用这份稿件？' : dialog === 'delete' ? '删除这场会议？' : dialog === 'discard' ? '放弃未保存的修订？' : '从会后稿恢复说话人与时间轴？'} description={dialog === 'adopt' ? `${pending.length ? `还有 ${pending.length} 处待确认。` : ''}采用后导出与 AI 使用此稿，原稿保留。` : dialog === 'delete' ? '仅删除本次预览中的会议，刷新预览可恢复。不会触碰正式录音与稿件。' : dialog === 'discard' ? '本次未保存的输入将丢弃，已保存版本保留。' : '使用已保存的结构化会后稿创建新修订版，旧全文保留，不再上传或识别。无法可靠对应的人工修改需逐项核对，不补造姓名与时间。'} onClose={() => setDialog('')} actions={[{ label: '取消', onClick: () => setDialog('') }, { label: dialog === 'adopt' ? '在预览中采用' : dialog === 'delete' ? '删除预览会议' : dialog === 'discard' ? '放弃修订' : '创建恢复修订版', variant: dialog === 'delete' || dialog === 'discard' ? 'danger' : 'primary', onClick: () => { if (dialog === 'adopt') { setAdoptedId(versionId); setNotice('已在本次预览中采用此稿'); setMaterialsChanged(true) } else if (dialog === 'delete') { setDeleted(d => [...d, selected]); setSelected(visibleMeetings.find(s => s.id !== selected)?.id ?? ''); setDetailsOpen(false); setNotice('会议已从本次预览列表移除') } else if (dialog === 'discard') setDraft(null); else recover(); setDialog('') } }]} />
+    <ActionDialog open={!!dialog} title={dialog === 'adopt' ? '采用这份稿件？' : dialog === 'delete' ? '删除这场会议？' : dialog === 'discard' ? '放弃未保存的修订？' : '从会后稿恢复说话人与时间轴？'} description={dialog === 'adopt' ? `${pending.length ? `还有 ${pending.length} 处待确认。` : ''}采用后导出与 AI 使用此稿，原稿保留。` : dialog === 'delete' ? '仅删除本次预览中的会议，刷新预览可恢复。不会触碰正式录音与稿件。' : dialog === 'discard' ? '本次未保存的输入将丢弃，已保存版本保留。' : '使用已保存的结构化会后稿创建新修订版，旧全文保留，不再上传或识别。无法可靠对应的人工修改需逐项核对，不补造姓名与时间。'} onClose={() => setDialog('')} actions={[{ label: '取消', onClick: () => setDialog('') }, { label: dialog === 'adopt' ? '在预览中采用' : dialog === 'delete' ? '删除预览会议' : dialog === 'discard' ? '放弃修订' : '创建恢复修订版', variant: dialog === 'delete' || dialog === 'discard' ? 'danger' : 'primary', onClick: () => { if (dialog === 'adopt') { setAdoptedId(versionId); setNotice('已在本次预览中采用此稿'); setMaterialsChanged(true) } else if (dialog === 'delete') deleteCurrentMeeting(); else if (dialog === 'discard') setDraft(null); else recover(); setDialog('') } }]} />
   </div>
 }
