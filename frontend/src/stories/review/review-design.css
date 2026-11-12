@@ -1,12 +1,13 @@
-.review-preview { height:100vh; overflow:hidden; color:hsl(var(--foreground)); background:hsl(var(--background)); }
-.design-toolbar { height:52px; padding:0 18px; display:flex; align-items:center; gap:18px; border-bottom:1px solid hsl(var(--border)); background:hsl(var(--card)); font-size:12px; }
+.review-preview { height:100dvh; display:flex; flex-direction:column; overflow:hidden; color:hsl(var(--foreground)); background:hsl(var(--background)); }
+.design-toolbar { min-height:52px; flex:none; padding:0 18px; display:flex; flex-wrap:wrap; align-items:center; gap:18px; border-bottom:1px solid hsl(var(--border)); background:hsl(var(--card)); font-size:12px; }
 .design-caption { font-weight:650; white-space:nowrap; }
 .design-toolbar button { padding:7px 10px; border-radius:7px; }
 .design-toolbar button[aria-pressed="true"] { background:hsl(var(--primary) / .1); color:hsl(var(--primary)); }
 .design-toolbar .design-disclaimer { margin-left:auto; color:hsl(var(--muted-foreground)); font-size:11px; }
 .design-toolbar select { width:100px; }
-.review-stage { height:calc(100vh - 52px); transform:translateZ(0); overflow:hidden; }
+.review-stage { flex:1; min-height:0; transform:translateZ(0); overflow:hidden; }
 .review-stage-content { height:100%; }
+.review-stage-content, .workspace-review { container-type:inline-size; }
 .notebook-workspace { display:flex; height:100%; background:hsl(var(--card)); font-size:14px; }
 .notebook-workspace button:focus-visible, .notebook-workspace input:focus-visible, .design-toolbar button:focus-visible { outline:2px solid hsl(var(--primary)); outline-offset:3px; }
 .notebook-workspace button { transition:background .15s,color .15s; }
@@ -108,7 +109,32 @@
 .note-legacy > p { white-space:pre-line; font-size:15px; line-height:2; margin-top:20px; }
 @media (max-width:1100px) { .design-disclaimer { display:none; } .notes-list { width:225px; } .notebook-paper { padding:32px 32px 40px; } .notebook-topbar { padding:0 20px; } .design-toolbar { gap:10px; } }
 @media (max-width:800px) { .notes-list { width:195px; } .notes-list-heading { padding:24px 14px 16px; } .notebook-paper { padding:28px 24px 35px; } .note-heading h1 { font-size:24px; } .notebook-tabs { gap:20px; } .design-caption { display:none; } .notebook-player { padding:14px 20px; gap:12px; } .note-track { width:100px; } .note-review-columns { grid-template-columns:1fr; gap:12px; } .note-review-panel > footer { flex-wrap:wrap; } }
-@media (max-width:600px) { .notebook-workspace { overflow-x:auto; } .notes-list { width:160px; } .notebook-main { min-width:360px; } .note-heading h1 { font-size:23px; } .notebook-paper { padding:28px 20px; } .design-toolbar { gap:4px; padding:0 7px; font-size:10px; } .design-toolbar button { padding:6px; } .note-track { width:95px; } .notebook-player { padding:14px; gap:8px; } .note-review-notice { align-items:flex-start; font-size:10px; } .note-version-select { width:125px; } .note-speaker-select { width:115px; } .note-version-status { display:none; } .notebook-topbar { padding:0 14px; } .notebook-tabs { gap:22px; } }
+@media (max-width:650px) {
+  .design-toolbar { gap:4px; padding:0 7px; font-size:10px; }
+  .design-toolbar button { padding:6px; }
+}
+@container (max-width:600px) {
+  .notebook-workspace { flex-direction:column; }
+  .notes-list { width:100%; max-height:clamp(86px, 28%, 158px); border-right:0; border-bottom:1px solid hsl(var(--border)); }
+  .notes-list-heading { display:none; }
+  .notes-search { margin:6px 10px 0; padding:4px 7px; }
+  .notes-list-scroll h3 { margin:2px 0; }
+  .notes-list-scroll section + section { margin-top:6px; }
+  .note-list-item { padding:4px 8px; margin:0; }
+  .note-list-item-top, .note-list-item p, .note-list-meta, .notes-list-footer { display:none; }
+  .notebook-main { min-height:0; }
+  .note-heading h1 { font-size:21px; }
+  .notebook-paper { padding:18px 14px 24px; }
+  .note-track { width:104px; flex-shrink:0; }
+  .notebook-player { min-height:55px; padding:8px 12px; gap:8px; }
+  .note-player-progress > div { flex-wrap:wrap; gap:0 8px; }
+  .note-review-notice { align-items:flex-start; gap:5px; }
+  .note-version-row { flex-wrap:wrap; gap:6px; }
+  .note-version-select { width:125px; }
+  .note-speaker-select { width:115px; }
+  .notebook-topbar { padding-inline:10px; }
+  .notebook-tabs { gap:12px; }
+}
 
 .design-theme { width:110px; flex-shrink:0; }
 .design-views { white-space:nowrap; }

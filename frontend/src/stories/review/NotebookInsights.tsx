@@ -1,9 +1,10 @@
 import { useRef, useState } from 'react'
 import { ArrowUp, ArrowUpRight, Check, ChevronDown, ChevronRight, FileText, List, Network, Sparkles } from 'lucide-react'
 import { post } from './fixtures'
+import type { PreviewState } from './previewStates'
 import { Select } from '../../components/ui/Select'
 import { ActionDialog } from '../../components/ActionDialog'
-import { PreviewCorrection, type PreviewState } from './NotebookExtras'
+import { PreviewCorrection } from './NotebookExtras'
 import { NotebookMapEditor } from './NotebookMap'
 
 export type ReviewTab = '转录文本' | '摘要' | '对话' | '思维导图'
