@@ -1,3 +1,4 @@
+import { DEFAULT_ASR_VENDOR } from '../types/asr/common'
 import { Select } from './ui/Select'
 import { RecordingStorage } from './RecordingStorage'
 import { useState } from 'react'
@@ -7,40 +8,26 @@ import { useSettingsStore } from '../stores/settingsStore'
 import { useSessionStore } from '../stores/sessionStore'
 import { buildProviderConnectConfig, isProviderConfigured } from '../utils/providerConfig'
 import { getProviderName } from '../utils/providerI18n'
-import { StatusIndicator, Switch } from './ui'
-import type { ProviderConfigData } from '../types'
+import { StatusIndicator } from './ui'
 import type { ASRVendor } from '../types/asr'
-
-const TRANSLATION_OPTIONS = [
-  { value: 'en', label: 'English' },
-  { value: 'zh', label: '中文' },
-  { value: 'ja', label: '日本語' },
-  { value: 'ko', label: '한국어' },
-  { value: 'es', label: 'Español' },
-  { value: 'fr', label: 'Français' },
-  { value: 'de', label: 'Deutsch' },
-  { value: 'vi', label: 'Tiếng Việt' },
-]
 
 interface RecordingControlsProps {
   reconnectTranscription?: () => Promise<void>
-  onError: (message: string) => void
   startRecording: () => void
   stopRecording: () => void
-  switchConfig?: (configPatch: Partial<ProviderConfigData>, description: string) => Promise<void>
   switchProvider?: (newVendorId: ASRVendor) => Promise<void>
 }
 
-export function RecordingControls({ startRecording, stopRecording, switchConfig, switchProvider, reconnectTranscription }: RecordingControlsProps) {
+export function RecordingControls({ startRecording, stopRecording, switchProvider, reconnectTranscription }: RecordingControlsProps) {
   const { t } = useUIStore()
   const { settings, availableProviders } = useSettingsStore()
   const { recordingState, currentTranscript } = useSessionStore()
   const [showQuickSettings, setShowQuickSettings] = useState(false)
 
-  const currentVendor = settings.currentVendor || 'soniox'
+  const currentVendor = settings.currentVendor || DEFAULT_ASR_VENDOR
   const currentProvider = availableProviders.find(p => p.id === currentVendor)
   const currentConfig = settings.providerConfigs?.[currentVendor]
-  const normalizedConfig = buildProviderConnectConfig(currentProvider, currentConfig, settings)
+  const normalizedConfig = buildProviderConnectConfig(currentConfig, settings)
   const hasApiKey = isProviderConfigured(currentProvider, normalizedConfig)
 
   const isIdle = recordingState === 'idle'
@@ -50,20 +37,13 @@ export function RecordingControls({ startRecording, stopRecording, switchConfig,
   const isSwitching = recordingState === 'switching'
   const isLoading = isStarting || isStopping || isSwitching
 
-  const supportsTranslation = currentProvider?.capabilities.supportsTranslation ?? false
-  const supportsDiarization = currentVendor !== 'volc' && (currentProvider?.capabilities.supportsSpeakerDiarization ?? false)
 
   const configuredProviders = availableProviders.filter(p => {
     const cfg = settings.providerConfigs?.[p.id]
-    return isProviderConfigured(p, buildProviderConnectConfig(p, cfg, settings))
+    return isProviderConfigured(p, buildProviderConnectConfig(cfg, settings))
   })
   const canSwitchProvider = configuredProviders.length > 1
 
-  const hasLiveFeatures = supportsTranslation || supportsDiarization || canSwitchProvider
-
-  const translationEnabled = Boolean(currentConfig?.translationEnabled)
-  const translationTarget = (currentConfig?.translationTargetLanguage as string) || 'en'
-  const diarizationEnabled = Boolean(currentConfig?.enableSpeakerDiarization)
 
   const handleClick = () => {
     if (isIdle) {
@@ -71,35 +51,6 @@ export function RecordingControls({ startRecording, stopRecording, switchConfig,
     } else if (isRecording) {
       stopRecording()
     }
-  }
-
-  const handleToggleTranslation = async () => {
-    if (!switchConfig) return
-    const newEnabled = !translationEnabled
-    const desc = newEnabled
-      ? (t.recording?.translationEnabled || 'Translation enabled')
-      : (t.recording?.translationDisabled || 'Translation disabled')
-    await switchConfig(
-      { translationEnabled: newEnabled, translationTargetLanguage: translationTarget },
-      desc,
-    )
-  }
-
-  const handleChangeTranslationTarget = async (target: string) => {
-    if (!switchConfig || !translationEnabled) return
-    await switchConfig(
-      { translationEnabled: true, translationTargetLanguage: target },
-      `${t.recording?.translationTarget || 'Target'}: ${target}`,
-    )
-  }
-
-  const handleToggleDiarization = async () => {
-    if (!switchConfig) return
-    const newEnabled = !diarizationEnabled
-    const desc = newEnabled
-      ? (t.recording?.diarizationEnabled || 'Speaker identification enabled')
-      : (t.recording?.diarizationDisabled || 'Speaker identification disabled')
-    await switchConfig({ enableSpeakerDiarization: newEnabled }, desc)
   }
 
   return (
@@ -152,7 +103,7 @@ export function RecordingControls({ startRecording, stopRecording, switchConfig,
             )}
           </button>
 
-          {(isRecording || isSwitching) && hasLiveFeatures && (
+          {(isRecording || isSwitching) && canSwitchProvider && (
             <button
               onClick={() => setShowQuickSettings(prev => !prev)}
               disabled={isSwitching}
@@ -200,13 +151,9 @@ export function RecordingControls({ startRecording, stopRecording, switchConfig,
       </div>
 
       {/* Config summary tags (idle state) */}
-      {isIdle && hasApiKey && hasLiveFeatures && (
+      {isIdle && hasApiKey && canSwitchProvider && (
         <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground">
           <span>{currentProvider ? getProviderName(currentProvider, t) : currentVendor}</span>
-          <span className="text-border">·</span>
-          <span>{t.recording?.translation || 'Translation'}: {translationEnabled ? translationTarget.toUpperCase() : 'OFF'}</span>
-          <span className="text-border">·</span>
-          <span>{t.recording?.speakerDiarization || 'Speakers'}: {diarizationEnabled ? 'ON' : 'OFF'}</span>
         </div>
       )}
 
@@ -240,52 +187,6 @@ export function RecordingControls({ startRecording, stopRecording, switchConfig,
             </div>
           )}
 
-          {supportsTranslation && (
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <label className="text-sm text-foreground">
-                  {t.recording?.translation || 'Translation'}
-                </label>
-                <Switch
-                  checked={translationEnabled}
-                  onChange={() => void handleToggleTranslation()}
-                  disabled={isSwitching}
-                  aria-label={t.recording?.translation || 'Translation'}
-                />
-              </div>
-              {translationEnabled && (
-                <div className="flex items-center gap-2">
-                  <label className="text-xs text-muted-foreground shrink-0">
-                    {t.recording?.translationTarget || 'Target'}
-                  </label>
-                  <Select
-                    value={translationTarget}
-                    onChange={(e) => void handleChangeTranslationTarget(e.target.value)}
-                    disabled={isSwitching}
-                    className="flex-1 h-8 rounded-md border border-input bg-background px-2 text-xs ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
-                  >
-                    {TRANSLATION_OPTIONS.map(opt => (
-                      <option key={opt.value} value={opt.value}>{opt.label}</option>
-                    ))}
-                  </Select>
-                </div>
-              )}
-            </div>
-          )}
-
-          {supportsDiarization && (
-            <div className="flex items-center justify-between">
-              <label className="text-sm text-foreground">
-                {t.recording?.speakerDiarization || 'Speaker Identification'}
-              </label>
-              <Switch
-                checked={diarizationEnabled}
-                onChange={() => void handleToggleDiarization()}
-                disabled={isSwitching}
-                aria-label={t.recording?.speakerDiarization || 'Speaker Identification'}
-              />
-            </div>
-          )}
         </div>
       )}
     </div>

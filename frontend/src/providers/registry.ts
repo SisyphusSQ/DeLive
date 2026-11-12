@@ -3,25 +3,16 @@
  * 管理所有可用的 ASR 提供商
  */
 
+import { DEFAULT_ASR_VENDOR } from '../types/asr/common'
 import type {
   ASRProvider,
   ASRProviderInfo,
   ProviderRegistryEntry,
   ASRVendor,
 } from '../types/asr'
-import { SonioxProvider } from './implementations/SonioxProvider'
 import { VolcProvider } from './implementations/VolcProvider'
-import { GroqProvider } from './implementations/GroqProvider'
-import { SiliconFlowProvider } from './implementations/SiliconFlowProvider'
-import { MistralProvider } from './implementations/MistralProvider'
-import { DeepgramProvider } from './implementations/DeepgramProvider'
-import { AssemblyAIProvider } from './implementations/AssemblyAIProvider'
-import { ElevenLabsProvider } from './implementations/ElevenLabsProvider'
-import { GladiaProvider } from './implementations/GladiaProvider'
-import { CloudflareProvider } from './implementations/CloudflareProvider'
 import { LocalOpenAIProvider } from './implementations/LocalOpenAIProvider'
 import { WhisperCppRuntimeProvider } from './implementations/WhisperCppRuntimeProvider'
-import { SixtydbProvider } from './implementations/SixtydbProvider'
 import { SenseVoiceProvider } from './implementations/SenseVoiceProvider'
 
 // Provider 注册表
@@ -75,53 +66,8 @@ export const providerRegistry = new ProviderRegistry()
 
 function registerDefaultProviders(): void {
   providerRegistry.register({
-    info: new SonioxProvider().info,
-    create: () => new SonioxProvider(),
-  })
-
-  providerRegistry.register({
     info: new VolcProvider().info,
     create: () => new VolcProvider(),
-  })
-
-  providerRegistry.register({
-    info: new ElevenLabsProvider().info,
-    create: () => new ElevenLabsProvider(),
-  })
-
-  providerRegistry.register({
-    info: new MistralProvider().info,
-    create: () => new MistralProvider(),
-  })
-
-  providerRegistry.register({
-    info: new GladiaProvider().info,
-    create: () => new GladiaProvider(),
-  })
-
-  providerRegistry.register({
-    info: new DeepgramProvider().info,
-    create: () => new DeepgramProvider(),
-  })
-
-  providerRegistry.register({
-    info: new AssemblyAIProvider().info,
-    create: () => new AssemblyAIProvider(),
-  })
-
-  providerRegistry.register({
-    info: new CloudflareProvider().info,
-    create: () => new CloudflareProvider(),
-  })
-
-  providerRegistry.register({
-    info: new SiliconFlowProvider().info,
-    create: () => new SiliconFlowProvider(),
-  })
-
-  providerRegistry.register({
-    info: new GroqProvider().info,
-    create: () => new GroqProvider(),
   })
 
   providerRegistry.register({
@@ -132,11 +78,6 @@ function registerDefaultProviders(): void {
   providerRegistry.register({
     info: new WhisperCppRuntimeProvider().info,
     create: () => new WhisperCppRuntimeProvider(),
-  })
-
-  providerRegistry.register({
-    info: new SixtydbProvider().info,
-    create: () => new SixtydbProvider(),
   })
 
   providerRegistry.register({
@@ -155,5 +96,5 @@ export function createProvider(vendorId: ASRVendor): ASRProvider | undefined {
 
 // 获取默认提供商 ID
 export function getDefaultVendor(): ASRVendor {
-  return 'soniox' as ASRVendor
+  return DEFAULT_ASR_VENDOR
 }

@@ -1,6 +1,5 @@
 import { describe, it, expect } from 'vitest'
 import {
-  normalizeProviderConfig,
   buildProviderConnectConfig,
   getMissingRequiredConfigKeys,
   getMissingRequiredConfigLabels,
@@ -10,10 +9,10 @@ import type { ASRProviderInfo } from '../types/asr'
 
 function makeProviderInfo(overrides: Partial<ASRProviderInfo> = {}): ASRProviderInfo {
   return {
-    id: 'soniox' as ASRProviderInfo['id'],
-    name: 'Soniox',
+    id: 'local_openai' as ASRProviderInfo['id'],
+    name: 'Local OpenAI',
     description: '',
-    type: 'cloud',
+    type: 'local',
     supportsStreaming: true,
     capabilities: {
       audioInputMode: 'media-recorder',
@@ -30,60 +29,12 @@ function makeProviderInfo(overrides: Partial<ASRProviderInfo> = {}): ASRProvider
   }
 }
 
-describe('normalizeProviderConfig', () => {
-  it('returns empty object when no config or fallback provided', () => {
-    const result = normalizeProviderConfig(undefined, undefined)
-    expect(result).toEqual({})
-  })
-
-  it('passes through existing config unchanged when no fallback needed', () => {
-    const provider = makeProviderInfo()
-    const result = normalizeProviderConfig(provider, { apiKey: 'my-key' })
-    expect(result.apiKey).toBe('my-key')
-  })
-
-  it('falls back apiKey from legacy settings when provider requires it and config is empty', () => {
-    const provider = makeProviderInfo()
-    const result = normalizeProviderConfig(provider, {}, { apiKey: 'legacy-key' })
-    expect(result.apiKey).toBe('legacy-key')
-  })
-
-  it('does not override existing apiKey with fallback', () => {
-    const provider = makeProviderInfo()
-    const result = normalizeProviderConfig(
-      provider,
-      { apiKey: 'explicit-key' },
-      { apiKey: 'legacy-key' },
-    )
-    expect(result.apiKey).toBe('explicit-key')
-  })
-
-  it('falls back languageHints when config has none', () => {
-    const provider = makeProviderInfo()
-    const result = normalizeProviderConfig(
-      provider,
-      {},
-      { languageHints: ['zh', 'en'] },
-    )
-    expect(result.languageHints).toEqual(['zh', 'en'])
-  })
-
-  it('does not fall back apiKey when provider does not require it', () => {
-    const provider = makeProviderInfo({ requiredConfigKeys: [] })
-    const result = normalizeProviderConfig(provider, {}, { apiKey: 'legacy' })
-    expect(result.apiKey).toBeUndefined()
-  })
-})
-
 describe('buildProviderConnectConfig', () => {
-  it('merges provider config with legacy settings fallback', () => {
-    const provider = makeProviderInfo()
-    const result = buildProviderConnectConfig(provider, {}, {
-      apiKey: 'global-key',
-      languageHints: ['en'],
-    })
-    expect(result.apiKey).toBe('global-key')
-    expect(result.languageHints).toEqual(['en'])
+  it('only uses the API key belonging to the selected provider', () => {
+    const settings = { apiKey: 'retired-key', languageHints: ['en'] }
+    expect(buildProviderConnectConfig(undefined, settings)).toEqual({ languageHints: ['en'] })
+    expect(buildProviderConnectConfig({ apiKey: 'local-key', languageHints: ['zh'] }, settings))
+      .toEqual({ apiKey: 'local-key', languageHints: ['zh'] })
   })
 })
 
@@ -151,17 +102,14 @@ describe('isProviderConfigured', () => {
     expect(isProviderConfigured(provider, { apiKey: 'should-not-matter' })).toBe(false)
   })
 
-  it('returns false for cloudflare when apiToken or accountId is missing', () => {
+  it('requires readable Volcengine credentials', () => {
     const provider = makeProviderInfo({
-      id: 'cloudflare' as ASRProviderInfo['id'],
-      requiredConfigKeys: ['apiToken', 'accountId'],
-      configFields: [
-        { key: 'apiToken', label: 'API Token', type: 'password', required: true },
-        { key: 'accountId', label: 'Account ID', type: 'text', required: true },
-      ],
+      id: 'volc' as ASRProviderInfo['id'],
+      requiredConfigKeys: [],
     })
-    expect(isProviderConfigured(provider, { apiToken: 'token', accountId: 'acct' })).toBe(true)
-    expect(isProviderConfigured(provider, { apiToken: 'token' })).toBe(false)
-    expect(isProviderConfigured(provider, { accountId: 'acct' })).toBe(false)
+    expect(isProviderConfigured(provider, { apiKey: 'new-key' })).toBe(true)
+    expect(isProviderConfigured(provider, { apiKey: '{{SAFE_STORAGE}}' })).toBe(false)
+    expect(isProviderConfigured(provider, { appKey: 'app-id' })).toBe(false)
+    expect(isProviderConfigured(provider, { appKey: 'app-id', accessKey: 'access-token' })).toBe(true)
   })
 })

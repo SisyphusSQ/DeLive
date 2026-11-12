@@ -1,4 +1,4 @@
-import { Mic, FileText, FolderOpen, FileAudio, Monitor, Settings, PanelLeftClose, PanelLeft } from 'lucide-react'
+import { Mic, FileText, FolderOpen, FileAudio, Settings, PanelLeftClose, PanelLeft } from 'lucide-react'
 import { AnimatedThemeToggler } from './AnimatedThemeToggler'
 import { useUIStore, type WorkspaceView } from '../stores/uiStore'
 import type { RecordingState } from '../types'
@@ -9,27 +9,22 @@ interface SidebarProps {
   currentView: WorkspaceView
   onNavigate: (view: WorkspaceView) => void
   recordingState: RecordingState
-  captionEnabled: boolean
-  onToggleCaption: () => void
-  onOpenCaptionSettings: () => void
 }
 
 interface NavItem {
-  id: WorkspaceView | 'caption'
+  id: WorkspaceView
   icon: typeof Mic
-  isPage: boolean
 }
 
 const NAV_MAIN: NavItem[] = [
-  { id: 'live', icon: Mic, isPage: true },
-  { id: 'file', icon: FileAudio, isPage: true },
-  { id: 'review', icon: FileText, isPage: true },
-  { id: 'topics', icon: FolderOpen, isPage: true },
+  { id: 'live', icon: Mic },
+  { id: 'file', icon: FileAudio },
+  { id: 'review', icon: FileText },
+  { id: 'topics', icon: FolderOpen },
 ]
 
 const NAV_AUX: NavItem[] = [
-  { id: 'caption', icon: Monitor, isPage: false },
-  { id: 'settings', icon: Settings, isPage: true },
+  { id: 'settings', icon: Settings },
 ]
 
 export function Sidebar({
@@ -38,9 +33,6 @@ export function Sidebar({
   currentView,
   onNavigate,
   recordingState,
-  captionEnabled,
-  onToggleCaption,
-  onOpenCaptionSettings,
 }: SidebarProps) {
   const { t } = useUIStore()
   const isElectron = !!window.electronAPI?.isElectron
@@ -51,38 +43,16 @@ export function Sidebar({
     return (navT as Record<string, string>)?.[id] ?? id
   }
 
-  const handleClick = (item: NavItem) => {
-    if (item.id === 'caption') {
-      onToggleCaption()
-    } else {
-      onNavigate(item.id as WorkspaceView)
-    }
-  }
-
-  const handleContextMenu = (item: NavItem, e: React.MouseEvent) => {
-    if (item.id === 'caption') {
-      e.preventDefault()
-      onOpenCaptionSettings()
-    }
-  }
-
-  const isActive = (item: NavItem): boolean => {
-    if (item.id === 'caption') return captionEnabled
-    return currentView === item.id
-  }
-
   const renderNavItem = (item: NavItem) => {
-    const active = isActive(item)
+    const active = currentView === item.id
     const Icon = item.icon
     const label = getLabel(item.id)
     const showRecDot = item.id === 'live' && recordingState === 'recording'
-    const showCaptionDot = item.id === 'caption' && captionEnabled
 
     return (
       <button
         key={item.id}
-        onClick={() => handleClick(item)}
-        onContextMenu={(e) => handleContextMenu(item, e)}
+        onClick={() => onNavigate(item.id)}
         className={`
           group relative flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium
           transition-all duration-150 w-full
@@ -93,9 +63,9 @@ export function Sidebar({
           ${collapsed ? 'justify-center px-0' : ''}
         `}
         title={collapsed ? label : undefined}
-        aria-current={item.isPage && active ? 'page' : undefined}
+        aria-current={active ? 'page' : undefined}
       >
-        {active && item.isPage && (
+        {active && (
           <span className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-5 bg-foreground/70 rounded-r" />
         )}
         <span className="relative flex-shrink-0">
@@ -105,9 +75,6 @@ export function Sidebar({
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-destructive opacity-75" />
               <span className="relative inline-flex rounded-full h-2 w-2 bg-destructive" />
             </span>
-          )}
-          {showCaptionDot && (
-            <span className="absolute -top-0.5 -right-0.5 h-2 w-2 rounded-full bg-emerald-500" />
           )}
         </span>
         {!collapsed && <span className="truncate">{label}</span>}
@@ -153,8 +120,7 @@ export function Sidebar({
 
       {/* Auxiliary navigation */}
       <nav className={`flex flex-col gap-1 ${collapsed ? 'px-2' : 'px-3'}`}>
-        {isElectron && NAV_AUX.filter(i => i.id === 'caption').map(renderNavItem)}
-        {NAV_AUX.filter(i => i.id === 'settings').map(renderNavItem)}
+        {NAV_AUX.map(renderNavItem)}
       </nav>
 
       {/* Bottom: theme toggle — ml matches nav icon center alignment */}

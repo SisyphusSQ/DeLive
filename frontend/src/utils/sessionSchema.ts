@@ -16,7 +16,6 @@ import type {
   TranscriptSourceMeta,
   TranscriptSpeaker,
   TranscriptTokenData,
-  TranscriptTranslationData,
 } from '../types'
 import { formatDate, formatTime, generateId } from './storageUtils'
 
@@ -41,28 +40,6 @@ function normalizeStringArray(value: unknown): string[] {
   }
 
   return value.filter((item): item is string => typeof item === 'string' && item.trim().length > 0)
-}
-
-function normalizeTranslationData(value: unknown): TranscriptTranslationData | undefined {
-  if (!isRecord(value)) {
-    return undefined
-  }
-
-  const text = getString(value.text)?.trim()
-  if (!text) {
-    return undefined
-  }
-
-  const mode = value.mode === 'inline' || value.mode === 'dual-line' || value.mode === 'output-only'
-    ? value.mode
-    : undefined
-
-  return {
-    text,
-    targetLanguage: getString(value.targetLanguage),
-    mode,
-    updatedAt: getNumber(value.updatedAt),
-  }
 }
 
 function normalizeSpeaker(value: unknown): TranscriptSpeaker | null {
@@ -96,7 +73,6 @@ function normalizeSegment(value: unknown): TranscriptSegment | null {
     text,
     id: getString(value.id),
     recognitionId: getString(value.recognitionId),
-    translatedText: getString(value.translatedText),
     startMs: getNumber(value.startMs),
     endMs: getNumber(value.endMs),
     speakerId: getString(value.speakerId),
@@ -440,7 +416,6 @@ export function normalizeTranscriptSession(session: Partial<TranscriptSession>):
       } catch { return [] }
     }) : undefined,
     transcript: getString(session.transcript) || '',
-    translatedTranscript: normalizeTranslationData(session.translatedTranscript),
     duration: getNumber(session.duration),
     audioRecordingId: getString(session.audioRecordingId),
     topicId: getString(session.topicId)?.trim() || undefined,

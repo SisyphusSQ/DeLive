@@ -1,19 +1,11 @@
 export enum ASRVendor {
-  Soniox = 'soniox',
   Volc = 'volc',
-  Groq = 'groq',
-  SiliconFlow = 'siliconflow',
-  Mistral = 'mistral',
-  Deepgram = 'deepgram',
-  AssemblyAI = 'assemblyai',
-  ElevenLabs = 'elevenlabs',
-  Gladia = 'gladia',
-  Cloudflare = 'cloudflare',
   LocalOpenAI = 'local_openai',
   LocalWhisperCpp = 'local_whisper_cpp',
-  Sixtydb = 'sixtydb',
   SenseVoice = 'sensevoice',
 }
+
+export const DEFAULT_ASR_VENDOR = ASRVendor.Volc
 
 export type ProviderType = 'cloud' | 'local'
 
@@ -95,7 +87,6 @@ export interface ASRProviderCapabilities {
   workloads?: ASRProviderWorkloadCapabilities
   prefersTokenEvents?: boolean
   supportsConfigTest?: boolean
-  supportsTranslation?: boolean
   supportsSpeakerDiarization?: boolean
   local?: LocalProviderCapabilities
 }
@@ -133,8 +124,6 @@ export interface TranscriptToken {
   confidence?: number
   language?: string
   speaker?: string
-  translationStatus?: 'none' | 'original' | 'translation'
-  sourceLanguage?: string
 }
 
 export interface TranscriptResponse {

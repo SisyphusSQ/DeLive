@@ -1,3 +1,4 @@
+import { DEFAULT_ASR_VENDOR } from '../types/asr/common'
 import { useEffect, useRef, useState, useCallback } from 'react'
 import { FileText, Mic, HelpCircle, ArrowDown, Volume2, Share2, Terminal } from 'lucide-react'
 import { useUIStore } from '../stores/uiStore'
@@ -42,8 +43,6 @@ export function TranscriptDisplay({
   const {
     finalTranscript,
     nonFinalTranscript,
-    finalTranslatedTranscript,
-    nonFinalTranslatedTranscript,
     currentSegments,
     currentSpeakers,
     realtime,
@@ -52,7 +51,7 @@ export function TranscriptDisplay({
   } = useSessionStore()
   
   // 获取当前提供商名称
-  const currentVendor = settings.currentVendor || 'soniox'
+  const currentVendor = settings.currentVendor || DEFAULT_ASR_VENDOR
   const currentProvider = availableProviders.find(p => p.id === currentVendor)
   const providerName = currentProvider ? getProviderName(currentProvider, t) : currentVendor
   const containerRef = useRef<HTMLDivElement>(null)
@@ -73,16 +72,16 @@ export function TranscriptDisplay({
     setShouldAutoScroll(atBottom)
     setShowScrollButton(
       !atBottom
-      && !!(finalTranscript || nonFinalTranscript || finalTranslatedTranscript || nonFinalTranslatedTranscript),
+      && !!(finalTranscript || nonFinalTranscript),
     )
-  }, [isAtBottom, finalTranscript, nonFinalTranscript, finalTranslatedTranscript, nonFinalTranslatedTranscript])
+  }, [isAtBottom, finalTranscript, nonFinalTranscript])
 
   // 智能自动滚动：只有当用户在底部时才自动滚动
   useEffect(() => {
     if (containerRef.current && shouldAutoScroll) {
       containerRef.current.scrollTop = containerRef.current.scrollHeight
     }
-  }, [finalTranscript, nonFinalTranscript, finalTranslatedTranscript, nonFinalTranslatedTranscript, shouldAutoScroll])
+  }, [finalTranscript, nonFinalTranscript, shouldAutoScroll])
 
   // 滚动到底部按钮点击
   const scrollToBottom = useCallback(() => {
@@ -96,15 +95,8 @@ export function TranscriptDisplay({
     }
   }, [])
 
-  const captionDisplayMode = settings.captionStyle?.displayMode ?? 'source'
-  const translatedText = finalTranslatedTranscript + nonFinalTranslatedTranscript
-  const showSource = captionDisplayMode !== 'translated' || translatedText.length === 0
-  const showTranslated = captionDisplayMode !== 'source' && translatedText.length > 0
-  const speakerDiarizationEnabled = Boolean(realtime?.length) || currentVendor === 'soniox'
-    && Boolean(settings.providerConfigs?.soniox?.enableSpeakerDiarization)
-    && Boolean(currentProvider?.capabilities.supportsSpeakerDiarization)
-    && currentSegments.some((segment) => segment.speakerId)
-  const isEmpty = !finalTranscript && !nonFinalTranscript && !translatedText
+  const speakerDiarizationEnabled = Boolean(realtime?.length) || currentSegments.some(segment => segment.speakerId)
+  const isEmpty = !finalTranscript && !nonFinalTranscript
   const isRecording = recordingState === 'recording'
   const isStarting = recordingState === 'starting'
   return (
@@ -196,8 +188,7 @@ export function TranscriptDisplay({
           </div>
         ) : (
           <div className="prose prose-sm dark:prose-invert max-w-none">
-            {showSource && (
-              speakerDiarizationEnabled ? (
+            {speakerDiarizationEnabled ? (
                 <div className="space-y-3">
                   {realtime?.length && !currentSegments.length ? <p>{finalTranscript}{nonFinalTranscript} · 待分句</p> : null}
                   {transcriptPrefix && !realtime?.length && (
@@ -260,16 +251,6 @@ export function TranscriptDisplay({
                     <span className="inline-block w-1.5 h-4 bg-primary ml-1 rounded-sm animate-pulse align-middle" />
                   )}
                 </p>
-              )
-            )}
-            {showSource && showTranslated && (
-              <div className="my-4 h-px bg-border" />
-            )}
-            {showTranslated && (
-              <p className="text-base leading-relaxed whitespace-pre-wrap text-info">
-                <span className="font-medium transition-colors duration-300">{finalTranslatedTranscript}</span>
-                <span className="opacity-80 transition-colors duration-300">{nonFinalTranslatedTranscript}</span>
-              </p>
             )}
           </div>
         )}
@@ -291,19 +272,11 @@ export function TranscriptDisplay({
       )}
 
       {/* 底部状态栏 */}
-      {(finalTranscript || nonFinalTranscript || translatedText) && (
+      {(finalTranscript || nonFinalTranscript) && (
         <div className="px-6 py-3 border-t border-border bg-muted/30 flex items-center justify-between text-xs">
           <div className="flex items-center gap-1 text-muted-foreground">
             <FileText className="w-3.5 h-3.5 mr-1" />
             <span>{t.transcript.transcribed} {(finalTranscript.length + nonFinalTranscript.length)} {t.common.characters}</span>
-            {translatedText && (
-              <>
-                <span className="mx-1.5 text-border">|</span>
-                <span className="text-info dark:text-info">
-                  {t.transcript.translated || '已翻译'} {translatedText.length}
-                </span>
-              </>
-            )}
             {isRecording && nonFinalTranscript.length > 0 && (
               <>
                 <span className="mx-1.5 text-border">|</span>

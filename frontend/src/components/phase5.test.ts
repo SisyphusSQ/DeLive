@@ -1,34 +1,5 @@
 import { describe, it, expect } from 'vitest'
 
-describe('Phase 5 – i18n caption keys', () => {
-  const captionI18nKeys = [
-    'colorWhite', 'colorYellow', 'colorGreen', 'colorCyan', 'colorPink',
-    'bgSemiBlack', 'bgDark', 'bgTransparent', 'bgSemiBlue', 'bgSemiPurple',
-    'fontSystem', 'fontHei', 'fontSong', 'fontKai', 'fontMono',
-    'previewText', 'linesUnit',
-  ]
-
-  it('all caption preset keys are defined', () => {
-    expect(captionI18nKeys.length).toBe(17)
-    expect(captionI18nKeys).toContain('colorWhite')
-    expect(captionI18nKeys).toContain('fontMono')
-    expect(captionI18nKeys).toContain('bgTransparent')
-  })
-
-  it('preset color constants use key-based references', () => {
-    const presetColors = [
-      { key: 'colorWhite', value: '#ffffff' },
-      { key: 'colorYellow', value: '#ffd700' },
-      { key: 'colorGreen', value: '#00ff00' },
-      { key: 'colorCyan', value: '#00ffff' },
-      { key: 'colorPink', value: '#ff69b4' },
-    ]
-    for (const color of presetColors) {
-      expect(captionI18nKeys).toContain(color.key)
-    }
-  })
-})
-
 describe('Phase 5 – Command Palette', () => {
   it('command i18n keys are defined', () => {
     const commandKeys = ['searchPlaceholder', 'exportData']
@@ -43,18 +14,18 @@ describe('Phase 5 – Command Palette', () => {
   })
 
   it('command list includes navigation commands', () => {
-    const commandIds = ['nav-live', 'nav-review', 'nav-topics', 'nav-caption', 'nav-settings', 'export-data']
-    expect(commandIds.length).toBe(6)
+    const commandIds = ['nav-live', 'nav-review', 'nav-topics', 'nav-settings', 'export-data']
+    expect(commandIds.length).toBe(5)
     expect(commandIds).toContain('nav-live')
     expect(commandIds).toContain('nav-settings')
     expect(commandIds).toContain('export-data')
   })
 
   it('arrow key navigation wraps around', () => {
-    const total = 6
+    const total = 5
     let index = 0
     index = (index - 1 + total) % total
-    expect(index).toBe(5)
+    expect(index).toBe(4)
     index = (index + 1) % total
     expect(index).toBe(0)
   })

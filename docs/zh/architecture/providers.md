@@ -1,6 +1,6 @@
 # Provider 系统
 
-Provider 系统是 DeLive 对 ASR 后端的抽象层，将十四种不同的语音识别服务统一在通用契约之后。
+Provider 系统是 DeLive 对 ASR 后端的抽象层，将四种不同的语音识别服务统一在通用契约之后。
 
 ## 架构
 
@@ -30,7 +30,7 @@ WindowedBatchTranscriptionProvider<TChunk>（继承 BaseASRProvider）
 
 ## Provider 注册
 
-`ProviderRegistry` 是将 vendor ID 映射到工厂函数的单例。十四个 Provider 在模块加载时通过 `registerDefaultProviders()` 注册。
+`ProviderRegistry` 是将 vendor ID 映射到工厂函数的单例。四个 Provider 在模块加载时通过 `registerDefaultProviders()` 注册。
 
 ## `ASRProviderInfo`
 
@@ -39,24 +39,23 @@ WindowedBatchTranscriptionProvider<TChunk>（继承 BaseASRProvider）
 - `audioInputMode`: `'media-recorder'` 或 `'pcm16'`
 - `audioProfile`: 采样率、声道数、payload 格式、块时序
 - `transport`: 执行模式、捕获重启策略
-- 功能标志: `supportsTranslation`、`supportsSpeakerDiarization`、`prefersTokenEvents`
+- 功能标志: `supportsSpeakerDiarization`、`prefersTokenEvents`
 
 ## 事件系统
 
 | 事件 | Payload | 说明 |
 |------|---------|------|
-| `onTokens` | `TranscriptToken[]` | Token 级更新（Soniox） |
+| `onTokens` | `TranscriptToken[]` | Token 级更新 |
 | `onPartial` | `string` | 部分/进行中文本 |
 | `onFinal` | `string` | 最终已提交文本 |
 | `onError` | `ASRError` | 带代码和消息的错误 |
 | `onStateChange` | `ASRProviderState` | Provider 状态变化 |
 | `onFinished` | — | Provider 会话正常完成 |
 
-当 `prefersTokenEvents` 为 `true`（Soniox）时，`ProviderSessionManager` **不** 注册 `onPartial` 和 `onFinal` 监听器 — 而是从 `onTokens` 派生文本。
 
 ## 窗口批处理转录
 
-六个 Provider（Cloudflare、硅基流动、Groq、本地 OpenAI、FunASR / SenseVoice、whisper.cpp）继承 `WindowedBatchTranscriptionProvider`：
+本地 OpenAI、FunASR / SenseVoice 与 whisper.cpp 复用窗口批处理。
 
 ### 滚动音频缓冲区
 
@@ -64,7 +63,7 @@ WindowedBatchTranscriptionProvider<TChunk>（继承 BaseASRProvider）
 
 ### 调度
 
-- **定时模式**（Cloudflare、Groq、硅基流动、whisper.cpp）：每 **1500ms** `setInterval` 触发重新转录
+- whisper.cpp 采用定时模式。
 - **防抖模式**（本地 OpenAI、FunASR / SenseVoice）：每个新音频块重置 **1200ms** `setTimeout`（与 `transcribeIntervalMs` 同值）
 
 ### 稳定化
@@ -86,7 +85,7 @@ WindowedBatchTranscriptionProvider<TChunk>（继承 BaseASRProvider）
 
 ### MediaRecorder 路径
 
-Soniox、本地 OpenAI 兼容和 FunASR / SenseVoice 使用。
+本地 OpenAI 兼容和 FunASR / SenseVoice 使用。
 
 1. `getDisplayMedia({ audio: true })` → `MediaStream`
 2. `MediaRecorder` 使用 `audio/webm;codecs=opus`（或回退）
@@ -95,7 +94,7 @@ Soniox、本地 OpenAI 兼容和 FunASR / SenseVoice 使用。
 
 ### PCM16 路径
 
-火山引擎、Groq、硅基流动、Mistral AI、Deepgram、AssemblyAI、ElevenLabs、Gladia、60db、Cloudflare 和 whisper.cpp 使用。
+火山引擎和 whisper.cpp 使用。
 
 1. `getDisplayMedia({ audio: true })` → `MediaStream`
 2. `AudioProcessor` 使用 **AudioWorklet**（首选）或 **ScriptProcessorNode**（回退）

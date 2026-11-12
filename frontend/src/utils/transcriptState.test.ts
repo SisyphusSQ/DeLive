@@ -48,17 +48,12 @@ describe('transcriptState', () => {
       tokens: [
         { text: 'Hello ', isFinal: true, speaker: 'speaker_1' },
         { text: 'world', isFinal: false },
-        { text: 'Bonjour', isFinal: true, translationStatus: 'translation' },
-        { text: ' le monde', isFinal: false, translationStatus: 'translation' },
       ],
     })
 
     expect(next.finalTranscript).toBe('Hello ')
     expect(next.nonFinalTranscript).toBe('world')
     expect(next.currentTranscript).toBe('Hello world')
-    expect(next.finalTranslatedTranscript).toBe('Bonjour')
-    expect(next.nonFinalTranslatedTranscript).toBe(' le monde')
-    expect(next.currentTranslatedTranscript).toBe('Bonjour le monde')
     expect(next.currentSpeakers).toHaveLength(1)
     expect(next.currentSegments).toHaveLength(1)
   })
@@ -97,10 +92,10 @@ describe('transcriptState', () => {
 
     state = applyTranscriptEvent(state, {
       type: 'config-change',
-      description: 'Provider: soniox → volcengine',
+      description: 'Provider: sensevoice → volcengine',
     })
     expect(state.finalTranscript).toContain('Hello from Soniox. ')
-    expect(state.finalTranscript).toContain('Provider: soniox → volcengine')
+    expect(state.finalTranscript).toContain('Provider: sensevoice → volcengine')
     expect(state.finalTokens).toHaveLength(0)
 
     state = applyTranscriptEvent(state, { type: 'final-text', text: '火山引擎的文本。' })
@@ -108,7 +103,7 @@ describe('transcriptState', () => {
 
     state = applyTranscriptEvent(state, {
       type: 'config-change',
-      description: 'Provider: volcengine → soniox',
+      description: 'Provider: volcengine → sensevoice',
     })
     expect(state.finalTranscript).toContain('Hello from Soniox. ')
     expect(state.finalTranscript).toContain('火山引擎的文本。')
@@ -132,7 +127,7 @@ describe('transcriptState', () => {
 
     state = applyTranscriptEvent(state, {
       type: 'config-change',
-      description: 'Provider: volcengine → soniox',
+      description: 'Provider: volcengine → sensevoice',
     })
     expect(state.finalTranscript).toContain('火山引擎的非确认文本。')
     expect(state.nonFinalTranscript).toBe('')

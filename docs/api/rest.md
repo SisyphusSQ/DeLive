@@ -102,7 +102,7 @@ curl http://localhost:23456/api/v1/sessions/abc123/transcript
 {
   "sessionId": "abc123",
   "transcript": "Good morning everyone...",
-  "translatedTranscript": null,
+
   "correctedTranscript": "Good morning, everyone..."
 }
 ```

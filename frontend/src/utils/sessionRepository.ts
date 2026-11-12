@@ -181,7 +181,6 @@ export const sessionRepository = {
         session.transcript
         || session.audioRecordingId
         || session.tokens?.length
-        || session.translatedTranscript?.text
         || hasPostProcessContent(session.postProcess),
       )
     }) || null
@@ -235,7 +234,6 @@ export const sessionRepository = {
       speakers: snapshot.speakers,
       segments: snapshot.segments,
       sourceMeta: snapshot.sourceMeta,
-      translatedTranscript: snapshot.translatedTranscript,
       postProcess: snapshot.postProcess,
       status: 'recording',
       lastPersistedAt: now,
@@ -254,7 +252,6 @@ export const sessionRepository = {
       speakers: snapshot.speakers,
       segments: snapshot.segments,
       sourceMeta: snapshot.sourceMeta,
-      translatedTranscript: snapshot.translatedTranscript,
       postProcess: snapshot.postProcess,
       status: 'completed',
       lastPersistedAt: now,

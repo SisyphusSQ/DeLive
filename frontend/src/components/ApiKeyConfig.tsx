@@ -1,6 +1,7 @@
+import { DEFAULT_ASR_VENDOR } from '../types/asr/common'
 import { FileStorageSettings } from './settings/FileStorageSettings'
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react'
-import { Settings, Check, Volume2, Palette, Bot, Globe, Cloud, HardDrive, Info, Subtitles } from 'lucide-react'
+import { Settings, Check, Volume2, Palette, Bot, Globe, Cloud, HardDrive, Info } from 'lucide-react'
 import { Button } from './ui'
 import { useUIStore } from '../stores/uiStore'
 import { useSettingsStore } from '../stores/settingsStore'
@@ -21,7 +22,6 @@ import { OpenApiPanel } from './settings/OpenApiPanel'
 import { CloudBackupPanel } from './settings/CloudBackupPanel'
 import { DataManagementPanel } from './settings/DataManagementPanel'
 import { AboutPanel } from './settings/AboutPanel'
-import { CaptionSettingsPanel } from './settings/CaptionSettingsPanel'
 import { ActionDialog } from './ActionDialog'
 import type { ASRProviderInfo, ProviderConfigData } from '../types'
 import { getMissingRequiredConfigLabels } from '../utils/providerConfig'
@@ -34,7 +34,7 @@ import {
 import { testProviderConfig } from '../utils/providerConfigTest'
 import { getDefaultSettings } from '../utils/storageShared'
 
-type SettingsGroup = 'provider' | 'fileStorage' | 'appearance' | 'caption' | 'aiPostProcess' | 'openApi' | 'cloudBackup' | 'dataManagement' | 'about'
+type SettingsGroup = 'provider' | 'fileStorage' | 'appearance' | 'aiPostProcess' | 'openApi' | 'cloudBackup' | 'dataManagement' | 'about'
 
 interface ApiKeyConfigProps {
   isOpen: boolean
@@ -47,7 +47,6 @@ const NAV_ITEMS: { id: SettingsGroup; icon: typeof Settings; labelKey: string }[
   { id: 'provider', icon: Volume2, labelKey: 'groupProvider' },
   { id: 'fileStorage', icon: Cloud, labelKey: '火山文件存储' },
   { id: 'appearance', icon: Palette, labelKey: 'groupAppearance' },
-  { id: 'caption', icon: Subtitles, labelKey: 'groupCaption' },
   { id: 'aiPostProcess', icon: Bot, labelKey: 'groupAi' },
   { id: 'openApi', icon: Globe, labelKey: 'groupOpenApi' },
   { id: 'cloudBackup', icon: Cloud, labelKey: 'groupCloudBackup' },
@@ -72,7 +71,7 @@ export function ApiKeyConfig({ isOpen, onClose, mode = 'modal', onViewChangelog 
 
   const [activeGroup, setActiveGroup] = useState<SettingsGroup>(useUIStore.getState().settingsSection)
 
-  const currentVendor = settings.currentVendor || 'soniox'
+  const currentVendor = settings.currentVendor || DEFAULT_ASR_VENDOR
   const currentProvider = availableProviders.find(p => p.id === currentVendor)
   const currentStoredConfig = settings.providerConfigs?.[currentVendor]
 
@@ -110,7 +109,7 @@ export function ApiKeyConfig({ isOpen, onClose, mode = 'modal', onViewChangelog 
     setRevealedFields({})
     setTestStatus('idle')
     setTestMessage('')
-    snapshotRef.current = { formState: newFormState, languageHints: newLanguageHints, aiPostProcessConfig: newAiConfig, currentVendor: settings.currentVendor || 'soniox' }
+    snapshotRef.current = { formState: newFormState, languageHints: newLanguageHints, aiPostProcessConfig: newAiConfig, currentVendor: settings.currentVendor || DEFAULT_ASR_VENDOR }
   }, [currentProvider, currentStoredConfig, settings])
 
   const isDirty = useMemo(() => {
@@ -119,7 +118,7 @@ export function ApiKeyConfig({ isOpen, onClose, mode = 'modal', onViewChangelog 
       JSON.stringify(formState) !== JSON.stringify(snap.formState) ||
       languageHints !== snap.languageHints ||
       JSON.stringify(aiPostProcessConfig) !== JSON.stringify(snap.aiPostProcessConfig) ||
-      (settings.currentVendor || 'soniox') !== snap.currentVendor
+      (settings.currentVendor || DEFAULT_ASR_VENDOR) !== snap.currentVendor
     )
   }, [formState, languageHints, aiPostProcessConfig, settings.currentVendor])
 
@@ -190,7 +189,6 @@ export function ApiKeyConfig({ isOpen, onClose, mode = 'modal', onViewChangelog 
 
   const getProviderConsoleUrl = (provider: ASRProviderInfo | undefined): string => {
     switch (provider?.id) {
-      case 'soniox': return 'https://console.soniox.com'
       case 'volc': return 'https://console.volcengine.com/speech/app'
       case 'local_openai': return 'https://platform.openai.com/docs/api-reference/audio'
       default: return provider?.website || '#'
@@ -235,13 +233,7 @@ export function ApiKeyConfig({ isOpen, onClose, mode = 'modal', onViewChangelog 
     }
     try { await updateProviderConfig(currentVendor, providerConfig) }
     catch (error) { setTestStatus('error'); setTestMessage((error as Error).message); return }
-    const shouldSyncLegacyApiKey = currentProvider?.requiredConfigKeys.includes('apiKey')
-    updateSettings({
-      apiKey: shouldSyncLegacyApiKey && typeof providerConfig.apiKey === 'string'
-        ? providerConfig.apiKey.trim()
-        : settings.apiKey,
-      languageHints: normalizedHints,
-    })
+    updateSettings({ languageHints: normalizedHints })
     try { await updateAiPostProcessConfig(aiPostProcessConfig) }
     catch (error) { setTestStatus('error'); setTestMessage((error as Error).message); return }
     onClose()
@@ -406,9 +398,6 @@ export function ApiKeyConfig({ isOpen, onClose, mode = 'modal', onViewChangelog 
               />
             )}
 
-            {activeGroup === 'caption' && (
-              <CaptionSettingsPanel t={t} />
-            )}
 
             {activeGroup === 'aiPostProcess' && (
               <AiPostProcessPanel

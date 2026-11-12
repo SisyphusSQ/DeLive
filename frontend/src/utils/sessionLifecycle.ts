@@ -43,7 +43,6 @@ export function buildRuntimeStateFromSession(session: TranscriptSession): Transc
   const restoredTranscript = session.transcript
     || restoredTokens.map((token) => token.text).join('')
     || ''
-  const restoredTranslatedTranscript = session.translatedTranscript?.text || ''
 
   return {
     ...createEmptyTranscriptRuntimeState(),
@@ -52,9 +51,6 @@ export function buildRuntimeStateFromSession(session: TranscriptSession): Transc
     finalTranscript: restoredTranscript,
     nonFinalTranscript: '',
     currentTranscript: restoredTranscript,
-    finalTranslatedTranscript: restoredTranslatedTranscript,
-    nonFinalTranslatedTranscript: '',
-    currentTranslatedTranscript: restoredTranslatedTranscript,
     currentSegments: session.segments ?? buildSegmentsFromTokens(restoredTokens),
     currentSpeakers: session.speakers ?? buildSpeakersFromTokens(restoredTokens),
     currentPostProcess: session.postProcess,

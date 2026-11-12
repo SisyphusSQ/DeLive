@@ -3,9 +3,6 @@ import type { AiConnection } from '../../../shared/ai'
 // 重新导出 ASR 相关类型
 export * from './asr'
 
-// 兼容旧代码：保留 Soniox 类型别名
-export type { SonioxToken, SonioxResponse, SonioxConfig } from './asr/vendors/soniox'
-
 // 主题类型
 export interface Topic {
   id: string
@@ -56,19 +53,11 @@ export interface TranscriptSegment {
   id?: string
   recognitionId?: string
   text: string
-  translatedText?: string
   startMs?: number
   endMs?: number
   speakerId?: string
   language?: string
   isFinal?: boolean
-}
-
-export interface TranscriptTranslationData {
-  text: string
-  targetLanguage?: string
-  mode?: 'inline' | 'dual-line' | 'output-only'
-  updatedAt?: number
 }
 
 export interface TranscriptChapter {
@@ -160,20 +149,6 @@ export interface TranscriptSourceMeta {
 }
 
 export type TranscriptSessionStatus = 'recording' | 'interrupted' | 'completed'
-export type CaptionDisplayMode = 'source' | 'translated' | 'dual'
-
-// 字幕样式
-export interface CaptionStyle {
-  fontSize: number
-  fontFamily: string
-  textColor: string
-  backgroundColor: string
-  textShadow: boolean
-  maxLines: number
-  width: number
-  displayMode?: CaptionDisplayMode
-}
-
 // 转录会话类型
 export interface TranscriptSession {
   images?: import('../../../shared/sessionImages').SessionImage[]
@@ -189,7 +164,6 @@ export interface TranscriptSession {
   createdAt: number // 时间戳
   updatedAt: number
   transcript: string
-  translatedTranscript?: TranscriptTranslationData
   duration?: number // 毫秒
   topicId?: string // 归属的主题ID
   tagIds?: string[] // 关联的标签ID列表
@@ -279,8 +253,6 @@ export interface CloudBackupFileInfo {
 
 // 应用设置（支持多提供商）
 export interface AppSettings {
-  // 兼容旧版：保留单一 API Key（用于 Soniox）
-  apiKey: string
   languageHints: string[]
   // 新增：当前选择的提供商
   currentVendor?: string
@@ -288,8 +260,6 @@ export interface AppSettings {
   providerConfigs?: Record<string, ProviderConfigData>
   // 自动更新设置
   autoCheckUpdate?: boolean
-  // 字幕样式
-  captionStyle?: CaptionStyle
   // 配色主题
   colorTheme?: string
   // AI 后处理

@@ -2,7 +2,6 @@ import { portableSettings } from '../../../shared/backup'
 import type {
   AiPostProcessConfig,
   AppSettings,
-  CaptionStyle,
   ProviderConfigData,
   Tag,
   Topic,
@@ -117,24 +116,6 @@ function normalizeProviderConfigs(value: unknown): Record<string, ProviderConfig
   )
 }
 
-function normalizeCaptionStyle(
-  value: unknown,
-  fallback: CaptionStyle | undefined,
-): CaptionStyle | undefined {
-  if (!fallback) {
-    return undefined
-  }
-
-  if (!isRecord(value)) {
-    return fallback
-  }
-
-  return {
-    ...fallback,
-    ...(value as Partial<CaptionStyle>),
-  }
-}
-
 function normalizeAiPostProcessConfig(value: unknown): AiPostProcessConfig | undefined {
   if (!isRecord(value)) {
     return undefined
@@ -172,14 +153,12 @@ function normalizeSettings(value: unknown): AppSettings {
 
   return {
     ...defaults,
-    apiKey: typeof record.apiKey === 'string' ? record.apiKey : defaults.apiKey,
     languageHints: Array.isArray(record.languageHints)
       ? normalizeStringArray(record.languageHints)
       : defaults.languageHints,
     currentVendor: typeof record.currentVendor === 'string' ? record.currentVendor : undefined,
     providerConfigs: normalizeProviderConfigs(record.providerConfigs),
     autoCheckUpdate: typeof record.autoCheckUpdate === 'boolean' ? record.autoCheckUpdate : undefined,
-    captionStyle: normalizeCaptionStyle(record.captionStyle, defaults.captionStyle),
     colorTheme: typeof record.colorTheme === 'string' ? record.colorTheme : undefined,
     aiPostProcess: {
       ...defaults.aiPostProcess,

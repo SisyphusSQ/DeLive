@@ -1,9 +1,6 @@
 /// <reference types="vite/client" />
 
 import type {
-  CaptionBounds as SharedCaptionBounds,
-  CaptionStatus as SharedCaptionStatus,
-  CaptionStyle as SharedCaptionStyle,
   DesktopSource as SharedDesktopSource,
   DownloadProgress as SharedDownloadProgress,
   ElectronAPI as SharedElectronAPI,
@@ -26,9 +23,6 @@ declare global {
   type LocalRuntimeStatus = SharedLocalRuntimeStatus
   type LocalRuntimeLaunchOptions = SharedLocalRuntimeLaunchOptions
   type LocalRuntimeSnapshot = SharedLocalRuntimeSnapshot
-  type CaptionStyle = SharedCaptionStyle
-  type CaptionStatus = SharedCaptionStatus
-  type CaptionBounds = SharedCaptionBounds
 
   type ElectronAPI = SharedElectronAPI
 

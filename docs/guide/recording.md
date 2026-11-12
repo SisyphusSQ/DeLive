@@ -6,7 +6,7 @@
 2. Fill in credentials (see [API Key Guide](./api-keys)), then run **Test Config**.
 3. Click **Start Recording** in the Live view.
 4. Pick a screen or window — make sure **audio sharing** is enabled.
-5. Watch partial and final text update in the main window and the optional floating caption overlay.
+5. Watch partial and final text update in the main window.
 6. Click **Stop Recording**. The session is saved and available in History.
 
 ![Live Transcription](/images/screenshot-live.png)
@@ -17,8 +17,8 @@ DeLive captures **system audio** via `getDisplayMedia` with loopback audio. The 
 
 | Audio Mode | Format | Used By |
 |-----------|--------|---------|
-| `MediaRecorder` | WebM/Opus chunks | Soniox, Local OpenAI-compatible |
-| `AudioWorklet` PCM16 | 16 kHz mono raw PCM | Volcengine, Groq, SiliconFlow, whisper.cpp |
+| `MediaRecorder` | WebM/Opus chunks | Local OpenAI-compatible, FunASR / SenseVoice |
+| `AudioWorklet` PCM16 | 16 kHz mono raw PCM | Volcengine, whisper.cpp |
 
 ::: info
 You must select a screen or window to share. DeLive captures the audio from whatever source you choose — browser tabs, meeting apps, media players, or any other playback source.
@@ -44,7 +44,6 @@ idle → starting → recording → stopping → completed
 
 If your audio device changes during recording (e.g. headphones plugged in), DeLive handles it based on the provider's `captureRestartStrategy`:
 
-- **`reconnect-session`** (Soniox) — disconnects the provider and reconnects with a fresh session
 - **`reuse-session`** (all others) — restarts only the capture pipeline, keeping the provider connection alive
 
 ## Keyboard Shortcut

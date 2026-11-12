@@ -16,7 +16,10 @@ S3TemporaryAudioStore.prototype.signedUrl=async()=> 'https://fixture.invalid/syn
 S3TemporaryAudioStore.prototype.remove=async()=>{removed++}
 VolcFileService.prototype.submit=async()=>{submits++;if(submits===1)throw new Error('lost synthetic response');return {code:'20000000'}}
 VolcFileService.prototype.query=async(id)=>{queries.push(id);return {code:'20000000',raw:{audio_info:{duration:1000},result:{text:'独立会后稿',utterances:[{text:'独立会后稿',start_time:100,end_time:800,additions:{speaker:'1'}}]}}}}
-for(const [name,value]of Object.entries({'get-app-version':'2.3.0-beta.2','window-is-maximized':false,'get-auto-launch':false,'get-proxy-port':0,'lang:change':null,'caption-update-style':null,'caption-clear':null,'caption-get-status':{visible:false},'caption-update-text':null,'check-for-updates':null}))ipcMain.handle(name,()=>value)
+ipcMain.handle('complete-backup:pendingRestore', () => null)
+ipcMain.handle('session-images:cleanup', () => undefined)
+ipcMain.handle('ensure-recording-permissions', () => null)
+for(const [name,value]of Object.entries({'get-app-version':'2.3.0-beta.2','window-is-maximized':false,'get-auto-launch':false,'get-proxy-port':0,'lang:change':null,    'check-for-updates':null}))ipcMain.handle(name,()=>value)
 const delay=ms=>new Promise(r=>setTimeout(r,ms))
 let win
 async function main(){
@@ -69,33 +72,33 @@ async function main(){
  assert(originalAudio.blocks.length>=2);assert(originalAudio.blocks.every(b=>b.tracks.includes('system')&&b.tracks.includes('microphone')&&b.tracks.includes('mix')))
  async function openFile(){
   await js("document.querySelector('aside .lucide-file-audio').closest('button').click()");await delay(200)
-  await click('Soniox')
-  await click('火山','[role=dialog] button')
   assert(await js("!!document.querySelector('[aria-label=标准文件转写任务]')"))
  }
  await openFile()
- await click('私有临时存储配置')
+ await click('存储设置')
  const entries={'HTTPS endpoint':'https://fixture.invalid','区域':'fixture','私有桶':'fixture','Access Key ID':'synthetic-s3-access','Secret Access Key':'synthetic-s3-secret'}
  for(const[label,value]of Object.entries(entries))await js(`(()=>{const el=[...document.querySelectorAll('label')].find(e=>e.textContent.trim()===${JSON.stringify(label)})?.querySelector('input');if(!el)throw new Error('input missing');Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set.call(el,${JSON.stringify(value)});el.dispatchEvent(new Event('input',{bubbles:true}))})()`)
  await click('加密保存配置')
  assert(await js("document.body.textContent.includes('已配置')"))
  const enc=fs.readFileSync(path.join(profile,'file-transcription-config.enc'))
  assert(!enc.includes('synthetic-s3-secret'))
- await click('私有临时存储配置')
- await js(`var s=document.querySelector('[aria-label=选择会议原音]');s.value=${JSON.stringify(meetingId)};s.dispatchEvent(new Event('change',{bubbles:true}))`)
- await click('提交会后转写')
+ await click('返回文件转写')
+ await js("document.querySelector('[aria-label=选择会议原音]').click()")
+ await click(captured.title,'[role=option]')
+ await click('转写并校正')
+ await click('确认提交（可能计费）')
  await delay(2300)
- assert(await js("document.body.textContent.includes('提交结果未知：先查询')"))
+ assert(await js("document.body.textContent.includes('提交结果未知')"))
  const first=(await js('electronAPI.fileTasks.list()'))[0]
  assert.equal(first.status,'submission-unknown');assert.equal(submits,1);assert.equal(removed,0)
  await win.reload();await delay(700);await openFile()
  await click('查询 / 继续查询')
  await delay(500)
  assert.equal(submits,1);assert.deepEqual(queries,[first.taskId]);assert.equal(removed,1)
- assert(await js("document.body.textContent.includes('已清理确认') && document.body.textContent.includes('会后稿预览')"))
+ assert(await js("document.body.textContent.includes('已清理确认') && document.body.textContent.includes('会后稿已保存')"))
  const saved=(await js(readSessions))[0]
- assert.equal(saved.versions.length,2);assert.equal(saved.transcript,'实时第一句实时第二句未知片段')
- assert.equal(saved.versions[1].kind,'post-meeting');assert.equal(saved.versions[1].speakerMapping,undefined)
+ assert(saved.versions.some(version=>version.kind==='post-meeting'));assert.equal(saved.transcript,'实时第一句实时第二句未知片段')
+ assert.equal(saved.versions.find(version=>version.kind==='post-meeting').speakerMapping,undefined)
  await js("document.querySelector('[aria-label=标准文件转写任务]').scrollIntoView({block:'center'})")
  win.showInactive();await delay(100)
  fs.writeFileSync(path.join(root,'tmp/evidence/685-file-ui.png'),(await win.webContents.capturePage()).toPNG())
@@ -142,8 +145,10 @@ async function main(){
  assert(await js("document.querySelector('[aria-label=对照稿内容]').textContent.includes('独立会后稿')"))
  win.showInactive();fs.writeFileSync(path.join(root,'tmp/evidence/685-review-ui.png'),(await win.webContents.capturePage()).toPNG())
  await openFile()
- await js(`var s=document.querySelector('[aria-label=选择会议原音]');s.value=${JSON.stringify(meetingId)};s.dispatchEvent(new Event('change',{bubbles:true}))`)
- await click('提交会后转写');await delay(2200);await click('查询 / 继续查询');await delay(400)
+ await js("document.querySelector('[aria-label=选择会议原音]').click()")
+ await click(captured.title,'[role=option]')
+ await click('重新转写原音')
+ await click('确认提交（可能计费）');await delay(2200);await click('查询 / 继续查询');await delay(400)
  const afterArrival=(await js(readSessions)).find(s=>s.id===meetingId)
  assert.equal(afterArrival.selectedVersionId,editId);assert.equal(afterArrival.versions.find(v=>v.id===editId).segments[0].text,'人工校对第一句')
  const tasks=await js('electronAPI.fileTasks.list()'),latest=tasks.find(j=>j.id!==first.id)

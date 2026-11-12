@@ -6,7 +6,7 @@ import tseslint from 'typescript-eslint'
 
 export default tseslint.config(
   {
-    ignores: ['dist', 'node_modules', 'tsconfig.tsbuildinfo'],
+    ignores: ['dist', 'storybook-static', 'node_modules', 'tsconfig.tsbuildinfo'],
   },
   {
     files: ['src/**/*.{ts,tsx}'],

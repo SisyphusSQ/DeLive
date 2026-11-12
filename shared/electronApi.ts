@@ -38,38 +38,6 @@ export interface LocalRuntimeSnapshot {
   message?: string
 }
 
-export interface CaptionStyle {
-  fontSize: number
-  fontFamily: string
-  textColor: string
-  backgroundColor: string
-  textShadow: boolean
-  maxLines: number
-  width: number
-  displayMode?: 'source' | 'translated' | 'dual'
-}
-
-export interface CaptionStatus {
-  language?: 'zh' | 'en' | 'ko'
-  enabled: boolean
-  draggable: boolean
-  style: CaptionStyle
-  stableText: string
-  activeText: string
-  translatedStableText: string
-  translatedActiveText: string
-  translatedText: string
-  text: string
-  isFinal: boolean
-}
-
-export interface CaptionBounds {
-  x: number
-  y: number
-  width: number
-  height: number
-}
-
 export interface FilePickerOptions {
   title?: string
   filters?: Array<{
@@ -99,16 +67,6 @@ export interface UpdateCheckResult {
 export interface DownloadUpdateResult {
   success?: boolean
   error?: string
-}
-
-export interface CaptionTextUpdatePayload {
-  stableText: string
-  activeText: string
-  translatedStableText: string
-  translatedActiveText: string
-  text: string
-  translatedText: string
-  isFinal: boolean
 }
 
 export interface DiagnosticsExportResult {
@@ -154,10 +112,6 @@ export interface SessionDetail {
   tagIds?: string[]
   providerId?: string
   transcript: string
-  translatedTranscript?: {
-    text: string
-    targetLanguage?: string
-  }
   tokens?: Array<{
     text: string
     isFinal?: boolean
@@ -172,7 +126,6 @@ export interface SessionDetail {
   }>
   segments?: Array<{
     text: string
-    translatedText?: string
     startMs?: number
     endMs?: number
     speakerId?: string
@@ -299,28 +252,6 @@ export interface ElectronAPI {
   onDownloadProgress: (callback: (progress: DownloadProgress) => void) => () => void
   onUpdateDownloaded: (callback: (info: { version: string }) => void) => () => void
   onUpdateError: (callback: (error: string) => void) => () => void
-  captionToggle: (enable?: boolean, source?: string) => Promise<boolean>
-  captionGetStatus: () => Promise<CaptionStatus>
-  captionUpdateText: (
-    stableText: string,
-    activeText: string,
-    isFinal: boolean,
-    translatedStableText?: string,
-    translatedActiveText?: string,
-  ) => Promise<void>
-  captionUpdateStyle: (style: Partial<CaptionStyle>) => Promise<CaptionStyle>
-  captionToggleDraggable: (draggable?: boolean) => Promise<boolean>
-  captionSetInteractive: (interactive: boolean) => Promise<boolean>
-  captionGetBounds: () => Promise<CaptionBounds | null>
-  captionSetBounds: (bounds: Partial<CaptionBounds>) => Promise<boolean>
-  captionResetPosition: () => Promise<boolean>
-  onCaptionStatusChanged: (callback: (enabled: boolean) => void) => () => void
-  onCaptionTextUpdate: (callback: (data: CaptionTextUpdatePayload) => void) => () => void
-  onCaptionStyleUpdate: (callback: (style: CaptionStyle) => void) => () => void
-  onCaptionDraggableChanged: (callback: (draggable: boolean) => void) => () => void
-  onCaptionInteractiveChanged: (callback: (interactive: boolean) => void) => () => void
-  captionOpenSettings: () => Promise<boolean>
-  onOpenCaptionSettings: (callback: () => void) => () => void
   exportDiagnostics: (payload: DiagnosticsExportPayload) => Promise<DiagnosticsExportResult>
   safeStorageSet: (key: string, value: string) => Promise<boolean>
   safeStorageGet: (key: string) => Promise<string | null>

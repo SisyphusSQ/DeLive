@@ -1,3 +1,4 @@
+import { DEFAULT_ASR_VENDOR } from '../types/asr/common'
 import { FileTaskPanel } from './FileTaskPanel'
 import { useCallback, useMemo, useState, useEffect } from 'react'
 import { FileAudio, ChevronDown, Check, Cloud, HardDrive, X } from 'lucide-react'
@@ -30,10 +31,7 @@ export function FileTranscriptionView() {
   const [selectedProviderId, setSelectedProviderId] = useState<string>(() => {
     const saved = localStorage.getItem('delive_file_provider')
     if (fileProviders.some(p=>p.id===saved)) return saved!
-    const configured = fileProviders.find(p=>isProviderConfigured(p,buildProviderConnectConfig(p,settings.providerConfigs?.[p.id],settings)))
-    if (configured) return configured.id
-    if (fileProviders.length > 0) return fileProviders[0].id
-    return 'soniox'
+    return DEFAULT_ASR_VENDOR
   })
   const [nativeError, setNativeError] = useState('')
   const [importing, setImporting] = useState(false)
@@ -42,8 +40,8 @@ export function FileTranscriptionView() {
   const selectedProvider = fileProviders.find((p) => p.id === selectedProviderId) ?? fileProviders[0]
   const providerConfig = useSettingsStore((s) => s.getProviderConfig(selectedProviderId))
   const normalizedProviderConfig = useMemo(
-    () => buildProviderConnectConfig(selectedProvider, providerConfig, settings),
-    [selectedProvider, providerConfig, settings],
+    () => buildProviderConnectConfig(providerConfig, settings),
+    [providerConfig, settings],
   )
   const hasApiKey = isProviderConfigured(selectedProvider, normalizedProviderConfig)
 
@@ -76,9 +74,6 @@ export function FileTranscriptionView() {
     const config: FileTranscriptionConfig = {
       provider: selectedProviderId as FileTranscriptionConfig['provider'],
       languageHints: languageHints?.length ? languageHints : undefined,
-      enableSpeakerDiarization: Boolean(providerConfig?.enableSpeakerDiarization),
-      translationEnabled: Boolean(providerConfig?.translationEnabled),
-      translationTargetLanguage: (providerConfig?.translationTargetLanguage as string) || 'en',
     }
 
     setNativeError(''); setImporting(true)
@@ -108,7 +103,7 @@ export function FileTranscriptionView() {
 
   const renderProviderItem = (provider: ASRProviderInfo) => {
     const isSelected = provider.id === selectedProviderId
-    const config = buildProviderConnectConfig(provider, settings.providerConfigs?.[provider.id], settings)
+    const config = buildProviderConnectConfig(settings.providerConfigs?.[provider.id], settings)
     const hasConfig = isProviderConfigured(provider, config)
     const badge = getExecutionModeBadge(provider)
 
@@ -270,7 +265,7 @@ export function FileTranscriptionView() {
           </div>
           <div className="flex-1 text-left">
             <div className="font-semibold text-sm">
-              {selectedProvider ? getProviderName(selectedProvider, t) : 'Soniox'}
+              {selectedProvider ? getProviderName(selectedProvider, t) : selectedProviderId}
             </div>
             <div className="text-xs text-muted-foreground">
               {selectedProviderId==='volc'?'标准文件转写 2.0 · 支持已有会议原音':selectedProvider?.type==='local'?'本机文件转写':'云端文件转写'}
@@ -280,7 +275,7 @@ export function FileTranscriptionView() {
         </button>
 
         {/* API Key Warning */}
-        {!hasApiKey && (
+        {selectedProviderId !== DEFAULT_ASR_VENDOR && !hasApiKey && (
           <div className="rounded-lg border border-amber-200 bg-amber-50 dark:border-amber-900 dark:bg-amber-950/30 p-4">
             <p className="text-sm text-amber-800 dark:text-amber-200">
               {t.file?.apiKeyWarning?.(selectedProvider ? getProviderName(selectedProvider, t) : selectedProviderId) || 'Please configure API Key'}
@@ -288,19 +283,10 @@ export function FileTranscriptionView() {
           </div>
         )}
 
-        {/* Cloudflare file-size warning */}
-        {selectedProviderId === 'cloudflare' && hasApiKey && (
-          <div className="rounded-lg border border-blue-200 bg-blue-50 dark:border-blue-900 dark:bg-blue-950/30 p-4">
-            <p className="text-sm text-blue-800 dark:text-blue-200">
-              {t.file?.cloudflareSizeWarning || 'Cloudflare Workers AI limits file size to ~2 MB.'}
-            </p>
-          </div>
-        )}
-
         {nativeError && <p role="alert" className="text-red-600">{nativeError}</p>}
         {importing && <p>正在导入本地音频，请等待完成；尚未创建云端任务时不会计费。</p>}
         {/* Drop Zone */}
-        {selectedProviderId === 'volc' ? <FileTaskPanel recognitionReady={hasApiKey}><FileDropZone onFilesSelected={handleFilesSelected} disabled={!hasApiKey || isProcessing || importing}/></FileTaskPanel> : <FileDropZone onFilesSelected={handleFilesSelected} disabled={!hasApiKey || isProcessing || importing}/>}
+        {selectedProviderId === 'volc' ? <FileTaskPanel><FileDropZone onFilesSelected={handleFilesSelected} disabled={!hasApiKey || isProcessing || importing}/></FileTaskPanel> : <FileDropZone onFilesSelected={handleFilesSelected} disabled={!hasApiKey || isProcessing || importing}/>}
 
         {/* Job Progress */}
         <FileTranscriptionProgress

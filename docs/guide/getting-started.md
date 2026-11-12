@@ -39,17 +39,7 @@ Windows may show a SmartScreen warning on first launch. Click **More info** → 
 
 | Provider | What You Need |
 |----------|--------------|
-| Soniox | API key from [soniox.com](https://soniox.com) |
-| Volcengine | APP ID and Access Token |
-| Groq | API key from [groq.com](https://groq.com) |
-| SiliconFlow | API key from [siliconflow.cn](https://siliconflow.cn) |
-| Deepgram | API key from [deepgram.com](https://deepgram.com) |
-| AssemblyAI | API key from [assemblyai.com](https://assemblyai.com) |
-| ElevenLabs | API key from [elevenlabs.io](https://elevenlabs.io) |
-| Gladia | API key from [gladia.io](https://gladia.io) |
-| Mistral AI | API key from [mistral.ai](https://mistral.ai) |
-| Cloudflare Workers AI | API token + Account ID from [cloudflare.com](https://cloudflare.com) |
-| 60db | API key from [60db.ai](https://60db.ai) |
+| Volcengine | API Key or APP ID + Access Token (file transcription also needs private object storage) |
 
 ### Local Providers
 

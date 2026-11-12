@@ -42,14 +42,6 @@ describe('review versions',()=>{
   expect(md).toContain('# Meeting');expect(srt).toContain('00:00:00,100 --> 00:00:00,800\n[小甲] 人工稿')
   expect(srt).toContain('[未知说话人] ?');expect(txt+md+srt).not.toMatch(/SECRET|signature|live:0/)
  })
- it('preserves translation-only legacy sessions as an independently readable/exportable version',()=>{
-  const session=normalizeTranscriptSession({id:'translated',transcript:'',translatedTranscript:{text:'旧译文',targetLanguage:'zh',mode:'output-only'}})
-  const version=selectedReviewVersion(session)
-  expect(version.text).toBe('旧译文');expect(version.editNote).toContain('历史译文')
-  expect(reviewExport(session,'txt')).toContain('旧译文');expect(canExportTimed(version)).toBe(false)
-  const saved=normalizeTranscriptSession({...session,versions:reviewVersions(session),selectedVersionId:version.id})
-  expect(reviewVersions(saved)).toHaveLength(2)
- })
  it('keeps text-only history editable and refuses fabricated subtitle timing',()=>{
   const session=normalizeTranscriptSession({id:'legacy',title:'Legacy',transcript:'旧文字',correction:{status:'done',mode:'quick',correctedText:'旧校对'}})
   expect(reviewVersions(session)).toHaveLength(2);expect(reviewExport(session,'txt')).toContain('旧文字')

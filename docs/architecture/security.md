@@ -19,7 +19,7 @@ Sensitive IPC handlers verify the caller using `assertTrustedSender`:
 
 1. `registerTrustedWindow(provider)` registers a window getter
 2. On each sensitive IPC call, `isTrustedSender(event)` checks `event.sender.id` against registered windows
-3. Only the **main window** and **caption window** are trusted
+3. Only the main window is trusted
 
 **Protected operations:** safeStorage read/write, diagnostics export, auto-launch toggle, file picker, path existence check, update download/install, local runtime management.
 

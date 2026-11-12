@@ -48,7 +48,7 @@ cd frontend && npx vitest
 | Provider 基类 | `providers/__tests__/base.test.ts` | 状态机、事件发射器 |
 | 窗口批处理 Provider | `providers/__tests__/windowedBatch.test.ts` | 滚动缓冲区、调度、稳定化 |
 | ASR 类型 | `types/asr/common.test.ts` | 类型守卫、能力检查 |
-| 字幕导出 | `subtitleExport.test.ts` | SRT/VTT 生成 |
+| 原文字幕导出 | `reviewVersions.test.ts` | SRT/VTT 与逐句时间 |
 | 字幕换行 | `captionLineWrap.test.ts` | 文本换行逻辑 |
 | AI 后处理 | `aiPostProcess.test.ts` | 响应解析 |
 | 滚动缓冲区 | `rollingAudioBuffer.test.ts` | 缓冲区管理 |

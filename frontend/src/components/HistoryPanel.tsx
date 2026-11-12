@@ -58,11 +58,6 @@ export function HistoryPanel({
       return summary
     }
 
-    const translated = session.translatedTranscript?.text?.trim()
-    if (translated) {
-      return translated
-    }
-
     return session.transcript.trim()
   }
 
@@ -112,7 +107,6 @@ export function HistoryPanel({
           session.date,
           session.time,
           session.transcript,
-          session.translatedTranscript?.text || '',
           session.providerId || '',
           ...tagNames,
           ...postProcessSearch,

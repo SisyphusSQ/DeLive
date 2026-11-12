@@ -12,7 +12,7 @@ describe('sessionLifecycle', () => {
 
     const draft = createDraftSession({
       title: 'Meeting Notes',
-      providerId: 'soniox',
+      providerId: 'volc',
       sourceMeta: {
         captureMode: 'system-audio',
         platform: 'win32',
@@ -22,7 +22,7 @@ describe('sessionLifecycle', () => {
 
     expect(draft).toEqual(expect.objectContaining({
       title: 'Meeting Notes',
-      providerId: 'soniox',
+      providerId: 'volc',
       transcript: '',
       tagIds: [],
       status: 'recording',
@@ -51,14 +51,10 @@ describe('sessionLifecycle', () => {
         { text: 'Hello ', isFinal: true, speaker: 'speaker_1' },
         { text: 'world', isFinal: true, speaker: 'speaker_1' },
       ],
-      translatedTranscript: {
-        text: '你好世界',
-      },
     })
 
     expect(runtimeState.finalTranscript).toBe('Hello world')
     expect(runtimeState.currentTranscript).toBe('Hello world')
-    expect(runtimeState.finalTranslatedTranscript).toBe('你好世界')
     expect(runtimeState.currentSpeakers).toHaveLength(1)
     expect(runtimeState.currentSegments).toHaveLength(1)
   })

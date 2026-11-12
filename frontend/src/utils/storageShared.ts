@@ -1,4 +1,5 @@
-import type { AppSettings, CaptionStyle } from '../types'
+import { DEFAULT_ASR_VENDOR } from '../types/asr/common'
+import type { AppSettings } from '../types'
 
 export const STORAGE_KEYS = {
   SESSIONS: 'desktoplive_sessions',
@@ -18,17 +19,6 @@ export const META_KEY_SESSIONS_MIGRATED = 'sessions_migrated'
 export const META_KEY_SETTINGS_MIGRATED = 'settings_tags_migrated'
 export const SETTINGS_SINGLETON_KEY = 'app_settings'
 export const TAGS_SINGLETON_KEY = 'all_tags'
-
-export const DEFAULT_CAPTION_STYLE: CaptionStyle = {
-  fontSize: 24,
-  fontFamily: '-apple-system, BlinkMacSystemFont, "Microsoft YaHei", "PingFang SC", "Noto Sans CJK SC", "Hiragino Sans GB", "WenQuanYi Micro Hei", sans-serif',
-  textColor: '#ffffff',
-  backgroundColor: 'rgba(0, 0, 0, 0.7)',
-  textShadow: true,
-  maxLines: 2,
-  width: 800,
-  displayMode: 'source',
-}
 
 let dbPromise: Promise<IDBDatabase> | null = null
 
@@ -151,9 +141,8 @@ export async function setMetaValue<T>(key: string, value: T): Promise<void> {
 
 export function getDefaultSettings(): AppSettings {
   return {
-    apiKey: '',
+    currentVendor: DEFAULT_ASR_VENDOR,
     languageHints: ['zh', 'en'],
-    captionStyle: DEFAULT_CAPTION_STYLE,
     aiPostProcess: {
       enabled: false,
       provider: 'openai-compatible',

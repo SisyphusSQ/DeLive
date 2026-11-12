@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest'
 import { generateOpenApiToken } from '../../utils/openApiToken'
 
 describe('Settings panels – group navigation', () => {
-  const GROUPS = ['provider', 'appearance', 'caption', 'aiPostProcess', 'openApi', 'cloudBackup', 'dataManagement', 'about'] as const
+  const GROUPS = ['provider', 'fileStorage', 'appearance', 'aiPostProcess', 'openApi', 'cloudBackup', 'dataManagement', 'about'] as const
 
   it('has exactly 8 settings groups', () => {
     expect(GROUPS.length).toBe(8)
@@ -25,8 +25,8 @@ describe('Settings panels – group navigation', () => {
 describe('Settings panels – i18n keys', () => {
   const LABEL_KEYS = [
     'groupProvider',
+    'groupFileStorage',
     'groupAppearance',
-    'groupCaption',
     'groupAi',
     'groupOpenApi',
     'groupCloudBackup',
@@ -48,8 +48,8 @@ describe('Settings panels – i18n keys', () => {
 describe('Settings panels – nav item configuration', () => {
   const NAV_ITEMS = [
     { id: 'provider', labelKey: 'groupProvider' },
+    { id: 'fileStorage', labelKey: 'groupFileStorage' },
     { id: 'appearance', labelKey: 'groupAppearance' },
-    { id: 'caption', labelKey: 'groupCaption' },
     { id: 'aiPostProcess', labelKey: 'groupAi' },
     { id: 'openApi', labelKey: 'groupOpenApi' },
     { id: 'cloudBackup', labelKey: 'groupCloudBackup' },

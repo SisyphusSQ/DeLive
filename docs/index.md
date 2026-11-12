@@ -3,7 +3,7 @@ layout: home
 hero:
   name: DeLive
   text: Desktop Transcription Workspace
-  tagline: Capture system audio. Transcribe with fourteen ASR backends. Review with AI — correction, summaries, chat, mind maps. All local-first.
+  tagline: Capture system audio. Transcribe with four ASR backends. Review with AI — correction, summaries, chat, mind maps. All local-first.
   image:
     src: /logo.svg
     alt: DeLive
@@ -19,23 +19,20 @@ hero:
       link: /api/rest
 features:
   - icon: 🎙️
-    title: Fourteen ASR Backends, One UI
-    details: Soniox, Volcengine, ElevenLabs, Mistral AI, Gladia, Deepgram, AssemblyAI, 60db, Cloudflare Workers AI, SiliconFlow, Groq, local OpenAI-compatible, local FunASR / SenseVoice, and local whisper.cpp — three execution modes in one app.
+    title: Four ASR Backends, One UI
+    details: Volcengine Realtime 2.0 and Standard File Transcription 2.0, plus local OpenAI-compatible services, FunASR / SenseVoice, and whisper.cpp.
   - icon: 🧠
     title: AI Review Desk
     details: Full-page workspace with four tabs — Transcript (with AI side panel), Summary (overview, action items, keywords), multi-thread Chat with streaming output, and Markmap mind maps. AI Correction with smart text-source selection.
-  - icon: 💬
-    title: Floating Caption Overlay
-    details: Always-on-top, draggable subtitle window with source, translated, and dual-line bilingual modes. Fully customizable font, color, shadow, and background.
   - icon: 🔒
     title: Local-First & Secure
-    details: Sessions in IndexedDB, secrets in Electron safeStorage, context isolation, trusted-window IPC, CSP injection, and navigation guards. Your data never leaves your machine.
+    details: Sessions in IndexedDB, secrets in Electron safeStorage, context isolation, trusted-window IPC, CSP injection, and navigation guards. Sessions are stored locally. Cloud transcription and remote AI send the required input to the selected service.
   - icon: 🌐
     title: Open API & MCP Ecosystem
     details: Local REST API (8 endpoints), real-time WebSocket streaming, standalone MCP server for Claude Desktop and Cursor, Agent Skill definition, and Agent Skills for one-call transcription inside any agent.
   - icon: 📁
     title: File Transcription
-    details: Upload audio or video files and transcribe them with any of the fourteen providers, from cloud engines to fully local whisper.cpp and FunASR / SenseVoice. Speaker diarization, word-level timestamps, and language detection where the provider supports them.
+    details: Upload audio or video files and transcribe them with any of the four providers, from cloud engines to fully local whisper.cpp and FunASR / SenseVoice. Speaker diarization, word-level timestamps, and language detection where the provider supports them.
   - icon: 🎨
     title: Eight Themes, Light & Dark
     details: Violet, Cyan, Rose, Green, Amber, Pink, Slate, and Orange accent palettes — each with full light and dark mode. New persistent sidebar navigation and Command Palette (Ctrl+K).
@@ -217,10 +214,6 @@ features:
       <div class="caption">Live Transcription</div>
     </div>
     <div class="screenshot-card">
-      <img src="/images/screenshot-caption-overlay.png" alt="Caption Overlay" />
-      <div class="caption">Floating Caption Overlay</div>
-    </div>
-    <div class="screenshot-card">
       <img src="/images/screenshot-mcp-integration.png" alt="MCP Integration" />
       <div class="caption">MCP Integration</div>
     </div>
@@ -262,7 +255,7 @@ features:
     <div class="new-feature">
       <div class="icon">📁</div>
       <h3>File Transcription on Every Provider</h3>
-      <p>All fourteen providers can now transcribe uploaded audio or video, including fully local whisper.cpp (decoded to 16 kHz WAV and sent to <code>whisper-server</code>) and FunASR / SenseVoice. Providers no longer fall back to Soniox, and missing credentials show up as a failed job.</p>
+      <p>Volcengine handles file imports and saved recordings. The three local providers also support file transcription.</p>
     </div>
     <div class="new-feature">
       <div class="icon">🔊</div>
@@ -282,7 +275,7 @@ features:
     <div class="new-feature">
       <div class="icon">⬆️</div>
       <h3>Soniox V5</h3>
-      <p>Soniox integration upgraded from V4 to V5; the real-time model defaults to <code>stt-rt-v5</code>.</p>
+      <p>Volcengine handles file imports and saved recordings. The three local providers also support file transcription.</p>
     </div>
     <div class="new-feature">
       <div class="icon">⚡</div>

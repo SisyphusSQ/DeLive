@@ -5,14 +5,12 @@ DeLive/
 ├── electron/                    # Electron 主进程
 │   ├── main.ts                  # 应用入口、窗口创建、IPC 注册
 │   ├── mainWindow.ts            # 主窗口配置和安全
-│   ├── captionWindow.ts         # 悬浮字幕叠层
 │   ├── tray.ts                  # 系统托盘
 │   ├── shortcuts.ts             # 全局快捷键
 │   ├── desktopSource.ts         # 屏幕/窗口源选择器
 │   ├── autoUpdater.ts           # 自动更新生命周期
 │   ├── ipcSecurity.ts           # 可信窗口验证、CSP、路径白名单
 │   ├── appIpc.ts                # 应用生命周期 IPC 处理器
-│   ├── captionIpc.ts            # 字幕窗口 IPC
 │   ├── safeStorageIpc.ts        # 加密密钥存储
 │   ├── updaterIpc.ts            # 更新 IPC
 │   ├── diagnosticsIpc.ts        # 诊断导出

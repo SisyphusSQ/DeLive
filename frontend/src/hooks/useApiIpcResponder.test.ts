@@ -35,9 +35,6 @@ function toSessionDetail(session: TranscriptSession): SessionDetail {
     tagIds: session.tagIds,
     providerId: session.providerId,
     transcript: session.transcript ?? '',
-    translatedTranscript: session.translatedTranscript
-      ? { text: session.translatedTranscript.text, targetLanguage: session.translatedTranscript.targetLanguage }
-      : undefined,
     tokens: session.tokens?.map(t => ({
       text: t.text,
       isFinal: t.isFinal,
@@ -52,7 +49,6 @@ function toSessionDetail(session: TranscriptSession): SessionDetail {
     })),
     segments: session.segments?.map(s => ({
       text: s.text,
-      translatedText: s.translatedText,
       startMs: s.startMs,
       endMs: s.endMs,
       speakerId: s.speakerId,
@@ -161,22 +157,6 @@ describe('toSessionDetail', () => {
     const detail = toSessionDetail(session)
 
     expect(detail.transcript).toBe('Full meeting transcript here')
-  })
-
-  it('handles translated transcript', () => {
-    const session = makeSession({
-      translatedTranscript: { text: 'Translated text', targetLanguage: 'en' },
-    })
-    const detail = toSessionDetail(session)
-
-    expect(detail.translatedTranscript).toEqual({ text: 'Translated text', targetLanguage: 'en' })
-  })
-
-  it('handles missing translated transcript', () => {
-    const session = makeSession()
-    const detail = toSessionDetail(session)
-
-    expect(detail.translatedTranscript).toBeUndefined()
   })
 
   it('maps tokens with all fields', () => {

@@ -1,7 +1,7 @@
 import type { FileTask } from '../../../shared/fileTranscription'
 import { MAX_FILE_BYTES, validateFileLimits } from '../../../shared/volcFileContract'
 import { decodeFileToMonoWav } from './audioFileToWav'
-import { useSettingsStore } from '../stores/settingsStore'
+import { getVolcCredentialIssue, useSettingsStore } from '../stores/settingsStore'
 import { useSessionStore } from '../stores/sessionStore'
 import { sessionRepository } from './sessionRepository'
 import { createDraftSession } from './sessionLifecycle'
@@ -21,7 +21,16 @@ export function fileTaskApi() {
   if (!api) throw new Error('标准文件转写需要桌面客户端，以保存任务与管理私有音频副本')
   return api
 }
+async function checkFileTaskReady(): Promise<void> {
+  const credentialIssue = getVolcCredentialIssue(useSettingsStore.getState())
+  if (credentialIssue) throw new Error(credentialIssue)
+  if (!(await fileTaskApi().settings()).configured) {
+    throw new Error('请先配置会后转写的私有对象存储')
+  }
+}
+
 export async function startRecordingFileTask(sessionId: string, recordingId: string, reconcile = false): Promise<FileTask> {
+  await checkFileTaskReady()
   let baseId: string | undefined
   if (reconcile) {
     if (useReviewDraftStore.getState().drafts[sessionId]) throw new Error('请先保存或放弃当前校对草稿')
@@ -102,8 +111,7 @@ async function readDuration(file: File): Promise<number> {
   } finally { URL.revokeObjectURL(url) }
 }
 export async function importVolcFile(file: File): Promise<string> {
-  const api = fileTaskApi()
-  if (!(await api.settings()).configured) throw new Error('请先配置会后转写的私有对象存储')
+  await checkFileTaskReady()
   if (file.size >= MAX_FILE_BYTES) throw new Error('文件达到 512 MB 限制，未上传')
   const duration = await readDuration(file)
   validateFileLimits(44 + Math.ceil(duration * 16) * 2, duration)

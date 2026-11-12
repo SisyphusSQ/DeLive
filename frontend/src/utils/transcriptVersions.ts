@@ -15,7 +15,7 @@ export function addPostMeetingVersion(session: TranscriptSession, version: Trans
     return { ...session, versions }
   }
   const firstReadable = !!(version.text.trim() || version.segments.some(s => s.text.trim())) &&
-    !session.transcript.trim() && !session.correction?.correctedText?.trim() && !session.translatedTranscript?.text?.trim() &&
+    !session.transcript.trim() && !session.correction?.correctedText?.trim() &&
     !session.segments?.some(s => s.text.trim()) && !session.versions?.some(v =>
       v.kind === 'edited' || v.kind === 'reconciled' || v.text.trim() || v.segments.some(s => s.text.trim()))
   if (!versions.length && (session.transcript.trim() || session.segments?.some(s => s.text.trim()))) {
@@ -24,7 +24,7 @@ export function addPostMeetingVersion(session: TranscriptSession, version: Trans
       createdAt: session.createdAt, text: session.transcript, segments: structuredClone(session.segments ?? []),
       speakers: structuredClone(session.speakers ?? []),
     })
-  } else if (!versions.length && !firstReadable && (session.correction?.correctedText || session.translatedTranscript?.text)) {
+  } else if (!versions.length && !firstReadable && session.correction?.correctedText) {
     versions.push(...reviewVersions(session))
   }
   const previousReadable = versions.find(v => v.text.trim() || v.segments.some(s => s.text.trim()))

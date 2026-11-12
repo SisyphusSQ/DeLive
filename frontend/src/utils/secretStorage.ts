@@ -40,17 +40,6 @@ export async function migrateApiKeysToSafeStorage(source?: AppSettings): Promise
 
   let changed = false
 
-  if (settings.apiKey && settings.apiKey !== SAFE_STORAGE_PLACEHOLDER) {
-    const stored = await window.electronAPI.safeStorageSet(
-      safeStorageKeyFor('legacy_apiKey'),
-      settings.apiKey,
-    )
-    if (stored) {
-      settings.apiKey = SAFE_STORAGE_PLACEHOLDER
-      changed = true
-    }
-  }
-
   if (settings.providerConfigs) {
     for (const [vendorId, config] of Object.entries(settings.providerConfigs)) {
       if (
@@ -117,13 +106,6 @@ export async function resolveApiKeysFromSafeStorage(
   if (!window.electronAPI?.safeStorageGet) return settings
 
   const resolved = { ...settings }
-
-  if (resolved.apiKey === SAFE_STORAGE_PLACEHOLDER) {
-    const value = await window.electronAPI.safeStorageGet(safeStorageKeyFor('legacy_apiKey'))
-    if (value) {
-      resolved.apiKey = value
-    }
-  }
 
   if (resolved.providerConfigs) {
     resolved.providerConfigs = { ...resolved.providerConfigs }

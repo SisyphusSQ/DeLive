@@ -1,11 +1,6 @@
 import type { AppSettings, ProviderConfigData } from '../types'
 import type { ASRProviderInfo, ProviderConfig } from '../types/asr'
 
-interface LegacyProviderFallback {
-  apiKey?: string
-  languageHints?: string[]
-}
-
 function hasConfiguredValue(value: unknown): boolean {
   if (typeof value === 'string') {
     return value.trim().length > 0 && value !== '{{SAFE_STORAGE}}'
@@ -16,35 +11,21 @@ function hasConfiguredValue(value: unknown): boolean {
   return value !== undefined && value !== null
 }
 
-export function normalizeProviderConfig(
-  provider: ASRProviderInfo | undefined,
+export function buildProviderConnectConfig(
   providerConfig: ProviderConfigData | undefined,
-  fallback?: LegacyProviderFallback
-): ProviderConfigData {
-  const normalized: ProviderConfigData = { ...(providerConfig || {}) }
-  const requiresApiKey = provider?.requiredConfigKeys.includes('apiKey')
-
-  if (requiresApiKey && !hasConfiguredValue(normalized.apiKey) && hasConfiguredValue(fallback?.apiKey)) {
-    normalized.apiKey = fallback?.apiKey
+  settings: Pick<AppSettings, 'languageHints'>,
+): ProviderConfig {
+  return {
+    ...providerConfig,
+    languageHints: hasConfiguredValue(providerConfig?.languageHints)
+      ? providerConfig?.languageHints
+      : settings.languageHints,
   }
-
-  if (!hasConfiguredValue(normalized.languageHints) && fallback?.languageHints?.length) {
-    normalized.languageHints = fallback.languageHints
-  }
-
-  return normalized
 }
 
-export function buildProviderConnectConfig(
-  provider: ASRProviderInfo | undefined,
-  providerConfig: ProviderConfigData | undefined,
-  settings: Pick<AppSettings, 'apiKey' | 'languageHints'>
-): ProviderConfig {
-  const normalized = normalizeProviderConfig(provider, providerConfig, {
-    apiKey: settings.apiKey,
-    languageHints: settings.languageHints,
-  })
-  return { ...(normalized as ProviderConfig) }
+export function hasVolcCredentials(config: ProviderConfigData | undefined): boolean {
+  const hasCredential = (value: unknown) => typeof value === 'string' && hasConfiguredValue(value)
+  return hasCredential(config?.apiKey) || (hasCredential(config?.appKey) && hasCredential(config?.accessKey))
 }
 
 export function getMissingRequiredConfigKeys(
@@ -52,7 +33,7 @@ export function getMissingRequiredConfigKeys(
   providerConfig: ProviderConfigData | undefined
 ): string[] {
   if (!provider) return []
-  if (provider.id === 'volc') return hasConfiguredValue(providerConfig?.apiKey) || (hasConfiguredValue(providerConfig?.appKey) && hasConfiguredValue(providerConfig?.accessKey)) ? [] : ['apiKey']
+  if (provider.id === 'volc') return hasVolcCredentials(providerConfig) ? [] : ['apiKey']
   return provider.requiredConfigKeys.filter((key) => !hasConfiguredValue(providerConfig?.[key]))
 }
 
