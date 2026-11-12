@@ -1,3 +1,4 @@
+import { DEFAULT_ASR_VENDOR } from './types/asr/common'
 import { loadReviewDrafts, useReviewDraftStore } from './stores/reviewDraftStore'
 import { recoverBackupRestore, restoringBackup } from './services/completeBackup'
 import { startAutoBackup } from './services/autoBackup'
@@ -13,7 +14,6 @@ import { useTopicStore } from './stores/topicStore'
 import { useASR } from './hooks/useASR'
 import { useApiIpcResponder } from './hooks/useApiIpcResponder'
 import { useSidebarState } from './hooks/useSidebarState'
-import { useCaptionToggle } from './hooks/useCaptionToggle'
 import { buildProviderConnectConfig, isProviderConfigured } from './utils/providerConfig'
 import { getWhatsNewForVersion, getAllWhatsNew } from './utils/whatsNew'
 import { 
@@ -46,7 +46,6 @@ function App() {
   const { initTheme, t, currentView, setView, backToLive } = useUIStore()
   const { loadSettings, settings, availableProviders, credentialError } = useSettingsStore()
   const { collapsed: sidebarCollapsed, toggle: toggleSidebar } = useSidebarState()
-  const { enabled: captionEnabled, toggle: toggleCaption } = useCaptionToggle()
   const {
     loadSessions,
     recoverySession,
@@ -101,7 +100,7 @@ function App() {
   useApiIpcResponder()
 
   // ASR — lifted to App so global shortcut can reach it
-  const { startRecording, stopRecording, switchConfig, switchProvider, getMediaStream, getRecordingTime, reconnectTranscription } = useASR({
+  const { startRecording, stopRecording, switchProvider, getMediaStream, getRecordingTime, reconnectTranscription } = useASR({
     onError: handleError,
     onStarted: () => console.log('[App] Recording started'),
   })
@@ -128,7 +127,7 @@ function App() {
       await recoverBackupRestore()
       await initStorage()
       initTheme()
-      loadSettings()
+      await loadSettings()
       loadTags()
       loadTopics()
       await loadSessions()
@@ -157,16 +156,6 @@ function App() {
     const timer = setInterval(()=>void refreshFileTasks(), 2000)
     return ()=>clearInterval(timer)
   },[isInitialized,restoreBusy])
-
-  // 初始化完成后同步字幕样式到主进程，确保字幕窗口使用用户保存的样式
-  useEffect(() => {
-    if (!isInitialized) return
-    if (!window.electronAPI?.captionUpdateStyle) return
-    const saved = useSettingsStore.getState().settings.captionStyle
-    if (saved) {
-      void window.electronAPI.captionUpdateStyle(saved)
-    }
-  }, [isInitialized])
 
   // 版本更新后自动弹出 What's New
   useEffect(() => {
@@ -213,10 +202,10 @@ function App() {
   }, [])
 
   // 检查当前提供商是否已配置
-  const currentVendor = settings.currentVendor || 'soniox'
+  const currentVendor = settings.currentVendor || DEFAULT_ASR_VENDOR
   const currentProvider = availableProviders.find(p => p.id === currentVendor)
   const currentConfig = settings.providerConfigs?.[currentVendor]
-  const normalizedConfig = buildProviderConnectConfig(currentProvider, currentConfig, settings)
+  const normalizedConfig = buildProviderConnectConfig(currentConfig, settings)
   const hasApiKey = isProviderConfigured(currentProvider, normalizedConfig)
 
   // 只在初始化完成后检查一次是否需要弹出设置窗口
@@ -256,9 +245,6 @@ function App() {
         currentView={currentView}
         onNavigate={setView}
         recordingState={recordingState}
-        captionEnabled={captionEnabled}
-        onToggleCaption={toggleCaption}
-        onOpenCaptionSettings={() => { /* Phase 5: open caption settings panel */ }}
       />
 
       {/* Main content area */}
@@ -382,7 +368,7 @@ function App() {
 
               <div className="workspace-panel p-6 animate-reveal-up delay-2 space-y-4">
                 {recordingState === 'idle' && <TopicPicker />}
-                <RecordingControls onError={handleError} startRecording={startRecording} stopRecording={stopRecording} switchConfig={switchConfig} switchProvider={switchProvider} reconnectTranscription={reconnectTranscription} />
+                <RecordingControls startRecording={startRecording} stopRecording={stopRecording} switchProvider={switchProvider} reconnectTranscription={reconnectTranscription} />
                 <WaveformVisualizer
                   getStream={getMediaStream}
                   isActive={recordingState === 'recording'}

@@ -6,25 +6,23 @@ The Electron main process (`electron/main.ts`) initializes in this order:
 
 1. Install log interceptor (500-line ring buffer for diagnostics)
 2. Set platform-specific flags (macOS ScreenCaptureKit, Linux PulseAudio loopback)
-3. Create caption window controller
-4. Register trusted windows (main + caption)
-5. Create desktop source and local runtime controllers
-6. Request single-instance lock (quit if another instance is running)
-7. On `app.whenReady()`:
+3. Register the trusted main window
+4. Create desktop source and local runtime controllers
+5. Request single-instance lock (quit if another instance is running)
+6. On `app.whenReady()`:
    - Start HTTP server on port 23456 (Volcengine proxy)
    - Attach API server to the HTTP server
    - Create main window
    - Create system tray
    - Register global shortcuts
    - Set up auto-updater (if supported)
-8. Register all IPC handlers
+7. Register all IPC handlers
 
 ## IPC Modules
 
 | Module | Purpose | Trust Required |
 |--------|---------|---------------|
 | `appIpc.ts` | Window controls, auto-launch, file picker | Partial (sensitive ops only) |
-| `captionIpc.ts` | Caption window text, style, draggable, position | No |
 | `safeStorageIpc.ts` | Encrypt/decrypt secrets via OS keychain | Yes |
 | `updaterIpc.ts` | Check, download, install updates | Yes (download/install) |
 | `diagnosticsIpc.ts` | Export redacted diagnostics JSON | Yes |
@@ -35,7 +33,7 @@ The Electron main process (`electron/main.ts`) initializes in this order:
 
 `ipcSecurity.ts` maintains a list of trusted `BrowserWindow` providers. `assertTrustedSender(event, channel)` checks that `event.sender.id` matches one of the registered windows' `webContents.id`.
 
-Only the **main window** and **caption window** are registered as trusted.
+Only the main window is registered as trusted.
 
 ## IPC Patterns
 
@@ -90,12 +88,3 @@ The full API surface is defined in `shared/electronApi.ts` as the `ElectronAPI` 
 - `backgroundThrottling: false` (keeps recording active when minimized)
 - CSP injected via `session.webRequest.onHeadersReceived`
 - Navigation restricted to localhost:5173, file:, and devtools: URLs
-
-### Caption Window
-
-- Separate `BrowserWindow` for floating subtitle overlay
-- `transparent: true` (Linux uses semi-transparent black)
-- `alwaysOnTop: true`, `skipTaskbar: true`
-- Click-through when not interacting (`setIgnoreMouseEvents` with `forward: true`)
-- Mouse position polling (100ms) to detect hover for temporary interaction
-- `focusable` toggled based on interaction state

@@ -39,17 +39,7 @@ Windows 可能在首次启动时显示 SmartScreen 警告。点击 **更多信�
 
 | Provider | 需要什么 |
 |----------|---------|
-| Soniox | [soniox.com](https://soniox.com) 的 API Key |
-| 火山引擎 | APP ID 和 Access Token |
-| Groq | [groq.com](https://groq.com) 的 API Key |
-| 硅基流动 | [siliconflow.cn](https://siliconflow.cn) 的 API Key |
-| Deepgram | [deepgram.com](https://deepgram.com) 的 API Key |
-| AssemblyAI | [assemblyai.com](https://assemblyai.com) 的 API Key |
-| ElevenLabs | [elevenlabs.io](https://elevenlabs.io) 的 API Key |
-| Gladia | [gladia.io](https://gladia.io) 的 API Key |
-| Mistral AI | [mistral.ai](https://mistral.ai) 的 API Key |
-| Cloudflare Workers AI | [cloudflare.com](https://cloudflare.com) 的 API Token + Account ID |
-| 60db | [60db.ai](https://60db.ai) 的 API Key |
+| 火山引擎 | API Key 或 APP ID + Access Token（标准文件转写另需私有临时存储） |
 
 ### 本地 Provider
 

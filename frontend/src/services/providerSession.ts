@@ -56,7 +56,7 @@ export class ProviderSessionManager {
     }
 
     const providerConfig = settings.providerConfigs?.[vendorId]
-    const connectConfig = buildProviderConnectConfig(providerInfo, providerConfig, settings)
+    const connectConfig = buildProviderConnectConfig(providerConfig, settings)
 
     const missingLabels = getMissingRequiredConfigLabels(
       providerInfo,

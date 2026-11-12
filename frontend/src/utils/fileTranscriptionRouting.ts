@@ -1,5 +1,6 @@
 import type { ProviderConfigData } from '../types'
 import type { UserErrorKey } from './userErrors'
+import { hasVolcCredentials } from './providerConfig'
 
 /**
  * Providers that have a real file-transcription executor in
@@ -8,20 +9,10 @@ import type { UserErrorKey } from './userErrors'
  * a missing executor can never silently fall back to another vendor (#17).
  */
 export const FILE_TRANSCRIPTION_PROVIDER_IDS = [
-  'soniox',
-  'groq',
-  'mistral',
-  'siliconflow',
-  'cloudflare',
-  'gladia',
-  'elevenlabs',
-  'deepgram',
-  'assemblyai',
   'volc',
   'local_openai',
   'sensevoice',
   'local_whisper_cpp',
-  'sixtydb',
 ] as const
 
 export type FileTranscriptionProviderId = typeof FILE_TRANSCRIPTION_PROVIDER_IDS[number]
@@ -54,12 +45,8 @@ export function getFileTranscriptionConfigError(
   }
 
   switch (providerId) {
-    case 'cloudflare':
-      return readText(providerConfig, 'apiToken') && readText(providerConfig, 'accountId')
-        ? null
-        : { key: 'cloudflareCredentialsNotConfigured', args: [] }
     case 'volc':
-      return readText(providerConfig, 'apiKey') || (readText(providerConfig, 'appKey') && readText(providerConfig, 'accessKey'))
+      return hasVolcCredentials(providerConfig)
         ? null
         : { key: 'volcCredentialsNotConfigured', args: [] }
     case 'local_openai':
@@ -72,9 +59,5 @@ export function getFileTranscriptionConfigError(
       return readText(providerConfig, 'modelPath')
         ? null
         : { key: 'whisperCppModelPathNotConfigured', args: [] }
-    default:
-      return readText(providerConfig, 'apiKey')
-        ? null
-        : { key: 'providerApiKeyNotConfigured', args: [providerId] }
   }
 }

@@ -6,28 +6,18 @@ DeLive 是一个桌面转录工作台：捕获系统音频，路由到最合适�
 
 ### 多 Provider ASR
 
-DeLive 在统一界面下支持 **十四种 ASR 后端**。云端服务需要 API Key — 详见 [API Key 获取指引](./api-keys)。
+DeLive 在统一界面下支持 **四种 ASR 后端**。云端服务需要 API Key — 详见 [API Key 获取指引](./api-keys)。
 
 | Provider | 类型 | 模式 | 亮点 |
 |----------|------|------|------|
-| **Soniox V5** | 云端 | 实时流式 | Token 级转录、实时翻译、双语字幕、说话人分离 |
 | **火山引擎** | 云端 | 实时流式 | 中文优化；内置代理处理所需 Header |
-| **ElevenLabs** | 云端 | 实时流式 | Scribe v2 Realtime（标准 / Turbo / Lite）；99 种语言含中文 |
-| **Mistral AI** | 云端 | 实时流式 | Voxtral Realtime；内置代理处理认证 |
-| **Gladia** | 云端 | 实时流式 | 实时 Solaria-1；文件 Solaria-1 / Solaria-3；100+ 种语言；代理处理会话初始化 |
-| **Deepgram** | 云端 | 实时流式 | Nova-3 / Nova-2 流式 ASR；最适合英语和多语言 |
-| **AssemblyAI** | 云端 | 实时流式 | Universal-3.5 Pro 流式；针对英语优化 |
-| **60db** | 云端 | 实时流式 | 约 40 种语言，含印度语系与英语混说；内置代理处理认证 |
-| **Cloudflare Workers AI** | 云端 | 窗口批处理 | 基于 Whisper；低成本、免费额度；VAD 过滤 |
-| **硅基流动** | 云端 | 窗口批处理 | SenseVoice、TeleSpeech、通义千问 Omni 模型 |
-| **Groq** | 云端 | 窗口批处理 | Whisper large-v3-turbo，准实时更新 |
 | **本地 OpenAI 兼容** | 本地 | 窗口批处理 | 兼容 Ollama 或任何 `/v1/audio/transcriptions` 端点 |
 | **本地 FunASR / SenseVoice** | 本地 | 窗口批处理 | 自建 `funasr-server`；SenseVoice、Paraformer、Fun-ASR-Nano；无 API 费用 |
 | **本地 whisper.cpp** | 本地 | Electron 托管运行时 | 完全离线；DeLive 管理二进制文件和模型生命周期 |
 
 ### 文件转录
 
-上传音频/视频文件，可使用全部 14 种 Provider 转录。云端 Provider 走各自的文件接口；本地 whisper.cpp 接收解码后的 16 kHz 单声道 WAV，FunASR / SenseVoice 与本地 OpenAI 兼容服务通过 `/v1/audio/transcriptions` 接收文件。60db 单个文件最大 10MB。
+火山文件转写支持导入和已有会议原音，需要私有临时存储。三个本地服务仍可转写导入文件。
 
 ### AI 复盘工作台
 

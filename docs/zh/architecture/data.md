@@ -11,7 +11,6 @@
 | `title` | `string` | 显示标题 |
 | `date` / `time` | `string` | `YYYY-MM-DD` / `HH:mm` |
 | `transcript` | `string` | 纯文本转录 |
-| `translatedTranscript` | `TranscriptTranslationData` | 可选翻译文本 |
 | `duration` | `number` | 持续时间（毫秒） |
 | `tokens` | `TranscriptTokenData[]` | 带时间戳的 Token |
 | `speakers` | `TranscriptSpeaker[]` | 说话人标签 |

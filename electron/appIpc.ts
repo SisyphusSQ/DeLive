@@ -13,8 +13,6 @@ interface RegisterAppIpcOptions {
   unmaximizeMainWindow: () => void
   closeMainWindow: () => void
   isMainWindowMaximized: () => boolean
-  onWindowMinimize?: (source?: string) => void
-  onWindowClose?: () => void
 }
 
 function isAutoLaunchSupported(): boolean {
@@ -93,7 +91,6 @@ export function registerAppIpc(options: RegisterAppIpcOptions): void {
   })
 
   options.ipcMain.handle('window-minimize', (_event, source?: string) => {
-    options.onWindowMinimize?.(source)
     options.minimizeMainWindow()
   })
 
@@ -106,7 +103,6 @@ export function registerAppIpc(options: RegisterAppIpcOptions): void {
   })
 
   options.ipcMain.handle('window-close', () => {
-    options.onWindowClose?.()
     options.closeMainWindow()
   })
 

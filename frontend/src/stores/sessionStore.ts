@@ -74,14 +74,6 @@ function clearSessionAutosaveTimer(): void {
   sessionAutosaveDeadline = null
 }
 
-function getTranslationTargetLanguage(): string | undefined {
-  const { settings } = useSettingsStore.getState()
-  const currentVendor = settings.currentVendor || 'soniox'
-  const providerConfig = settings.providerConfigs?.[currentVendor]
-  const value = providerConfig?.translationTargetLanguage
-  return typeof value === 'string' && value.trim().length > 0 ? value.trim() : undefined
-}
-
 export interface SessionState {
   recordingState: RecordingState
   setRecordingState: (state: RecordingState) => void
@@ -90,9 +82,6 @@ export interface SessionState {
   currentTranscript: string
   finalTranscript: string
   nonFinalTranscript: string
-  currentTranslatedTranscript: string
-  finalTranslatedTranscript: string
-  nonFinalTranslatedTranscript: string
   currentSegments: TranscriptSegment[]
   currentSpeakers: TranscriptSpeaker[]
   currentPostProcess?: TranscriptPostProcess
@@ -162,9 +151,6 @@ export const useSessionStore = create<SessionState>((set, get) => {
     finalTranscript?: string
     nonFinalTranscript?: string
     currentTranscript?: string
-    finalTranslatedTranscript?: string
-    nonFinalTranslatedTranscript?: string
-    currentTranslatedTranscript?: string
     currentPostProcess?: TranscriptPostProcess
   }) => {
     const state = resolveTranscriptRuntimeState(
@@ -172,7 +158,6 @@ export const useSessionStore = create<SessionState>((set, get) => {
       overrides,
     )
     const providerId = useSettingsStore.getState().settings.currentVendor
-    const captionDisplayMode = useSettingsStore.getState().settings.captionStyle?.displayMode ?? 'source'
 
     return buildSessionSnapshot({
       runtimeState: {
@@ -184,8 +169,6 @@ export const useSessionStore = create<SessionState>((set, get) => {
       providerMode: resolveProviderMode(providerId),
       platform: window.electronAPI?.platform ?? 'unknown',
       captureMode: get().sessions.find(s => s.id === get().currentSessionId)?.sourceMeta?.captureMode ?? 'system-audio',
-      translationTargetLanguage: getTranslationTargetLanguage(),
-      captionDisplayMode,
     })
   }
 
@@ -197,9 +180,6 @@ export const useSessionStore = create<SessionState>((set, get) => {
     finalTranscript?: string
     nonFinalTranscript?: string
     currentTranscript?: string
-    finalTranslatedTranscript?: string
-    nonFinalTranslatedTranscript?: string
-    currentTranslatedTranscript?: string
     currentPostProcess?: TranscriptPostProcess
   }) => {
     const state = get()
@@ -209,7 +189,6 @@ export const useSessionStore = create<SessionState>((set, get) => {
     return updateSessionInCollection(state.sessions, state.currentSessionId, {
       realtime: snapshot.realtime,
       transcript: snapshot.transcript,
-      translatedTranscript: snapshot.translatedTranscript,
       tokens: snapshot.tokens,
       providerId: snapshot.providerId,
       speakers: snapshot.speakers,
@@ -312,9 +291,6 @@ export const useSessionStore = create<SessionState>((set, get) => {
         finalTranscript: nextTranscriptState.finalTranscript,
         nonFinalTranscript: nextTranscriptState.nonFinalTranscript,
         currentTranscript: nextTranscriptState.currentTranscript,
-        finalTranslatedTranscript: nextTranscriptState.finalTranslatedTranscript,
-        nonFinalTranslatedTranscript: nextTranscriptState.nonFinalTranslatedTranscript,
-        currentTranslatedTranscript: nextTranscriptState.currentTranslatedTranscript,
         currentPostProcess: nextTranscriptState.currentPostProcess,
       })
 

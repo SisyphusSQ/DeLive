@@ -36,11 +36,6 @@ export function portableSettings(value: unknown): Record<string, unknown> {
   for (const key of ['currentVendor','colorTheme']) if (typeof input[key] === 'string') output[key] = input[key]
   if (typeof input.autoCheckUpdate === 'boolean') output.autoCheckUpdate=input.autoCheckUpdate
   if (Array.isArray(input.languageHints)) output.languageHints=input.languageHints.filter(v=>typeof v==='string')
-  if(input.captionStyle && typeof input.captionStyle==='object') {
-    const caption=input.captionStyle as Record<string,unknown>,result:Record<string,unknown>={}
-    for(const key of ['fontSize','fontFamily','textColor','backgroundColor','textShadow','maxLines','width','displayMode']) if(['string','number','boolean'].includes(typeof caption[key]))result[key]=caption[key]
-    output.captionStyle=result
-  }
   if (input.aiPostProcess && typeof input.aiPostProcess === 'object') {
     const ai = input.aiPostProcess as Record<string, unknown>, result: Record<string, unknown> = {}
     for (const key of ['enabled','provider','protocol','defaultModel','preferCorrectedText','correctionMode','enableStreaming','model','promptLanguage']) if (['string','boolean'].includes(typeof ai[key])) result[key] = ai[key]

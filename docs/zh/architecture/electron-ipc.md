@@ -6,25 +6,23 @@ Electron 主进程（`electron/main.ts`）按以下顺序初始化：
 
 1. 安装日志拦截器（500 行环形缓冲区用于诊断）
 2. 设置平台特定标志（macOS ScreenCaptureKit、Linux PulseAudio loopback）
-3. 创建字幕窗口控制器
-4. 注册可信窗口（主窗口 + 字幕窗口）
-5. 创建桌面源和本地 Runtime 控制器
-6. 请求单实例锁（如有其他实例运行则退出）
-7. `app.whenReady()` 时：
+3. 注册可信主窗口
+4. 创建桌面源和本地 Runtime 控制器
+5. 请求单实例锁（如有其他实例运行则退出）
+6. `app.whenReady()` 时：
    - 在端口 23456 启动 HTTP 服务器（火山引擎代理）
    - 将 API 服务器附加到 HTTP 服务器
    - 创建主窗口
    - 创建系统托盘
    - 注册全局快捷键
    - 设置自动更新器（如支持）
-8. 注册所有 IPC 处理器
+7. 注册所有 IPC 处理器
 
 ## IPC 模块
 
 | 模块 | 用途 | 需要信任 |
 |------|------|---------|
 | `appIpc.ts` | 窗口控制、开机自启、文件选择器 | 部分（仅敏感操作） |
-| `captionIpc.ts` | 字幕窗口文本、样式、拖拽、位置 | 否 |
 | `safeStorageIpc.ts` | 通过 OS 密钥链加解密密钥 | 是 |
 | `updaterIpc.ts` | 检查、下载、安装更新 | 是（下载/安装） |
 | `diagnosticsIpc.ts` | 导出脱敏诊断 JSON | 是 |
@@ -35,7 +33,7 @@ Electron 主进程（`electron/main.ts`）按以下顺序初始化：
 
 `ipcSecurity.ts` 维护可信 `BrowserWindow` 提供者列表。`assertTrustedSender(event, channel)` 检查 `event.sender.id` 是否匹配已注册窗口的 `webContents.id`。
 
-仅 **主窗口** 和 **字幕窗口** 被注册为可信。
+仅主窗口被注册为可信。
 
 ## IPC 模式
 
@@ -90,12 +88,3 @@ API 桥接（`apiIpc.ts`）使用：
 - `backgroundThrottling: false`（最小化时保持录制活跃）
 - 通过 `session.webRequest.onHeadersReceived` 注入 CSP
 - 导航限制为 localhost:5173、file: 和 devtools: URL
-
-### 字幕窗口
-
-- 独立的 `BrowserWindow` 用于悬浮字幕叠层
-- `transparent: true`（Linux 使用半透明黑色）
-- `alwaysOnTop: true`、`skipTaskbar: true`
-- 非交互时鼠标穿透（`setIgnoreMouseEvents` 配合 `forward: true`）
-- 鼠标位置轮询（100ms）检测悬停以临时启用交互
-- 根据交互状态切换 `focusable`

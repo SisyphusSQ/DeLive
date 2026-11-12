@@ -3,7 +3,6 @@ import type {
   ApiRecordingStatus,
   ApiTagData,
   ApiTopicData,
-  CaptionStyle,
   ElectronAPI,
   SessionDetail,
   SessionSummary,
@@ -121,74 +120,6 @@ const electronAPI: ElectronAPI = {
     const listener = (_event: Electron.IpcRendererEvent, error: string) => callback(error)
     ipcRenderer.on('update-error', listener)
     return () => ipcRenderer.removeListener('update-error', listener)
-  },
-
-  captionToggle: (enable?: boolean, source?: string) =>
-    ipcRenderer.invoke('caption-toggle', enable, source) as Promise<boolean>,
-  captionGetStatus: () => ipcRenderer.invoke('caption-get-status'),
-  captionUpdateText: (
-    stableText: string,
-    activeText: string,
-    isFinal: boolean,
-    translatedStableText = '',
-    translatedActiveText = '',
-  ) => ipcRenderer.invoke(
-    'caption-update-text',
-    stableText,
-    activeText,
-    isFinal,
-    translatedStableText,
-    translatedActiveText,
-  ),
-  captionUpdateStyle: (style) => ipcRenderer.invoke('caption-update-style', style),
-  captionToggleDraggable: (draggable?: boolean) =>
-    ipcRenderer.invoke('caption-toggle-draggable', draggable) as Promise<boolean>,
-  captionSetInteractive: (interactive: boolean) =>
-    ipcRenderer.invoke('caption-set-interactive', interactive) as Promise<boolean>,
-  captionGetBounds: () => ipcRenderer.invoke('caption-get-bounds'),
-  captionSetBounds: (bounds) => ipcRenderer.invoke('caption-set-bounds', bounds) as Promise<boolean>,
-  captionResetPosition: () => ipcRenderer.invoke('caption-reset-position') as Promise<boolean>,
-  onCaptionStatusChanged: (callback: (enabled: boolean) => void) => {
-    const listener = (_event: Electron.IpcRendererEvent, enabled: boolean) => callback(enabled)
-    ipcRenderer.on('caption-status-changed', listener)
-    return () => ipcRenderer.removeListener('caption-status-changed', listener)
-  },
-  onCaptionTextUpdate: (callback) => {
-    const listener = (
-      _event: Electron.IpcRendererEvent,
-      data: {
-        stableText: string
-        activeText: string
-        translatedStableText: string
-        translatedActiveText: string
-        text: string
-        translatedText: string
-        isFinal: boolean
-      },
-    ) => callback(data)
-    ipcRenderer.on('caption-text-update', listener)
-    return () => ipcRenderer.removeListener('caption-text-update', listener)
-  },
-  onCaptionStyleUpdate: (callback) => {
-    const listener = (_event: Electron.IpcRendererEvent, style: CaptionStyle) => callback(style)
-    ipcRenderer.on('caption-style-update', listener)
-    return () => ipcRenderer.removeListener('caption-style-update', listener)
-  },
-  onCaptionDraggableChanged: (callback: (draggable: boolean) => void) => {
-    const listener = (_event: Electron.IpcRendererEvent, draggable: boolean) => callback(draggable)
-    ipcRenderer.on('caption-draggable-changed', listener)
-    return () => ipcRenderer.removeListener('caption-draggable-changed', listener)
-  },
-  onCaptionInteractiveChanged: (callback: (interactive: boolean) => void) => {
-    const listener = (_event: Electron.IpcRendererEvent, interactive: boolean) => callback(interactive)
-    ipcRenderer.on('caption-interactive-changed', listener)
-    return () => ipcRenderer.removeListener('caption-interactive-changed', listener)
-  },
-  captionOpenSettings: () => ipcRenderer.invoke('caption-open-settings'),
-  onOpenCaptionSettings: (callback: () => void) => {
-    const listener = () => callback()
-    ipcRenderer.on('open-caption-settings', listener)
-    return () => ipcRenderer.removeListener('open-caption-settings', listener)
   },
 
   onToggleRecording: (callback: () => void) => {

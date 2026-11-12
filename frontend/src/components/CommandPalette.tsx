@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useCallback, useState } from 'react'
-import { Search, Mic, FileText, FolderOpen, Monitor, Settings, Download } from 'lucide-react'
+import { Search, Mic, FileText, FolderOpen, Settings, Download } from 'lucide-react'
 import { useUIStore, type WorkspaceView } from '../stores/uiStore'
 
 interface Command {
@@ -22,9 +22,6 @@ export function CommandPalette() {
     { id: 'nav-live', label: t.nav?.live || 'Live', shortcut: 'Ctrl+1', icon: Mic, action: () => setView('live' as WorkspaceView) },
     { id: 'nav-review', label: t.nav?.review || 'Review', shortcut: 'Ctrl+2', icon: FileText, action: () => setView('review' as WorkspaceView) },
     { id: 'nav-topics', label: t.nav?.topics || 'Topics', shortcut: 'Ctrl+3', icon: FolderOpen, action: () => setView('topics' as WorkspaceView) },
-    { id: 'nav-caption', label: t.nav?.caption || 'Caption', icon: Monitor, action: () => {
-      window.electronAPI?.captionToggle?.(undefined, 'command-palette')
-    }},
     { id: 'nav-settings', label: t.nav?.settings || 'Settings', shortcut: 'Ctrl+,', icon: Settings, action: () => setView('settings' as WorkspaceView) },
     { id: 'export-data', label: t.command?.exportData || 'Export Data', icon: Download, action: () => {
       const btn = document.querySelector('[data-action="export-data"]') as HTMLButtonElement
@@ -48,7 +45,7 @@ export function CommandPalette() {
     cmd.action()
     setOpen(false)
     setQuery('')
-  }, [])
+  }, [setOpen])
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -64,13 +61,13 @@ export function CommandPalette() {
     }
     document.addEventListener('keydown', handler)
     return () => document.removeEventListener('keydown', handler)
-  }, [open])
+  }, [open, setOpen])
 
   useEffect(() => {
     if (open) {
       requestAnimationFrame(() => inputRef.current?.focus())
     }
-  }, [open])
+  }, [open, setOpen])
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'ArrowDown') {

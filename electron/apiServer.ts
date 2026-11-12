@@ -208,7 +208,6 @@ export function attachApiServer({ server }: ApiServerOptions): void {
         jsonResponse(res, 200, {
           sessionId: session.id,
           transcript: session.transcript,
-          translatedTranscript: session.translatedTranscript?.text,
           correctedTranscript: session.correction?.correctedText || null,
         })
         return

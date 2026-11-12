@@ -1,6 +1,6 @@
 # Provider System
 
-The provider system is DeLive's abstraction layer for ASR backends. It unifies fourteen different speech recognition services behind a common contract.
+The provider system is DeLive's abstraction layer for ASR backends. It unifies four different speech recognition services behind a common contract.
 
 ## Architecture
 
@@ -34,12 +34,10 @@ The `ProviderRegistry` is a singleton that maps vendor IDs to factory functions:
 
 ```typescript
 providerRegistry.register({
-  info: new SonioxProvider().info,
-  create: () => new SonioxProvider(),
 })
 ```
 
-Fourteen providers are registered at module load via `registerDefaultProviders()`.
+Four providers are registered at module load via `registerDefaultProviders()`.
 
 ## `ASRProviderInfo`
 
@@ -65,7 +63,7 @@ interface ASRProviderInfo {
 - `audioInputMode`: `'media-recorder'` or `'pcm16'`
 - `audioProfile`: sample rate, channels, payload format, chunk timing
 - `transport`: execution mode, capture restart strategy
-- Feature flags: `supportsTranslation`, `supportsSpeakerDiarization`, `prefersTokenEvents`
+- Feature flags: `supportsSpeakerDiarization`, `prefersTokenEvents`
 
 ## Event System
 
@@ -73,7 +71,7 @@ Providers emit events through an internal `Map<eventName, callback[]>`:
 
 | Event | Payload | Description |
 |-------|---------|-------------|
-| `onTokens` | `TranscriptToken[]` | Token-level updates (Soniox) |
+| `onTokens` | `TranscriptToken[]` | Token updates |
 | `onPartial` | `string` | Partial/in-progress text |
 | `onFinal` | `string` | Final committed text |
 | `onError` | `ASRError` | Error with code and message |
@@ -81,12 +79,11 @@ Providers emit events through an internal `Map<eventName, callback[]>`:
 | `onFinished` | — | Provider session completed cleanly |
 
 ::: info
-When `prefersTokenEvents` is `true` (Soniox), `ProviderSessionManager` does **not** register `onPartial` and `onFinal` listeners — it derives text from `onTokens` instead.
 :::
 
 ## Windowed Batch Transcription
 
-Six providers (Cloudflare, SiliconFlow, Groq, Local OpenAI, FunASR / SenseVoice, whisper.cpp) extend `WindowedBatchTranscriptionProvider`:
+Local OpenAI-compatible, FunASR / SenseVoice and whisper.cpp share the windowed batch pipeline.
 
 ### Rolling Audio Buffer
 
@@ -94,7 +91,7 @@ A `RollingAudioBuffer<TChunk>` stores timestamped audio chunks with a maximum du
 
 ### Scheduling
 
-- **Interval mode** (Cloudflare, Groq, SiliconFlow, whisper.cpp): `setInterval` every **1500ms** triggers retranscription
+- whisper.cpp uses interval scheduling.
 - **Debounce mode** (Local OpenAI, FunASR / SenseVoice): each new audio chunk resets a **1200ms** `setTimeout` (same value as `transcribeIntervalMs`)
 
 ### Stabilization
@@ -116,7 +113,7 @@ When the rolling buffer advances, `buildWindowedTranscriptSnapshot` strips up to
 
 ### MediaRecorder Path
 
-Used by Soniox, Local OpenAI-compatible, and FunASR / SenseVoice. (All other cloud streaming providers use the PCM16 path.)
+Used by Local OpenAI-compatible and FunASR / SenseVoice.
 
 1. `getDisplayMedia({ audio: true })` → `MediaStream`
 2. `MediaRecorder` with `audio/webm;codecs=opus` (or fallback)
@@ -125,7 +122,7 @@ Used by Soniox, Local OpenAI-compatible, and FunASR / SenseVoice. (All other clo
 
 ### PCM16 Path
 
-Used by Volcengine, Groq, SiliconFlow, Mistral AI, Deepgram, AssemblyAI, ElevenLabs, Gladia, 60db, Cloudflare, and whisper.cpp.
+Used by Volcengine and whisper.cpp.
 
 1. `getDisplayMedia({ audio: true })` → `MediaStream`
 2. `AudioProcessor` with **AudioWorklet** (preferred) or **ScriptProcessorNode** (fallback)

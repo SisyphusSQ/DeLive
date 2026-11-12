@@ -5,6 +5,7 @@ const os = require('node:os')
 const path = require('node:path')
 const assert = require('node:assert/strict')
 const root = path.resolve(__dirname, '..')
+const evidenceDir = path.join(root, 'tmp/evidence/too-706')
 const profile = fs.mkdtempSync(path.join(os.tmpdir(), 'delive-recording-ui-'))
 app.setPath('userData', profile)
 const { registerRecordingIpc } = require('../dist-electron/electron/recordingIpc')
@@ -12,13 +13,14 @@ const { registerTrustedWindow } = require('../dist-electron/electron/ipcSecurity
 const { registerSafeStorageIpc } = require('../dist-electron/electron/safeStorageIpc')
 registerRecordingIpc(ipcMain)
 registerSafeStorageIpc(ipcMain)
-for (const [name, result] of Object.entries({ 'get-app-version': '2.3.0-beta.2', 'window-is-maximized': false, 'get-auto-launch': false, 'get-proxy-port': 0, 'lang:change': null, 'caption-update-style': null, 'caption-clear': null, 'caption-get-status': {visible:false}, 'caption-update-text': null, 'check-for-updates': null })) ipcMain.handle(name, () => result)
+for (const [name, result] of Object.entries({ 'get-app-version': '2.3.0-beta.2', 'window-is-maximized': false, 'get-auto-launch': false, 'get-proxy-port': 0, 'lang:change': null,    'check-for-updates': null })) ipcMain.handle(name, () => result)
 for (const [name, result] of Object.entries({ 'complete-backup:pendingRestore': null, 'session-images:cleanup': null, 'file-tasks:list': [], 'ensure-recording-permissions': null })) ipcMain.handle(name, () => result)
 let win
 let failed = false
 const delay = ms => new Promise(resolve => setTimeout(resolve, ms))
 async function run() {
   await app.whenReady()
+  fs.mkdirSync(evidenceDir, { recursive: true })
   // Block every network request. The compiled UI and audio worklet load from file: only.
   session.defaultSession.webRequest.onBeforeRequest((details, callback) => callback({ cancel: /^https?:|^wss?:/.test(details.url) }))
   win = new BrowserWindow({ width: 1280, height: 1000, show: false, webPreferences: { preload: path.join(root, 'dist-electron/electron/preload.js'), contextIsolation: true, nodeIntegration: false, backgroundThrottling: false } })
@@ -38,7 +40,7 @@ async function run() {
     await js("[...document.querySelectorAll('button')].find(e => e.textContent.includes('原音存储与恢复')).click()")
     await js("document.querySelector('[aria-label=\"录音来源与原音存储\"]').scrollIntoView({block:'center'})")
     await delay(500)
-    fs.writeFileSync(path.join(root, 'tmp/evidence/682-ui-visible.png'), (await win.webContents.capturePage()).toPNG())
+    fs.writeFileSync(path.join(evidenceDir, 'recording-storage.png'), (await win.webContents.capturePage()).toPNG())
     console.log('Visual capture only; no audio or cloud calls.')
     return
   }
@@ -83,22 +85,21 @@ async function run() {
   fs.mkdirSync(path.join(root, 'tmp/evidence'), { recursive: true })
   await js("document.querySelector('[aria-label=\"录音来源与原音存储\"]').scrollIntoView({block:'center'})")
   await delay(100)
-  fs.writeFileSync(path.join(root, 'tmp/evidence/682-ui.png'), (await win.webContents.capturePage()).toPNG())
+  fs.writeFileSync(path.join(evidenceDir, 'recording-local-only.png'), (await win.webContents.capturePage()).toPNG())
   for (const track of ['system', 'microphone', 'mix']) {
     const audio = Buffer.from(await js(`window.electronAPI.recording.readBlock('${list[0].sessionId}',0,'${track}')`))
     assert.equal(audio.toString('ascii', 0, 4), 'RIFF')
     assert(audio.subarray(44).some(byte => byte !== 0), `${track} must contain non-silent PCM`)
   }
-  // Missing ASR configuration must leave the physical recording lifecycle independent.
+  // Without credentials, only the explicit recording-only mode may acquire audio.
   await js("[...document.querySelectorAll('label')].find(e => e.textContent.includes('仅录音')).querySelector('input').click()")
   await delay(100)
   await js("[...document.querySelectorAll('button')].find(e => e.textContent.includes('开始录制')).click()")
-  await delay(1600)
-  const withoutKey = await js('window.electronAPI.recording.list()')
-  assert(withoutKey.some(a => a.status === 'recording' && a.blocks.length > 0))
-  assert(await js("document.body.textContent.includes('转写未连接')"))
-  await js("[...document.querySelectorAll('button')].find(e => e.textContent.includes('停止录制')).click()")
-  await delay(700)
+  await delay(200)
+  assert.deepEqual(await js('window.electronAPI.recording.list()'),list)
+  assert(await js("document.body.textContent.includes('请配置火山 API Key 或 APP ID + Access Token')"))
+  await js("[...document.querySelectorAll('label')].find(e => e.textContent.includes('仅录音')).querySelector('input').click()")
+  await delay(100)
   // A quota smaller than already-used storage must stop before the next committed block.
   await js("window.electronAPI.recording.configure(1)")
   await js("[...document.querySelectorAll('button')].find(e => e.textContent.includes('开始录制')).click()")
@@ -119,7 +120,7 @@ async function run() {
   const reopened = await js('window.electronAPI.recording.list()')
   assert(reopened.some(a => a.sessionId === list[0].sessionId && a.status === 'completed'))
   assert(reopened.some(a => a.sessionId === beforeCrash.sessionId && a.status === 'interrupted' && a.blocks.length > 0))
-  console.log(JSON.stringify({ status: 'PASS', machine: os.hostname(), electron: process.versions.electron, source: 'synthetic 440/880 Hz oscillators; mediaDevices test doubles; network denied', blocks: list[0].blocks.length, durationMs: list[0].durationMs, checks: ['local-only UI', 'dual-source WAV persistence', 'non-silent system/microphone/mix', 'source ended', 'device change', 'stop flush', 'reload', 'ASR unavailable', 'quota failure', 'renderer crash recovery', 'no network'] }, null, 2))
+  console.log(JSON.stringify({ status: 'PASS', machine: os.hostname(), electron: process.versions.electron, source: 'synthetic 440/880 Hz oscillators; mediaDevices test doubles; network denied', blocks: list[0].blocks.length, durationMs: list[0].durationMs, checks: ['local-only UI', 'dual-source WAV persistence', 'non-silent system/microphone/mix', 'source ended', 'device change', 'stop flush', 'reload', 'missing ASR credentials block capture unless recording-only is selected', 'quota failure', 'renderer crash recovery', 'no network'] }, null, 2))
 }
 run().catch(error => { failed = true; console.error(error) }).finally(() => {
   win?.destroy()

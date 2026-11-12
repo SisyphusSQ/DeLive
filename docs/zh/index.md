@@ -3,7 +3,7 @@ layout: home
 hero:
   name: DeLive
   text: 桌面转录工作台
-  tagline: 捕获系统音频 · 十四大 ASR 后端转录 · AI 复盘 — 纠错、摘要、对话、思维导图，全部本地优先
+  tagline: 捕获系统音频 · 四种 ASR 后端转录 · AI 复盘 — 纠错、摘要、对话、思维导图，全部本地优先
   image:
     src: /logo.svg
     alt: DeLive
@@ -19,14 +19,11 @@ hero:
       link: /zh/api/rest
 features:
   - icon: 🎙️
-    title: 十四大 ASR 后端，统一界面
-    details: Soniox、火山引擎、ElevenLabs、Mistral AI、Gladia、Deepgram、AssemblyAI、60db、Cloudflare Workers AI、硅基流动、Groq、本地 OpenAI 兼容、本地 FunASR / SenseVoice、本地 whisper.cpp — 三种执行模式覆盖所有场景。
+    title: 四种 ASR 后端，统一界面
+    details: 默认使用火山实时 2.0 和标准文件转写 2.0，支持本地 OpenAI 兼容、FunASR / SenseVoice 与 whisper.cpp。
   - icon: 🧠
     title: AI 复盘工作台
     details: 全页工作台，四个标签页 — 转录（带 AI 侧边栏）、总结（概览、行动项、关键词）、多线程对话（流式输出）、Markmap 思维导图。AI 纠错支持智能文本源选择。
-  - icon: 💬
-    title: 悬浮字幕窗
-    details: 始终置顶、可拖拽的字幕窗口，支持原文、翻译和双语三种模式。字体、颜色、阴影、背景完全可自定义。
   - icon: 🔒
     title: 本地优先 & 安全
     details: 会话存储在 IndexedDB，密钥通过 safeStorage 加密，上下文隔离、可信窗口 IPC、CSP 注入、导航守卫。本地保存会话；调用远端转写或 AI 服务时，所需资料会发送给所选服务。
@@ -35,7 +32,7 @@ features:
     details: 本地 REST API（8 个端点）、实时 WebSocket 流、独立 MCP 服务器（支持 Claude Desktop 和 Cursor）、Agent Skill 定义、Agent Skills 一键调用转录 — AI 集成一步到位。
   - icon: 📁
     title: 文件转录
-    details: 上传音频/视频文件，可使用全部 14 种 Provider 转录，从云端引擎到完全本地的 whisper.cpp 与 FunASR / SenseVoice。说话人分离、词级时间戳和语言检测视 Provider 能力而定。
+    details: 上传音频/视频文件，可使用全部 4 种 Provider 转录，从云端引擎到完全本地的 whisper.cpp 与 FunASR / SenseVoice。说话人分离、词级时间戳和语言检测视 Provider 能力而定。
   - icon: 🎨
     title: 八套主题，明暗切换
     details: 紫罗兰、青蓝、玫瑰、绿色、琥珀、樱粉、石板灰、橙韵八种配色。全新持久化侧栏导航和命令面板（Ctrl+K）。
@@ -217,10 +214,6 @@ features:
       <div class="caption">实时转录</div>
     </div>
     <div class="screenshot-card">
-      <img src="/images/screenshot-caption-overlay.png" alt="悬浮字幕" />
-      <div class="caption">悬浮字幕窗</div>
-    </div>
-    <div class="screenshot-card">
       <img src="/images/screenshot-mcp-integration.png" alt="MCP 集成" />
       <div class="caption">MCP 集成</div>
     </div>
@@ -262,7 +255,7 @@ features:
     <div class="new-feature">
       <div class="icon">📁</div>
       <h3>所有 Provider 均可文件转录</h3>
-      <p>全部 14 种 Provider 都能转录上传的音频/视频，包括完全本地的 whisper.cpp（解码为 16 kHz WAV 后发送给 <code>whisper-server</code>）和 FunASR / SenseVoice。不再悄悄回退到 Soniox，缺少配置时会显示为失败任务。</p>
+      <p>火山标准文件转写支持导入和会议原音。三种本地服务也支持文件转写。</p>
     </div>
     <div class="new-feature">
       <div class="icon">🔊</div>
@@ -282,7 +275,7 @@ features:
     <div class="new-feature">
       <div class="icon">⬆️</div>
       <h3>Soniox V5</h3>
-      <p>Soniox 集成从 V4 升级到 V5，实时模型默认使用 <code>stt-rt-v5</code>。</p>
+      <p>火山标准文件转写支持导入和会议原音。三种本地服务也支持文件转写。</p>
     </div>
     <div class="new-feature">
       <div class="icon">⚡</div>

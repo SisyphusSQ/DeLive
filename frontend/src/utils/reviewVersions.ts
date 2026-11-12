@@ -25,11 +25,6 @@ export function reviewVersions(session: TranscriptSession): TranscriptVersion[] 
     id:freeId('correction-'+session.id),kind:'edited',createdAt:session.correction?.completedAt ?? session.updatedAt,
     parentVersionId:original?.id,text:corrected,segments:[],speakers:[],editNote:'旧会话校对结果；没有逐句时间对齐',
   })
-  const translation = session.translatedTranscript?.text?.trim()
-  if (translation && !versions.some(v=>v.editNote?.startsWith('历史译文') && v.text===translation)) versions.push({
-    id:freeId('translation-'+session.id),kind:'legacy',createdAt:session.translatedTranscript?.updatedAt ?? session.updatedAt,
-    text:translation,segments:[],speakers:[],editNote:'历史译文 · '+(session.translatedTranscript?.targetLanguage || '未标语言')+'；无逐句时间对齐',
-  })
   return versions
 }
 export function selectedReviewVersion(session: TranscriptSession): TranscriptVersion {

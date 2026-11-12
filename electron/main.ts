@@ -3,8 +3,6 @@ import { app, BrowserWindow, dialog, ipcMain, session, Tray, globalShortcut } fr
 import { registerRecordingIpc } from './recordingIpc'
 import { registerAppIpc } from './appIpc'
 import { setupAutoUpdater } from './autoUpdater'
-import { registerCaptionIpc } from './captionIpc'
-import { createCaptionWindowController } from './captionWindow'
 import { createDesktopSourceController, registerDesktopSourceIpc } from './desktopSource'
 import { createLocalRuntimeController } from './localRuntime'
 import { registerLocalRuntimeIpc } from './localRuntimeIpc'
@@ -41,15 +39,7 @@ let isQuitting = false
 
 const isDev = process.env.NODE_ENV === 'development'
 
-const captionController = createCaptionWindowController({
-  getMainWindow: () => mainWindow,
-  getTray: () => tray,
-  isQuitting: () => isQuitting,
-  isDev,
-})
-
 registerTrustedWindow(() => mainWindow)
-registerTrustedWindow(() => captionController.getWindow())
 
 const desktopSourceController = createDesktopSourceController({
   getMainWindow: () => mainWindow,
@@ -75,39 +65,10 @@ function createWindow(): void {
     isDev,
     windowIconPath: windowIconPath || undefined,
     shouldHideToTray: () => !isQuitting && isTrayReady(),
-    onShow: () => {
-      captionController.debug('mainWindow.show')
-      captionController.refreshForMainWindowState('mainWindow.show')
-    },
-    onHide: () => {
-      captionController.debug('mainWindow.hide')
-      captionController.refreshForMainWindowState('mainWindow.hide')
-    },
-    onMinimize: () => {
-      captionController.debug('mainWindow.minimize')
-      captionController.refreshForMainWindowState('mainWindow.minimize')
-    },
-    onRestore: () => {
-      captionController.debug('mainWindow.restore')
-      captionController.refreshForMainWindowState('mainWindow.restore')
-    },
-    onFocus: () => {
-      captionController.debug('mainWindow.focus')
-    },
-    onBlur: () => {
-      captionController.debug('mainWindow.blur')
-    },
-    onCloseToTray: () => {
-      captionController.debug('mainWindow.close', {
-        willHideToTray: true,
-      })
-    },
     onClosed: () => {
-      captionController.debug('mainWindow.closed')
       mainWindow = null
     },
   })
-  captionController.debug('mainWindow.created')
 }
 
 const gotTheLock = app.requestSingleInstanceLock()
@@ -127,7 +88,7 @@ if (!gotTheLock) {
   app.whenReady().then(async () => {
     if (!process.env.HTTPS_PROXY && !process.env.HTTP_PROXY) {
       try {
-        const proxy = await session.defaultSession.resolveProxy('https://api.mistral.ai')
+        const proxy = await session.defaultSession.resolveProxy('https://openspeech.bytedance.com')
         const match = proxy.match(/^PROXY\s+(.+)$/i)
         if (match) {
           const proxyUrl = `http://${match[1]}`
@@ -159,7 +120,6 @@ if (!gotTheLock) {
         isQuitting = true
         app.quit()
       },
-      debug: (message, extra) => captionController.debug(message, extra),
     })
 
     registerAppShortcuts({
@@ -187,17 +147,14 @@ if (!gotTheLock) {
 }
 
 app.on('window-all-closed', () => {
-  captionController.debug('app.window-all-closed')
   if (process.platform !== 'darwin') {
     app.quit()
   }
 })
 
 app.on('before-quit', () => {
-  captionController.debug('app.before-quit')
   isQuitting = true
   codexController.dispose()
-  captionController.dispose()
   globalShortcut.unregisterAll()
   void localRuntimeController.stopAll()
 })
@@ -232,12 +189,6 @@ registerAppIpc({
     mainWindow?.close()
   },
   isMainWindowMaximized: () => mainWindow?.isMaximized() ?? false,
-  onWindowMinimize: (source) => {
-    captionController.debug('ipc.window-minimize', { source: source || 'unknown' })
-  },
-  onWindowClose: () => {
-    captionController.debug('ipc.window-close')
-  },
 })
 
 registerUpdaterIpc({
@@ -248,11 +199,6 @@ registerUpdaterIpc({
   markQuitting: () => {
     isQuitting = true
   },
-})
-
-registerCaptionIpc({
-  ipcMain,
-  controller: captionController,
 })
 
 registerDiagnosticsIpc({
@@ -285,7 +231,6 @@ ipcMain.handle('lang:change', (_event, lang: string) => {
         isQuitting = true
         app.quit()
       },
-      debug: (message, extra) => captionController.debug(message, extra),
     })
   }
 })

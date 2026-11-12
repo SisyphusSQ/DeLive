@@ -34,9 +34,6 @@ export const enErrors = {
   systemAudioShareHint:
     'Could not capture system audio. When sharing your screen, enable the "Share audio" option.',
 
-  siliconflowApiKeyMissing: 'SiliconFlow API Key is missing',
-  cloudflareCredentialsMissing: 'Cloudflare API Token or Account ID is missing',
-  groqApiKeyMissing: 'Groq API Key is missing',
   whisperCppRuntimeInvalidUrl: 'Local whisper.cpp runtime URL is invalid',
 
   mindMapSvgNotFound: 'Mind map SVG content was not found',
@@ -47,26 +44,10 @@ export const enErrors = {
   enterApiKey: 'Enter an API Key',
   enterAppId: 'Enter an APP ID',
   enterAccessToken: 'Enter an Access Token',
-  enterMistralApiKey: 'Enter a Mistral API Key',
-  enterDeepgramApiKey: 'Enter a Deepgram API Key',
-  enterAssemblyAiApiKey: 'Enter an AssemblyAI API Key',
-  enterElevenLabsApiKey: 'Enter an ElevenLabs API Key',
-  enterGladiaApiKey: 'Enter a Gladia API Key',
-  enterCloudflareApiToken: 'Enter a Cloudflare API Token',
-  enterCloudflareAccountId: 'Enter a Cloudflare Account ID',
-  cloudflareTokenInvalid:
-    'API Token is invalid or lacks permission. Ensure it has Workers AI read/write access.',
-  cloudflareAccountInvalid: 'Account ID is invalid or the model does not exist. Check your configuration.',
-  cloudflareApiError: (status: number) => `Cloudflare API error: ${status}`,
-  cloudflareApiFailedStatus: 'Cloudflare API returned a failure status. Check your configuration.',
   enterBaseUrl: 'Enter a Base URL',
   enterModelName: 'Enter a model name',
   invalidBaseUrl: 'Base URL format is invalid',
   serviceReturnedError: (status: number) => `Service returned error: ${status}`,
-  enterGroqApiKey: 'Enter a Groq API Key',
-  groqServiceError: (status: number) => `Groq service error: ${status}`,
-  enterSiliconflowApiKey: 'Enter a SiliconFlow API Key',
-  enterSixtydbApiKey: 'Enter a 60db API Key',
   invalidServiceUrl: 'Service URL format is invalid',
   funasrConnectFailed: (baseUrl: string, detail: string) =>
     `Cannot connect to funasr-server (${baseUrl}): ${detail}. Ensure the service is running.`,
@@ -93,20 +74,15 @@ export const enErrors = {
     'OpenAI-compatible service returned an empty transcript. Check the audio file or service configuration.',
   volcEmptyTranscript:
     'Volcengine returned an empty transcript. Check the audio file or try another provider.',
-  cloudflareCredentialsNotConfigured: 'Cloudflare API Token or Account ID is not configured',
   volcCredentialsNotConfigured: 'Volcengine APP ID or Access Token is not configured',
   configureBaseUrlFirst: 'Configure Base URL first',
   openAiCompatibleServiceError: (status: number) => `OpenAI-compatible service error: HTTP ${status}`,
-  gladiaEmptyTranscript: (debugInfo: string) =>
-    `Gladia returned an empty transcript (${debugInfo}). Check that the audio contains recognizable speech.`,
   providerApiKeyNotConfigured: (providerId: string) => `${providerId} API Key not configured`,
   fileTranscriptionUnsupported: (providerId: string) => `${providerId} does not support file transcription yet. Please choose another provider.`,
   whisperCppFileNeedsElectron: 'Local whisper.cpp file transcription requires the DeLive desktop app',
   whisperCppModelPathNotConfigured: 'Configure the whisper.cpp model file path in Settings first',
   audioDecodeFailed: (detail: string) => `Could not decode this audio/video file: ${detail}`,
   whisperCppEmptyTranscript: 'whisper.cpp returned an empty transcript. Check that the audio contains speech.',
-  sixtydbFileTooLarge: (sizeMb: string) => `60db file transcription accepts files up to 10 MB; this file is ${sizeMb} MB. Compress it or choose another provider.`,
-  sixtydbEmptyTranscript: '60db returned an empty transcript. Check that the audio contains speech.',
 
   localModelSetupServiceError: (status: number) => `Service returned error: ${status}`,
   localModelPullFailed: (status: number) => `Pull failed: ${status}`,

@@ -54,7 +54,6 @@ export function exportToTxt(session: TranscriptSession, tags?: Tag[]): void {
   if (session.versions?.length) return downloadReview(session, 'txt')
   const sessionTags = tags?.filter((tag) => session.tagIds?.includes(tag.id)) || []
   const tagNames = sessionTags.map((tag) => tag.name).join(', ')
-  const translatedText = session.translatedTranscript?.text?.trim()
   const speakerAwareTranscript = buildSpeakerAwareTranscript(session)
 
   const content = `标题: ${session.title}
@@ -63,7 +62,6 @@ export function exportToTxt(session: TranscriptSession, tags?: Tag[]): void {
 ${'='.repeat(50)}
 
 ${speakerAwareTranscript}
-${translatedText ? `\n\n${'-'.repeat(20)}\n翻译\n${'-'.repeat(20)}\n\n${translatedText}\n` : ''}
 `
 
   triggerDownload(
@@ -76,7 +74,6 @@ export function exportToMarkdown(session: TranscriptSession, tags?: Tag[]): void
   if (session.versions?.length) return downloadReview(session, 'md')
   const sessionTags = tags?.filter((tag) => session.tagIds?.includes(tag.id)) || []
   const tagNames = sessionTags.map((tag) => `\`${tag.name}\``).join(' ')
-  const translatedText = session.translatedTranscript?.text?.trim()
 
   const speakerNameMap = Object.fromEntries(
     (session.speakers || []).map((speaker) => [
@@ -106,15 +103,6 @@ export function exportToMarkdown(session: TranscriptSession, tags?: Tag[]): void
   lines.push('---')
   lines.push('')
   lines.push(transcriptMd)
-
-  if (translatedText) {
-    lines.push('')
-    lines.push('---')
-    lines.push('')
-    lines.push('## Translation')
-    lines.push('')
-    lines.push(translatedText)
-  }
 
   lines.push('')
 

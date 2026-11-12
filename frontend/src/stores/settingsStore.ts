@@ -1,4 +1,4 @@
-import { storeVolcSecrets } from '../utils/secretStorage'
+import { SAFE_STORAGE_PLACEHOLDER, storeVolcSecrets } from '../utils/secretStorage'
 import { aiBaseUrl } from '../../../shared/ai'
 import { create } from 'zustand'
 import type {
@@ -7,7 +7,6 @@ import type {
   CloudBackupConfig,
   OpenApiConfig,
   ProviderConfigData,
-  CaptionStyle,
 } from '../types'
 import {
   encryptApiKeyForStorage,
@@ -19,23 +18,16 @@ import {
 import { getDefaultSettings } from '../utils/storageShared'
 import { providerRegistry } from '../providers'
 import type { ASRProviderInfo, ASRVendor } from '../types/asr'
+import { DEFAULT_ASR_VENDOR } from '../types/asr/common'
+import { hasVolcCredentials } from '../utils/providerConfig'
 import { withOpenApiToken } from '../utils/openApiToken'
-
-const defaultCaptionStyle: CaptionStyle = {
-  fontSize: 24,
-  fontFamily: '-apple-system, BlinkMacSystemFont, "Microsoft YaHei", "PingFang SC", "Noto Sans CJK SC", "Hiragino Sans GB", "WenQuanYi Micro Hei", sans-serif',
-  textColor: '#ffffff',
-  backgroundColor: 'rgba(0, 0, 0, 0.7)',
-  textShadow: true,
-  maxLines: 2,
-  width: 800,
-  displayMode: 'source',
-}
 
 export interface SettingsState {
   credentialError?: string
+  volcCredentialsLoading: boolean
+  volcCredentialsUnreadable: boolean
   settings: AppSettings
-  loadSettings: () => void
+  loadSettings: () => Promise<void>
   updateSettings: (settings: Partial<AppSettings>) => void
   updateAiPostProcessConfig: (config: Partial<AiPostProcessConfig>) => Promise<void>
   updateOpenApiConfig: (config: Partial<OpenApiConfig>) => void
@@ -48,40 +40,24 @@ export interface SettingsState {
 }
 
 export const useSettingsStore = create<SettingsState>((set, get) => ({
+  volcCredentialsLoading: true,
+  volcCredentialsUnreadable: false,
   settings: {
-    apiKey: '',
     languageHints: ['zh', 'en'],
-    currentVendor: 'soniox',
+    currentVendor: DEFAULT_ASR_VENDOR,
     providerConfigs: {},
-    captionStyle: defaultCaptionStyle,
     aiPostProcess: getDefaultSettings().aiPostProcess,
   },
-  loadSettings: () => {
+  loadSettings: async () => {
     const settings = getSettings()
     const defaultSettings = getDefaultSettings()
-    const registeredVendors = providerRegistry.getAllProviders().map(p => p.id)
-
-    if (settings.apiKey && (!settings.providerConfigs || !settings.providerConfigs['soniox'])) {
-      settings.currentVendor = 'soniox'
-      settings.providerConfigs = {
-        ...settings.providerConfigs,
-        soniox: {
-          apiKey: settings.apiKey,
-          languageHints: settings.languageHints,
-        },
-      }
-    }
-
-    if (!settings.currentVendor || !registeredVendors.includes(settings.currentVendor as ASRVendor)) {
-      settings.currentVendor = registeredVendors[0] || 'soniox'
-    }
-
     const merged = {
       ...settings,
-      captionStyle: {
-        ...defaultCaptionStyle,
-        ...(settings.captionStyle || {}),
-      },
+      currentVendor: providerRegistry.has(settings.currentVendor as ASRVendor)
+        ? settings.currentVendor
+        : DEFAULT_ASR_VENDOR,
+      providerConfigs: Object.fromEntries(Object.entries(settings.providerConfigs ?? {})
+        .filter(([id]) => providerRegistry.has(id as ASRVendor))),
       aiPostProcess: {
         ...defaultSettings.aiPostProcess,
         ...(settings.aiPostProcess || {}),
@@ -108,7 +84,7 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
       saveSettings(merged)
     }
 
-    set({ settings: merged })
+    set({ settings: merged, volcCredentialsLoading: true })
 
     if (window.electronAPI) {
       window.electronAPI.apiUpdateOpenApiConfig({
@@ -117,12 +93,21 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
       })
     }
 
-    void (async () => {
-      try { await migrateApiKeysToSafeStorage(get().settings) }
-      catch (error) { set({ credentialError: (error as Error).message }) }
-      const resolved = await resolveApiKeysFromSafeStorage(get().settings)
-      set({ settings: resolved })
-    })()
+    const storedVolc = merged.providerConfigs.volc
+    const hadStoredVolc = Object.values(storedVolc ?? {}).includes(SAFE_STORAGE_PLACEHOLDER)
+    try {
+      await migrateApiKeysToSafeStorage(merged)
+    } catch (error) {
+      set({ credentialError: (error as Error).message })
+    }
+    try {
+      const resolved = await resolveApiKeysFromSafeStorage(merged)
+      set({ settings: resolved, volcCredentialsUnreadable: hadStoredVolc && !hasVolcCredentials(resolved.providerConfigs?.volc) })
+    } catch (error) {
+      set({ credentialError: (error as Error).message, volcCredentialsUnreadable: hadStoredVolc })
+    } finally {
+      set({ volcCredentialsLoading: false })
+    }
   },
   updateSettings: (newSettings) => {
     const settings = { ...get().settings, ...newSettings }
@@ -197,34 +182,38 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
 
   availableProviders: providerRegistry.getAllProviders(),
   setCurrentVendor: (vendorId) => {
+    if (!providerRegistry.has(vendorId as ASRVendor)) return
     const { settings } = get()
     const newSettings = { ...settings, currentVendor: vendorId }
     saveSettings(newSettings)
     set({ settings: newSettings })
   },
   updateProviderConfig: async (vendorId, config) => {
-    if (vendorId === 'volc') { await storeVolcSecrets(config); set({ credentialError: undefined }) }
+    if (!providerRegistry.has(vendorId as ASRVendor)) throw new Error('不支持此转写服务')
+    if (vendorId === 'volc') await storeVolcSecrets(config)
     const { settings } = get()
     const currentConfig = settings.providerConfigs?.[vendorId] || { apiKey: '' }
-    const providerInfo = providerRegistry.getInfo(vendorId as ASRVendor)
-    const shouldSyncLegacyApiKey = !!providerInfo?.requiredConfigKeys.includes('apiKey')
     const newProviderConfigs = {
       ...settings.providerConfigs,
       [vendorId]: { ...currentConfig, ...config },
     }
-    const newApiKey = vendorId === settings.currentVendor && shouldSyncLegacyApiKey
-      ? (config.apiKey ?? currentConfig.apiKey ?? settings.apiKey)
-      : settings.apiKey
     const newSettings = {
       ...settings,
       providerConfigs: newProviderConfigs,
-      apiKey: newApiKey,
     }
     saveSettings(newSettings)
-    set({ settings: newSettings })
+    set({ settings: newSettings, ...(vendorId === 'volc' ? { volcCredentialsUnreadable: false } : {}) })
   },
   getProviderConfig: (vendorId) => {
     const { settings } = get()
     return settings.providerConfigs?.[vendorId]
   },
 }))
+
+export function getVolcCredentialIssue(state: SettingsState): string | undefined {
+  if (state.volcCredentialsLoading) return '正在读取火山凭据'
+  if (hasVolcCredentials(state.settings.providerConfigs?.volc)) return undefined
+  return state.volcCredentialsUnreadable
+    ? '已保存的火山凭据无法读取，请重新配置'
+    : '请配置火山 API Key 或 APP ID + Access Token'
+}

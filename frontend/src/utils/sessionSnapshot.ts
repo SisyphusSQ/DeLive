@@ -1,10 +1,8 @@
 import type {
-  CaptionDisplayMode,
   TranscriptPostProcess,
   TranscriptSourceMeta,
   TranscriptSpeaker,
   TranscriptTokenData,
-  TranscriptTranslationData,
   TranscriptSegment,
 } from '../types'
 import type { TranscriptToken } from '../types/asr'
@@ -18,7 +16,6 @@ export interface TranscriptPersistenceSnapshot {
   speakers?: TranscriptSpeaker[]
   segments?: TranscriptSegment[]
   sourceMeta?: TranscriptSourceMeta
-  translatedTranscript?: TranscriptTranslationData
   postProcess?: TranscriptPostProcess
 }
 
@@ -27,7 +24,6 @@ export function hasPersistenceSnapshotContent(snapshot: TranscriptPersistenceSna
     snapshot.realtime?.length
     || snapshot.transcript
     || snapshot.tokens?.length
-    || snapshot.translatedTranscript?.text
     || hasPostProcessContent(snapshot.postProcess),
   )
 }
@@ -64,33 +60,6 @@ export function buildTranscriptFromState(
   return currentTranscript || finalTranscript || nonFinalTranscript
 }
 
-export function buildTranslatedTranscript(
-  text: string,
-  options: {
-    displayMode: CaptionDisplayMode
-    targetLanguage?: string
-    updatedAt?: number
-  },
-): TranscriptTranslationData | undefined {
-  const normalized = text.trim()
-  if (!normalized) {
-    return undefined
-  }
-
-  const mode: TranscriptTranslationData['mode'] = options.displayMode === 'dual'
-    ? 'dual-line'
-    : options.displayMode === 'translated'
-      ? 'output-only'
-      : 'inline'
-
-  return {
-    text: normalized,
-    targetLanguage: options.targetLanguage,
-    mode,
-    updatedAt: options.updatedAt ?? Date.now(),
-  }
-}
-
 export function buildSourceMeta(options: {
   providerId?: string
   providerMode?: TranscriptSourceMeta['providerMode']
@@ -114,8 +83,6 @@ export function buildSessionSnapshot(options: {
   providerMode?: TranscriptSourceMeta['providerMode']
   platform?: TranscriptSourceMeta['platform']
   captureMode?: TranscriptSourceMeta['captureMode']
-  translationTargetLanguage?: string
-  captionDisplayMode?: CaptionDisplayMode
 }): TranscriptPersistenceSnapshot {
   const {
     runtimeState,
@@ -123,8 +90,6 @@ export function buildSessionSnapshot(options: {
     providerMode,
     platform,
     captureMode,
-    translationTargetLanguage,
-    captionDisplayMode = 'source',
   } = options
 
   const transcript = buildTranscriptFromState(
@@ -132,19 +97,9 @@ export function buildSessionSnapshot(options: {
     runtimeState.nonFinalTranscript,
     runtimeState.currentTranscript,
   )
-  const translatedText = buildTranscriptFromState(
-    runtimeState.finalTranslatedTranscript,
-    runtimeState.nonFinalTranslatedTranscript,
-    runtimeState.currentTranslatedTranscript,
-  )
-
   return {
     transcript,
     realtime: runtimeState.realtime,
-    translatedTranscript: buildTranslatedTranscript(translatedText, {
-      displayMode: captionDisplayMode,
-      targetLanguage: translationTargetLanguage,
-    }),
     tokens: runtimeState.finalTokens.length > 0
       ? mapTokensForStorage(runtimeState.finalTokens)
       : undefined,

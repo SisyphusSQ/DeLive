@@ -27,7 +27,7 @@
 
 </div>
 
-DeLive 是一個面向系統音訊的桌面轉錄工作台。它會擷取電腦正在播放的聲音，按所選 Provider 的能力選擇最合適的轉錄鏈路（共支援 14 種 ASR 後端），把會話保存在本機，並在錄製結束後提供完整的 AI 複盤工作台——支援 AI 糾錯、富文本 Markdown 對話、結構化 briefing、會話問答和思維導圖整理。同時支援上傳音訊/影片檔案進行離線轉錄，雲端與本地共 14 種 Provider 均可用於檔案轉錄。
+DeLive 是一個面向系統音訊的桌面轉錄工作台。它會擷取電腦正在播放的聲音，按所選 Provider 的能力選擇最合適的轉錄鏈路（共支援 4 種 ASR 後端），把會話保存在本機，並在錄製結束後提供完整的 AI 複盤工作台——支援 AI 糾錯、富文本 Markdown 對話、結構化 briefing、會話問答和思維導圖整理。同時支援上傳音訊/影片檔案進行離線轉錄，雲端與本地共 4 種 Provider 均可用於檔案轉錄。
 
 ## 示範
 
@@ -42,7 +42,7 @@ https://github.com/user-attachments/assets/d363c237-e112-4f47-b72e-252aef45e6b4
 **章節**
 
 1. 整體瀏覽
-2. 即時轉錄 + 雙語字幕 + 多人辨識
+2. 即時轉錄 + 多人辨識
 3. AI 摘要 + 思維導圖 + AI 對話 + AI 糾錯
 4. 檔案轉錄
 5. MCP 呼叫
@@ -52,10 +52,10 @@ https://github.com/user-attachments/assets/d363c237-e112-4f47-b72e-252aef45e6b4
 
 #
 
-| 即時轉錄 | 字幕懸浮窗 | MCP 整合 |
-|:---:|:---:|:---:|
-| 14 種 ASR 引擎即時轉錄 | 可拖曳的置頂字幕懸浮窗 | 外部 AI 工具透過 MCP 協定存取 DeLive |
-| <img width="300" src="assets/screenshot-live.png" alt="即時轉錄" /> | <img width="300" src="assets/screenshot-caption-overlay.png" alt="字幕懸浮窗" /> | <img width="300" src="assets/screenshot-mcp-integration.png" alt="MCP 整合" /> |
+| 即時轉錄 | MCP 整合 |
+|:---:|:---:|
+| 4 種 ASR 引擎即時轉錄 | 外部 AI 工具透過 MCP 協定存取 DeLive |
+| <img width="300" src="assets/screenshot-live.png" alt="即時轉錄" /> | <img width="300" src="assets/screenshot-mcp-integration.png" alt="MCP 整合" /> |
 
 | AI 概覽 | AI 糾錯 | AI 對話 |
 |:---:|:---:|:---:|
@@ -69,11 +69,9 @@ https://github.com/user-attachments/assets/d363c237-e112-4f47-b72e-252aef45e6b4
 ## 🎯 核心功能
 
 - **系統音訊擷取** — 網頁影片、直播、會議、課程、Podcast，只要共享系統音訊即可接入
-- **14 種 ASR 後端** — Soniox、火山引擎、Groq、矽基流動、Mistral AI、Deepgram、AssemblyAI、ElevenLabs、Gladia、Cloudflare Workers AI、60db、本地 OpenAI-compatible、本地 FunASR / SenseVoice、本地 whisper.cpp
-- **檔案轉錄** — 上傳音訊/影片檔案，使用全部 14 種 Provider 轉錄，包括完全本地的 whisper.cpp 與 FunASR / SenseVoice
+- **四種 ASR 服務** — 火山引擎、本地 OpenAI 相容、本地 FunASR / SenseVoice、本地 whisper.cpp
+- **檔案轉錄** — 火山是預設雲端服務，檔案轉錄也可使用三種本地服務。
 - **AI 複盤工作台** — 糾錯（直接糾錯 / 先檢測後糾錯）、結構化 briefing、多執行緒對話、問答、思維導圖
-- **懸浮字幕窗** — 始終置頂視窗，支援原文 / 翻譯 / 雙語模式
-- **Soniox 雙語與發言人辨識** — 即時翻譯、雙語字幕、speaker diarization
 - **主題功能** — 將會話歸類到專案容器中
 - **本地優先** — 會話、標籤、主題、設定保存在本機；可選 S3/WebDAV 雲端備份
 - **開放 API 與 MCP** — 本地 REST API、即時 WebSocket、MCP 伺服器，供 AI Agent 使用
@@ -98,23 +96,11 @@ https://github.com/user-attachments/assets/d363c237-e112-4f47-b72e-252aef45e6b4
 | macOS | `.dmg`、`.zip`（Intel x64 和 Apple Silicon arm64） |
 | Linux | `.AppImage`、`.deb` |
 
-> 🧪 60db、FunASR / SenseVoice、韓語介面以及本地 Provider 的檔案轉錄比目前穩定版更新，可在 [預發布版本](https://github.com/XimilalaXiang/DeLive/releases) 中體驗，或從原始碼建置。
-
 ## 🔌 支援的 ASR Provider
 
 | Provider | 類型 | 傳輸模式 | 檔案轉錄 | 亮點 |
 |----------|------|----------|----------|------|
-| **Soniox V5** | 雲端 | 即時串流 | 支援 | token 級即時轉錄、即時翻譯、雙語字幕、多發言人辨識 |
 | **火山引擎** | 雲端 | 即時串流 | 支援 | 中文場景友善，內建代理 |
-| **ElevenLabs** | 雲端 | 即時串流 | 支援 | Scribe v2 Realtime（標準 / Turbo / Lite），99 種語言 |
-| **Mistral AI** | 雲端 | 即時串流 | 支援 | Voxtral Realtime |
-| **Gladia** | 雲端 | 即時串流 | 支援 | 即時 Solaria-1；檔案 Solaria-1 / Solaria-3，100+ 種語言 |
-| **Deepgram** | 雲端 | 即時串流 | 支援 | Nova-3 / Nova-2 串流 |
-| **AssemblyAI** | 雲端 | 即時串流 | 支援 | Universal-3.5 Pro 串流 |
-| **60db** | 雲端 | 即時串流 | 支援 | 約 40 種語言（含印度語系與英語混說），可選發言人辨識；檔案走 REST 介面（≤10MB） |
-| **Cloudflare Workers AI** | 雲端 | 視窗批次 | 支援 | 基於 Whisper，低成本含免費額度 |
-| **矽基流動** | 雲端 | 視窗批次 | 支援 | SenseVoice、TeleSpeech、Qwen Omni |
-| **Groq** | 雲端 | 視窗批次 | 支援 | Whisper large-v3-turbo / large-v3 |
 | **本地 OpenAI-compatible** | 本地 | 視窗批次 | 支援 | 適配 Ollama 或相容閘道 |
 | **本地 FunASR / SenseVoice** | 本地 | 視窗批次 | 支援 | 自建 funasr-server；SenseVoice（情感 + 音訊事件）、Paraformer，無 API 費用 |
 | **本地 whisper.cpp** | 本地 | Electron 管理 | 支援 | 全本地運行，DeLive 管理 binary 和模型 |
@@ -139,7 +125,7 @@ graph TB
     subgraph "桌面殼層"
         EM[Electron 主程序]
         WIN[主視窗]
-        CAP[字幕懸浮窗]
+
         DESK[系統匣 / 快捷鍵 / 自啟動 / 更新]
         SEC[IPC 安全 / SafeStorage / Diagnostics]
     end
@@ -155,7 +141,7 @@ graph TB
         ASR[useASR]
         CAPMGR[CaptureManager]
         PROVSESS[ProviderSessionManager]
-        CAPBR[CaptionBridge]
+
     end
 
     subgraph "擷取管線"
@@ -166,18 +152,11 @@ graph TB
 
     subgraph "Provider 層"
         REG[Provider Registry]
-        SON[Soniox]
+
         VOL[Volcengine]
-        ELB[ElevenLabs]
-        MIS[Mistral AI]
-        GLA[Gladia]
-        DPG[Deepgram]
-        AAI[AssemblyAI]
-        CFL[Cloudflare Workers AI]
-        SIL[SiliconFlow]
-        GRQ[Groq]
+
         LOA[Local OpenAI-compatible]
-        SDB[60db]
+
         FUN[FunASR / SenseVoice]
         WCP[whisper.cpp Runtime]
     end
@@ -200,13 +179,12 @@ graph TB
     UI --> ASR
     ASR --> CAPMGR
     ASR --> PROVSESS
-    ASR --> CAPBR
+
     CAPMGR --> GDM
     GDM --> MR
     GDM --> AP
     PROVSESS --> REG
-    REG --> SON & VOL & ELB & MIS & GLA & DPG & AAI & CFL & SIL & GRQ & SDB & LOA & FUN & WCP
-    MR --> SON & LOA & FUN
+
     AP --> VOL & ELB & MIS & GLA & DPG & AAI & CFL & SIL & GRQ & SDB & WCP
     VOL & MIS & DPG & AAI & ELB & GLA & SDB --> PROXY
     WCP --> RTM
@@ -215,11 +193,10 @@ graph TB
     CFG --> SAFE
     UI --> EM
     EM --> WIN & CAP & DESK & SEC & PROXY & RTM
-    CAPBR --> CAP
 
     style UI fill:#61dafb,color:#000
     style EM fill:#334155,color:#fff
-    style CAP fill:#f472b6,color:#000
+
     style REG fill:#f59e0b,color:#000
     style PROXY fill:#10b981,color:#fff
     style RTM fill:#0f766e,color:#fff

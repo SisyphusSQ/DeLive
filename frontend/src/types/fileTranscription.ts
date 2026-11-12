@@ -16,14 +16,6 @@ export interface FileTranscriptionJob {
   status: FileTranscriptionJobStatus
   progress: number
   provider: ASRVendor
-  /** Soniox-specific remote file ID */
-  sonioxFileId?: string
-  /** Soniox-specific remote transcription ID */
-  sonioxTranscriptionId?: string
-  /** Mistral-specific uploaded file ID (for large-file workflow) */
-  mistralFileId?: string
-  /** Gladia-specific remote transcription job ID */
-  gladiaTranscriptionId?: string
   sessionId?: string
   error?: string
   createdAt: number
@@ -34,10 +26,6 @@ export interface FileTranscriptionJob {
 export interface FileTranscriptionConfig {
   provider: ASRVendor
   languageHints?: string[]
-  translationEnabled?: boolean
-  translationTargetLanguage?: string
-  enableSpeakerDiarization?: boolean
-  model?: string
 }
 
 export const ACCEPTED_AUDIO_EXTENSIONS = [

@@ -2,7 +2,6 @@ import { describe, expect, it } from 'vitest'
 import {
   buildSessionSnapshot,
   buildSourceMeta,
-  buildTranslatedTranscript,
   restoreStoredTokens,
 } from './sessionSnapshot'
 
@@ -17,9 +16,6 @@ describe('sessionSnapshot', () => {
         finalTranscript: 'Hello ',
         nonFinalTranscript: 'world',
         currentTranscript: 'Hello world',
-        finalTranslatedTranscript: '你好',
-        nonFinalTranslatedTranscript: '世界',
-        currentTranslatedTranscript: '你好世界',
         currentSegments: [
           { text: 'Hello ', speakerId: 'speaker_1', isFinal: true },
         ],
@@ -30,22 +26,14 @@ describe('sessionSnapshot', () => {
           summary: 'Recap',
         },
       },
-      providerId: 'soniox',
+      providerId: 'volc',
       providerMode: 'realtime',
       platform: 'win32',
       captureMode: 'system-audio',
-      translationTargetLanguage: 'zh',
-      captionDisplayMode: 'dual',
     })
 
     expect(snapshot).toEqual({
       transcript: 'Hello world',
-      translatedTranscript: {
-        text: '你好世界',
-        targetLanguage: 'zh',
-        mode: 'dual-line',
-        updatedAt: expect.any(Number),
-      },
       tokens: [
         {
           text: 'Hello ',
@@ -57,7 +45,7 @@ describe('sessionSnapshot', () => {
           confidence: undefined,
         },
       ],
-      providerId: 'soniox',
+      providerId: 'volc',
       speakers: [{ id: 'speaker_1', label: 'speaker_1', displayName: 'Speaker 1' }],
       segments: [{ text: 'Hello ', speakerId: 'speaker_1', isFinal: true }],
       sourceMeta: {
@@ -71,7 +59,7 @@ describe('sessionSnapshot', () => {
     })
   })
 
-  it('restores stored tokens and builds source/translation helpers', () => {
+  it('restores stored tokens and builds source metadata', () => {
     expect(restoreStoredTokens([
       { text: 'Hello', isFinal: false, speaker: 'speaker_1' },
     ])).toEqual([
@@ -79,7 +67,7 @@ describe('sessionSnapshot', () => {
     ])
 
     expect(buildSourceMeta({
-      providerId: 'groq',
+      providerId: 'local_openai',
       providerMode: 'full-session-retranscription',
       platform: 'linux',
       captureMode: 'file',
@@ -89,15 +77,5 @@ describe('sessionSnapshot', () => {
       providerMode: 'full-session-retranscription',
     })
 
-    expect(buildTranslatedTranscript('Bonjour', {
-      displayMode: 'translated',
-      targetLanguage: 'fr',
-      updatedAt: 123,
-    })).toEqual({
-      text: 'Bonjour',
-      targetLanguage: 'fr',
-      mode: 'output-only',
-      updatedAt: 123,
-    })
   })
 })

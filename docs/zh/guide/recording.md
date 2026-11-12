@@ -6,7 +6,7 @@
 2. 填写凭证（详见 [API Key 获取指引](./api-keys)），运行 **测试配置**。
 3. 在 Live 页面点击 **开始录制**。
 4. 选择一个屏幕或窗口 — 确保启用了 **音频共享**。
-5. 观察部分文本和最终文本在主窗口及可选悬浮字幕窗中实时更新。
+5. 观察部分文本和最终文本在主窗口中实时更新。
 6. 点击 **停止录制**。会话被保存，可在历史记录中查看。
 
 ![实时转录](/images/screenshot-live.png)
@@ -17,8 +17,8 @@ DeLive 通过 `getDisplayMedia` 的 loopback 音频捕获 **系统音频**。捕
 
 | 音频模式 | 格式 | 使用者 |
 |---------|------|--------|
-| `MediaRecorder` | WebM/Opus 块 | Soniox、本地 OpenAI 兼容 |
-| `AudioWorklet` PCM16 | 16 kHz 单声道原始 PCM | 火山引擎、Groq、硅基流动、whisper.cpp |
+| `MediaRecorder` | WebM/Opus 块 | 本地 OpenAI 兼容、FunASR / SenseVoice |
+| `AudioWorklet` PCM16 | 16 kHz 单声道原始 PCM | 火山引擎、whisper.cpp |
 
 ::: info
 你必须选择一个屏幕或窗口来共享。DeLive 捕获你所选来源的音频 — 浏览器标签页、会议应用、媒体播放器或任何其他播放源。
@@ -44,7 +44,6 @@ idle → starting → recording → stopping → completed
 
 如果录制过程中音频设备发生变化（如插入耳机），DeLive 根据 Provider 的 `captureRestartStrategy` 处理：
 
-- **`reconnect-session`**（Soniox）— 断开 Provider 连接并重新建立新会话
 - **`reuse-session`**（其他所有）— 仅重启捕获管线，保持 Provider 连接
 
 ## 快捷键
@@ -56,7 +55,7 @@ idle → starting → recording → stopping → completed
 | `Cmd +` / `Cmd =`、`Cmd -` | 放大/缩小主界面（75%–150%） |
 | `Cmd 0` | 主界面恢复 100% |
 
-缩放比例重启后保留，设置和输入框中也可使用；字幕浮窗字号独立。详见[主界面缩放](../development/window-zoom)。
+缩放比例重启后保留，设置和输入框中也可使用。详见[主界面缩放](../development/window-zoom)。
 
 
 ## 双来源原音录音

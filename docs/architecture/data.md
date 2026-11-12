@@ -12,7 +12,6 @@ The core data type is `TranscriptSession`:
 | `date` / `time` | `string` | `YYYY-MM-DD` / `HH:mm` |
 | `createdAt` / `updatedAt` | `number` | Unix milliseconds |
 | `transcript` | `string` | Plain text transcript |
-| `translatedTranscript` | `TranscriptTranslationData` | Optional translated text |
 | `duration` | `number` | Duration in ms |
 | `tokens` | `TranscriptTokenData[]` | Timestamped tokens |
 | `speakers` | `TranscriptSpeaker[]` | Speaker labels |
@@ -78,7 +77,7 @@ Topics are stored **only** in localStorage and are not included in backup/export
 
 ### Autosave
 
-Every transcript event triggers `scheduleCurrentSessionAutosave()` with a **1200ms debounce**. The autosave only persists when the snapshot has meaningful content (transcript, tokens, translated text, or post-process data).
+Every transcript event triggers `scheduleCurrentSessionAutosave()` with a **1200ms debounce**. The autosave only persists when the snapshot has meaningful content (transcript, tokens, or post-process data).
 
 ### Completion
 
@@ -96,7 +95,6 @@ On `loadSessions()`, any session with `status: 'recording'` is marked as `interr
 |-------|------|-------------|
 | `currentVendor` | `string` | Selected ASR provider |
 | `providerConfigs` | `Record<string, ProviderConfigData>` | Per-provider credentials |
-| `captionStyle` | `CaptionStyle` | Caption overlay appearance |
 | `colorTheme` | `string` | Accent palette (`cyan`, `violet`, etc.) |
 | `aiPostProcess` | `AiPostProcessConfig` | AI endpoint configuration |
 | `openApi` | `OpenApiConfig` | API enable/token settings |

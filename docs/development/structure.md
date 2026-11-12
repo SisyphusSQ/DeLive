@@ -5,14 +5,12 @@ DeLive/
 ├── electron/                    # Electron main process
 │   ├── main.ts                  # App entry, window creation, IPC registration
 │   ├── mainWindow.ts            # Main window config and security
-│   ├── captionWindow.ts         # Floating caption overlay
 │   ├── tray.ts                  # System tray
 │   ├── shortcuts.ts             # Global keyboard shortcuts
 │   ├── desktopSource.ts         # Screen/window source picker
 │   ├── autoUpdater.ts           # Auto-update lifecycle
 │   ├── ipcSecurity.ts           # Trusted window verification, CSP, path allowlist
 │   ├── appIpc.ts                # App lifecycle IPC handlers
-│   ├── captionIpc.ts            # Caption window IPC
 │   ├── safeStorageIpc.ts        # Encrypted secret storage
 │   ├── updaterIpc.ts            # Update IPC
 │   ├── diagnosticsIpc.ts        # Diagnostics export
@@ -48,7 +46,6 @@ DeLive/
 │   │   ├── services/            # Business logic services
 │   │   │   ├── captureManager.ts    # Audio capture pipeline
 │   │   │   ├── providerSession.ts   # Provider lifecycle
-│   │   │   ├── captionBridge.ts     # Caption window text bridge
 │   │   │   └── aiPostProcess.ts     # AI briefing, Q&A, mind map
 │   │   ├── stores/              # Zustand state management
 │   │   │   ├── sessionStore.ts  # Sessions, recording, AI actions

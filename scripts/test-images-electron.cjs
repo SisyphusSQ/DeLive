@@ -7,7 +7,8 @@ const {registerTrustedWindow}=require('../dist-electron/electron/ipcSecurity');
 require('../dist-electron/electron/sessionImages').registerSessionImagesIpc(ipcMain);
 require('../dist-electron/electron/recordingIpc').registerRecordingIpc(ipcMain);
 require('../dist-electron/electron/safeStorageIpc').registerSafeStorageIpc(ipcMain);
-for(const [name,value]of Object.entries({'get-app-version':'2.3.0-beta.2','window-is-maximized':false,'get-auto-launch':false,'get-proxy-port':0,'lang:change':null,'caption-update-style':null,'caption-clear':null,'caption-get-status':{visible:false},'caption-update-text':null,'check-for-updates':null,'api-update-open-api-config':null,'file-tasks:list':[]}))ipcMain.handle(name,()=>value);
+ipcMain.handle('complete-backup:pendingRestore', () => null)
+for(const [name,value]of Object.entries({'get-app-version':'2.3.0-beta.2','window-is-maximized':false,'get-auto-launch':false,'get-proxy-port':0,'lang:change':null,    'check-for-updates':null,'api-update-open-api-config':null,'file-tasks:list':[]}))ipcMain.handle(name,()=>value);
 const delay=ms=>new Promise(r=>setTimeout(r,ms));let win;
 (async()=>{
 await app.whenReady();session.defaultSession.webRequest.onBeforeRequest((d,cb)=>cb({cancel:/^https?:|^wss?:/.test(d.url)}));

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { getAllWhatsNew, whatsNewLineText } from './whatsNew'
+import { getAllWhatsNew, getWhatsNewForVersion, whatsNewLineText } from './whatsNew'
 
 describe('whatsNewLineText', () => {
   it('returns Korean copy when ko is present', () => {
@@ -14,4 +14,9 @@ describe('whatsNewLineText', () => {
     const line = { zh: '中文', en: 'English only' }
     expect(whatsNewLineText(line, 'ko')).toBe('English only')
   })
+})
+
+it('does not show upstream release notes as a DeLive SQ update', () => {
+  expect(getWhatsNewForVersion('2.3.0-sq.2')).toBeUndefined()
+  expect(getWhatsNewForVersion('2.3.0-beta.2')?.version).toBe('2.3.0')
 })

@@ -50,13 +50,9 @@ export function formatStringArrayValue(value: unknown, fallback: string[] = DEFA
 export function buildProviderFormState(
   provider: ASRProviderInfo | undefined,
   providerConfig: ProviderConfigData | undefined,
-  settings: Pick<AppSettings, 'apiKey' | 'languageHints'>
+  settings: Pick<AppSettings, 'languageHints'>
 ): ProviderFormState {
-  const hasExistingConfig = providerConfig !== undefined && Object.keys(providerConfig).length > 0
-  const fallbackSettings = hasExistingConfig
-    ? settings
-    : { apiKey: '', languageHints: settings.languageHints }
-  const config = buildProviderConnectConfig(provider, providerConfig, fallbackSettings) as ProviderConfigData
+  const config = buildProviderConnectConfig(providerConfig, settings)
   const state: ProviderFormState = {}
 
   if (!provider) {

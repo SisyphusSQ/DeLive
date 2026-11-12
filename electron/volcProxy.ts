@@ -5,12 +5,6 @@ import { URL } from 'url'
 import { WebSocketServer } from 'ws'
 import { isAllowedAppOrigin, isLoopbackHostHeader } from '../shared/localApiGuard'
 import { attachVolcProxyServer } from '../shared/volcProxyCore'
-import { attachMistralProxyServer } from '../shared/mistralProxyCore'
-import { attachDeepgramProxyServer } from '../shared/deepgramProxyCore'
-import { attachAssemblyAIProxyServer } from '../shared/assemblyaiProxyCore'
-import { attachElevenLabsProxyServer } from '../shared/elevenlabsProxyCore'
-import { attachGladiaProxyServer } from '../shared/gladiaProxyCore'
-import { attachSixtydbProxyServer } from '../shared/sixtydbProxyCore'
 
 const DEFAULT_PORT = 23456
 const FALLBACK_PORTS = [23456, 23457, 23458, 23459, 23460]
@@ -111,31 +105,7 @@ export async function startVolcProxyServer(): Promise<{ server: Server; port: nu
   const volcWss = new WebSocketServer({ noServer: true })
   attachVolcProxyServer(volcWss)
 
-  const mistralWss = new WebSocketServer({ noServer: true })
-  attachMistralProxyServer(mistralWss)
-
-  const deepgramWss = new WebSocketServer({ noServer: true })
-  attachDeepgramProxyServer(deepgramWss)
-
-  const assemblyaiWss = new WebSocketServer({ noServer: true })
-  attachAssemblyAIProxyServer(assemblyaiWss)
-
-  const elevenlabsWss = new WebSocketServer({ noServer: true })
-  attachElevenLabsProxyServer(elevenlabsWss)
-
-  const gladiaWss = new WebSocketServer({ noServer: true })
-  attachGladiaProxyServer(gladiaWss)
-
-  const sixtydbWss = new WebSocketServer({ noServer: true })
-  attachSixtydbProxyServer(sixtydbWss)
-
   registerUpgradeRoute(server, '/ws/volc', volcWss)
-  registerUpgradeRoute(server, '/ws/mistral', mistralWss)
-  registerUpgradeRoute(server, '/ws/deepgram', deepgramWss)
-  registerUpgradeRoute(server, '/ws/assemblyai', assemblyaiWss)
-  registerUpgradeRoute(server, '/ws/elevenlabs', elevenlabsWss)
-  registerUpgradeRoute(server, '/ws/gladia', gladiaWss)
-  registerUpgradeRoute(server, '/ws/sixtydb', sixtydbWss)
 
   let boundPort: number | null = null
   for (const port of FALLBACK_PORTS) {

@@ -1,3 +1,4 @@
+import { DEFAULT_ASR_VENDOR } from '../types/asr/common'
 /**
  * ASR 提供商选择器组件
  */
@@ -23,7 +24,7 @@ export function ProviderSelector({ onSelect }: ProviderSelectorProps) {
   const { t } = useUIStore()
   const { settings, availableProviders, setCurrentVendor } = useSettingsStore()
 
-  const currentVendor = settings.currentVendor || 'soniox'
+  const currentVendor = settings.currentVendor || DEFAULT_ASR_VENDOR
   const currentProvider = availableProviders.find(p => p.id === currentVendor)
 
   // ESC 键关闭
@@ -77,7 +78,6 @@ export function ProviderSelector({ onSelect }: ProviderSelectorProps) {
   const renderProviderItem = (provider: ASRProviderInfo) => {
     const isSelected = provider.id === currentVendor
     const providerConfig = buildProviderConnectConfig(
-      provider,
       settings.providerConfigs?.[provider.id],
       settings
     )
@@ -232,7 +232,7 @@ export function ProviderSelector({ onSelect }: ProviderSelectorProps) {
           )}
         </div>
         <div className="flex-1 text-left">
-          <div className="font-semibold text-sm">{currentProvider ? getProviderName(currentProvider, t) : 'Soniox V5'}</div>
+          <div className="font-semibold text-sm">{currentProvider ? getProviderName(currentProvider, t) : currentVendor}</div>
           <div className="text-xs text-muted-foreground">{t.settings?.asrProvider || '点击选择服务'}</div>
         </div>
         <ChevronDown className="w-5 h-5 text-muted-foreground" />

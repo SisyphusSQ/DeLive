@@ -13,9 +13,9 @@ function textToWords(text: string): TimestampedWord[] {
 }
 
 class TestWindowedProvider extends WindowedBatchTranscriptionProvider<string> {
-  readonly id = ASRVendor.Groq
+  readonly id = ASRVendor.LocalOpenAI
   readonly info = {
-    id: ASRVendor.Groq,
+    id: ASRVendor.LocalOpenAI,
     name: 'Test',
     description: 'test',
     type: 'cloud' as const,
@@ -157,9 +157,9 @@ describe('WindowedBatchTranscriptionProvider', () => {
  * as a single TimestampedWord {start:0, end:0, text}.
  */
 class SingleBlobProvider extends WindowedBatchTranscriptionProvider<string> {
-  readonly id = ASRVendor.Groq
+  readonly id = ASRVendor.LocalOpenAI
   readonly info = {
-    id: ASRVendor.Groq,
+    id: ASRVendor.LocalOpenAI,
     name: 'SingleBlob',
     description: 'test single-blob provider',
     type: 'cloud' as const,

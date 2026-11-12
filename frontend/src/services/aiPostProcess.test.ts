@@ -44,9 +44,8 @@ describe('aiPostProcess', () => {
   })
 
   it('detects whether ai post-process is configured', () => {
-    expect(isAiPostProcessConfigured({ apiKey: '', languageHints: ['zh'], aiPostProcess: { enabled: true, model: 'legacy-model' } })).toBe(true)
+    expect(isAiPostProcessConfigured({ languageHints: ['zh'], aiPostProcess: { enabled: true, model: 'legacy-model' } })).toBe(true)
     expect(isAiPostProcessConfigured({
-      apiKey: '',
       languageHints: ['zh', 'en'],
       aiPostProcess: {
         enabled: true,
@@ -57,7 +56,6 @@ describe('aiPostProcess', () => {
     })).toBe(true)
 
     expect(isAiPostProcessConfigured({
-      apiKey: '',
       languageHints: ['zh', 'en'],
       aiPostProcess: {
         enabled: false,
@@ -218,7 +216,7 @@ describe('AI model readiness and streaming validation', () => {
   })
 
   it('checks the requested feature instead of always checking briefing', () => {
-    const settings = { apiKey: '', languageHints: [], aiPostProcess: { enabled: true, modelAssignment: { chat: 'chat-only' } } }
+    const settings = { languageHints: [], aiPostProcess: { enabled: true, modelAssignment: { chat: 'chat-only' } } }
     expect(isAiPostProcessConfigured(settings, 'chat')).toBe(true)
     expect(isAiPostProcessConfigured(settings, 'briefing')).toBe(false)
     expect(isAiPostProcessConfigured(settings, 'mindmap')).toBe(false)
@@ -232,7 +230,7 @@ describe('AI model readiness and streaming validation', () => {
     const callbacks = { onChunk: vi.fn(), onDone: vi.fn(), onError: vi.fn() }
     const session: TranscriptSession = { id: 'qa', title: 'test', transcript: reason === 'missing-input' ? '' : 'transcript', segments: [], createdAt: 1, updatedAt: 1, date: '', time: '' }
     await expect(askQuestionForSessionStreaming(session, reason === 'empty-question' ? ' ' : 'question', {
-      apiKey: '', languageHints: [], aiPostProcess: { enabled: reason !== 'disabled', model: reason === 'missing-model' ? '' : 'test' },
+      languageHints: [], aiPostProcess: { enabled: reason !== 'disabled', model: reason === 'missing-model' ? '' : 'test' },
     }, callbacks)).resolves.toBeUndefined()
     expect(callbacks.onError).toHaveBeenCalledExactlyOnceWith(expect.any(Error))
     expect(callbacks.onDone).not.toHaveBeenCalled()

@@ -65,7 +65,6 @@ describe('backupStorage', () => {
         { id: '', name: 'invalid' } as never,
       ],
       settings: {
-        apiKey: 'legacy-key',
         languageHints: ['zh', 'en'],
       },
     })
@@ -86,9 +85,7 @@ describe('backupStorage', () => {
       { id: 'tag-1', name: 'Important', color: 'green' },
     ])
     expect(upgraded.settings).toEqual(expect.objectContaining({
-      apiKey: 'legacy-key',
       languageHints: ['zh', 'en'],
     }))
-    expect(upgraded.settings.captionStyle).toBeDefined()
   })
 })

@@ -41,9 +41,6 @@ function toSessionDetail(session: TranscriptSession): SessionDetail {
     tagIds: session.tagIds,
     providerId: session.providerId,
     transcript: session.transcript ?? '',
-    translatedTranscript: session.translatedTranscript
-      ? { text: session.translatedTranscript.text, targetLanguage: session.translatedTranscript.targetLanguage }
-      : undefined,
     tokens: session.tokens?.map(t => ({
       text: t.text,
       isFinal: t.isFinal,
@@ -58,7 +55,6 @@ function toSessionDetail(session: TranscriptSession): SessionDetail {
     })),
     segments: session.segments?.map(s => ({
       text: s.text,
-      translatedText: s.translatedText,
       startMs: s.startMs,
       endMs: s.endMs,
       speakerId: s.speakerId,

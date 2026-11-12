@@ -48,7 +48,7 @@ Current suite: **373 tests across 44 files**.
 | Provider base class | `providers/__tests__/base.test.ts` | State machine, event emitter |
 | Windowed batch provider | `providers/__tests__/windowedBatch.test.ts` | Rolling buffer, scheduling, stabilization |
 | ASR types | `types/asr/common.test.ts` | Type guards, capability checks |
-| Subtitle export | `subtitleExport.test.ts` | SRT/VTT generation |
+| Original subtitle export | `reviewVersions.test.ts` | SRT/VTT and segment timing |
 | Caption line wrap | `captionLineWrap.test.ts` | Text wrapping logic |
 | AI post-process | `aiPostProcess.test.ts` | Response parsing |
 | Rolling buffer | `rollingAudioBuffer.test.ts` | Buffer management |

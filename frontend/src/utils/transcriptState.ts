@@ -14,9 +14,6 @@ export interface TranscriptRuntimeState {
   finalTranscript: string
   nonFinalTranscript: string
   currentTranscript: string
-  finalTranslatedTranscript: string
-  nonFinalTranslatedTranscript: string
-  currentTranslatedTranscript: string
   currentSegments: TranscriptSegment[]
   currentSpeakers: TranscriptSpeaker[]
   currentPostProcess?: TranscriptPostProcess
@@ -30,9 +27,6 @@ export type TranscriptRuntimeStateShape = Pick<
   | 'finalTranscript'
   | 'nonFinalTranscript'
   | 'currentTranscript'
-  | 'finalTranslatedTranscript'
-  | 'nonFinalTranslatedTranscript'
-  | 'currentTranslatedTranscript'
   | 'currentSegments'
   | 'currentSpeakers'
   | 'currentPostProcess'
@@ -54,9 +48,6 @@ export function createEmptyTranscriptRuntimeState(): TranscriptRuntimeState {
     finalTranscript: '',
     nonFinalTranscript: '',
     currentTranscript: '',
-    finalTranslatedTranscript: '',
-    nonFinalTranslatedTranscript: '',
-    currentTranslatedTranscript: '',
     currentSegments: [],
     currentSpeakers: [],
     currentPostProcess: undefined,
@@ -71,9 +62,6 @@ export function selectTranscriptRuntimeState(source: TranscriptRuntimeStateShape
     finalTranscript: source.finalTranscript,
     nonFinalTranscript: source.nonFinalTranscript,
     currentTranscript: source.currentTranscript,
-    finalTranslatedTranscript: source.finalTranslatedTranscript,
-    nonFinalTranslatedTranscript: source.nonFinalTranslatedTranscript,
-    currentTranslatedTranscript: source.currentTranslatedTranscript,
     currentSegments: source.currentSegments,
     currentSpeakers: source.currentSpeakers,
     currentPostProcess: source.currentPostProcess,
@@ -205,20 +193,9 @@ export function applyTranscriptEvent(
     case 'tokens': {
       const newFinalTokens = [...state.finalTokens]
       let nonFinalText = ''
-      let translatedNonFinalText = ''
-      let translatedFinalText = state.finalTranslatedTranscript
 
       for (const token of event.tokens) {
         if (!token.text) {
-          continue
-        }
-
-        if (token.translationStatus === 'translation') {
-          if (token.isFinal) {
-            translatedFinalText += token.text
-          } else {
-            translatedNonFinalText += token.text
-          }
           continue
         }
 
@@ -235,7 +212,6 @@ export function applyTranscriptEvent(
       const tokenText = newFinalTokens.map((token) => token.text).join('')
       const finalText = state.transcriptPrefix + tokenText
       const currentTranscript = finalText + nonFinalText
-      const currentTranslatedTranscript = translatedFinalText + translatedNonFinalText
 
       return {
         ...state,
@@ -243,9 +219,6 @@ export function applyTranscriptEvent(
         finalTranscript: finalText,
         nonFinalTranscript: nonFinalText,
         currentTranscript,
-        finalTranslatedTranscript: translatedFinalText,
-        nonFinalTranslatedTranscript: translatedNonFinalText,
-        currentTranslatedTranscript,
         currentSegments: buildSegmentsFromTokens(newFinalTokens),
         currentSpeakers: buildSpeakersFromTokens(newFinalTokens),
       }

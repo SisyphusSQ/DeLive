@@ -8,10 +8,10 @@ DeLive 是一个 Electron 桌面应用，在 **主进程**（Node.js 运行时�
 flowchart TB
   subgraph shell["🖥️ 桌面外壳 — Electron 主进程"]
     direction TB
-    entry["main.ts → mainWindow · captionWindow · tray · shortcuts"]
+    entry["main.ts → mainWindow · tray · shortcuts"]
     subgraph services["核心服务"]
       direction LR
-      volc["🌐 多 Provider 代理\n/ws/volc · /ws/mistral · /ws/deepgram\n/ws/assemblyai · /ws/elevenlabs\n/ws/gladia · /ws/sixtydb\n端口 23456（被占用时自动换端口）"]
+      volc["🌐 火山代理\n/ws/volc\n端口 23456（被占用时自动换端口）"]
       api["⚡ API 服务器\n/api/v1/* · /ws/live"]
       runtime["🔧 本地 Runtime\nwhisper.cpp 生命周期"]
     end
@@ -30,7 +30,7 @@ flowchart TB
     end
     subgraph data["数据层"]
       direction LR
-      providers["Provider 注册表\n(14 种 ASR 后端)"]
+      providers["Provider 注册表\n(4 种 ASR 后端)"]
       persistence["Session 仓库\nIndexedDB + 内存缓存"]
     end
   end
@@ -72,12 +72,11 @@ flowchart LR
   E --> F["ASR Provider\n→ 转录事件"]
   F --> G["sessionStore\n→ 自动保存 IndexedDB"]
 
-  G --> H["CaptionBridge\n→ 字幕窗口"]
   G --> I["apiBroadcast\n→ WebSocket 客户端"]
 
   style A fill:#0ea5e9,color:#fff
   style F fill:#8b5cf6,color:#fff
-  style H fill:#f59e0b,color:#fff
+
   style I fill:#10b981,color:#fff
 ```
 
@@ -104,17 +103,17 @@ sequenceDiagram
 ```mermaid
 flowchart TB
   subgraph cloud["☁️ 云端 Provider"]
-    soniox["Soniox V5\n实时流式\n翻译 · 说话人区分"]
+
     volc["火山引擎\n实时流式\n中文优化"]
-    groq["Groq\n窗口批处理\nWhisper large-v3-turbo"]
-    silicon["硅基流动\n窗口批处理\nSenseVoice · Qwen"]
-    mistral["Mistral AI\n实时流式\nVoxtral Realtime"]
-    deepgram["Deepgram\n实时流式\nNova-3 · Nova-2"]
-    assemblyai["AssemblyAI\n实时流式\nUniversal-3.5 Pro"]
-    elevenlabs["ElevenLabs\n实时流式\nScribe v2 Realtime"]
-    gladia["Gladia\n实时流式\nSolaria-1 · Solaria-3（文件）"]
-    sixtydb["60db\n实时流式\n约 40 种语言 · 印度语系"]
-    cloudflare["Cloudflare Workers AI\n窗口批处理\nWhisper"]
+
+
+
+
+
+
+
+
+
   end
 
   subgraph local["💻 本地 Provider"]
@@ -126,10 +125,10 @@ flowchart TB
   registry["Provider 注册表\n(单例)"]
   capture["CaptureManager"]
 
-  registry --> soniox & volc & groq & silicon & mistral & deepgram & assemblyai & elevenlabs & gladia & sixtydb & cloudflare & openai & sensevoice & whisper
-  capture -->|"MediaRecorder\n(流式)"| soniox
+  registry --> volc & openai & sensevoice & whisper
+
   capture -->|"AudioWorklet\nPCM16 (流式)"| volc & mistral & deepgram & assemblyai & elevenlabs & gladia & sixtydb
-  capture -->|"AudioWorklet\nPCM16 (批处理)"| groq & silicon & cloudflare & whisper
+  capture -->|"AudioWorklet\nPCM16 (批处理)"| whisper
   capture -->|"MediaRecorder\n(批处理)"| openai & sensevoice
 
   style registry fill:#6366f1,color:#fff
@@ -146,7 +145,7 @@ flowchart TB
 
 ### 单一 HTTP 服务器
 
-端口 23456（被占用时依次尝试 23456–23460，再退回系统分配的空闲端口）在一个 `http.createServer()` 上托管多个 WebSocket 代理（`/ws/volc`、`/ws/mistral`、`/ws/deepgram`、`/ws/assemblyai`、`/ws/elevenlabs`、`/ws/gladia`、`/ws/sixtydb`）、REST API（`/api/v1/*`）和实时转录 WebSocket（`/ws/live`）。每个代理使用 `noServer: true` 模式并手动路由 `upgrade` 事件。
+端口 23456（被占用时依次尝试 23456–23460，再退回系统分配的空闲端口）在一个 `http.createServer()` 上托管火山 WebSocket 代理（`/ws/volc`）、REST API（`/api/v1/*`）和实时转录 WebSocket（`/ws/live`）。每个代理使用 `noServer: true` 模式并手动路由 `upgrade` 事件。
 
 ### MCP 作为独立进程
 
@@ -160,12 +159,12 @@ MCP 服务器是独立的 Node.js 脚本，未嵌入 Electron。Claude Desktop �
 
 | 层 | 关键模块 |
 |----|---------|
-| 桌面外壳 | `main.ts`, `mainWindow.ts`, `captionWindow.ts`, `tray.ts`, `shortcuts.ts` |
-| IPC | `appIpc.ts`, `captionIpc.ts`, `safeStorageIpc.ts`, `updaterIpc.ts`, `diagnosticsIpc.ts`, `apiIpc.ts`, `localRuntimeIpc.ts` |
+| 桌面外壳 | `main.ts`, `mainWindow.ts`, `tray.ts`, `shortcuts.ts` |
+| IPC | `appIpc.ts`, `safeStorageIpc.ts`, `updaterIpc.ts`, `diagnosticsIpc.ts`, `apiIpc.ts`, `localRuntimeIpc.ts` |
 | API | `apiServer.ts`, `apiBroadcast.ts` |
 | 代理 | `volcProxy.ts`, `shared/volcProxyCore.ts`, `shared/mistralProxyCore.ts`, `shared/deepgramProxyCore.ts`, `shared/assemblyaiProxyCore.ts`, `shared/elevenlabsProxyCore.ts` |
 | 渲染应用 | `App.tsx`, `components/*`, `i18n/*` |
-| 编排 | `useASR.ts`, `captureManager.ts`, `providerSession.ts`, `captionBridge.ts` |
+| 编排 | `useASR.ts`, `captureManager.ts`, `providerSession.ts` |
 | Provider | `registry.ts`, `base.ts`, `windowedBatch.ts`, `implementations/*` |
 | 状态 | `sessionStore.ts`, `settingsStore.ts`, `uiStore.ts`, `topicStore.ts`, `tagStore.ts`, `transcriptStore.ts`（向后兼容 facade） |
 | 持久化 | `sessionRepository.ts`, `sessionStorage.ts`, `settingsStorage.ts`, `backupStorage.ts` |

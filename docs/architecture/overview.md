@@ -8,10 +8,10 @@ DeLive is an Electron desktop application with a clear separation between the **
 flowchart TB
   subgraph shell["🖥️ Desktop Shell — Electron Main Process"]
     direction TB
-    entry["main.ts → mainWindow · captionWindow · tray · shortcuts"]
+    entry["main.ts → mainWindow · tray · shortcuts"]
     subgraph services["Core Services"]
       direction LR
-      volc["🌐 Multi-Provider Proxy\n/ws/volc · /ws/mistral · /ws/deepgram\n/ws/assemblyai · /ws/elevenlabs\n/ws/gladia · /ws/sixtydb\nPort 23456 (fallback: free port)"]
+      volc["🌐 Volcengine Proxy\n/ws/volc\nPort 23456 (fallback: free port)"]
       api["⚡ API Server\n/api/v1/* · /ws/live"]
       runtime["🔧 Local Runtime\nwhisper.cpp Lifecycle"]
     end
@@ -30,7 +30,7 @@ flowchart TB
     end
     subgraph data["Data Layer"]
       direction LR
-      providers["Provider Registry\n(14 ASR Backends)"]
+      providers["Provider Registry\n(4 ASR Backends)"]
       persistence["Session Repository\nIndexedDB + Memory Cache"]
     end
   end
@@ -65,19 +65,18 @@ flowchart TB
 ```mermaid
 flowchart LR
   A["👤 User clicks Start"] --> B["useASR resolves\nProvider config"]
-  B --> C["ProviderSession\nconnects backend"]
-  C --> D["CaptureManager\ngetDisplayMedia"]
-  D --> E["Audio Pipeline"]
+  B --> D["CaptureManager\ngetDisplayMedia"]
+  D --> C["ProviderSession\nconnects backend"]
+  C --> E["Audio Pipeline"]
 
   E --> F["ASR Provider\n→ Transcript events"]
   F --> G["sessionStore\n→ autosave IndexedDB"]
 
-  G --> H["CaptionBridge\n→ Caption Window"]
   G --> I["apiBroadcast\n→ WebSocket clients"]
 
   style A fill:#0ea5e9,color:#fff
   style F fill:#8b5cf6,color:#fff
-  style H fill:#f59e0b,color:#fff
+
   style I fill:#10b981,color:#fff
 ```
 
@@ -104,17 +103,17 @@ sequenceDiagram
 ```mermaid
 flowchart TB
   subgraph cloud["☁️ Cloud Providers"]
-    soniox["Soniox V5\nReal-time streaming\nTranslation · Diarization"]
+
     volc["Volcengine\nReal-time streaming\nChinese-oriented"]
-    groq["Groq\nWindowed batch\nWhisper large-v3-turbo"]
-    silicon["SiliconFlow\nWindowed batch\nSenseVoice · Qwen"]
-    mistral["Mistral AI\nReal-time streaming\nVoxtral Realtime"]
-    deepgram["Deepgram\nReal-time streaming\nNova-3 · Nova-2"]
-    assemblyai["AssemblyAI\nReal-time streaming\nUniversal-3.5 Pro"]
-    elevenlabs["ElevenLabs\nReal-time streaming\nScribe v2 Realtime"]
-    gladia["Gladia\nReal-time streaming\nSolaria-1 · Solaria-3 (files)"]
-    sixtydb["60db\nReal-time streaming\n~40 languages · Indic"]
-    cloudflare["Cloudflare Workers AI\nWindowed batch\nWhisper"]
+
+
+
+
+
+
+
+
+
   end
 
   subgraph local["💻 Local Providers"]
@@ -126,10 +125,10 @@ flowchart TB
   registry["Provider Registry\n(Singleton)"]
   capture["CaptureManager"]
 
-  registry --> soniox & volc & groq & silicon & mistral & deepgram & assemblyai & elevenlabs & gladia & sixtydb & cloudflare & openai & sensevoice & whisper
-  capture -->|"MediaRecorder\n(streaming)"| soniox
+  registry --> volc & openai & sensevoice & whisper
+
   capture -->|"AudioWorklet\nPCM16 (streaming)"| volc & mistral & deepgram & assemblyai & elevenlabs & gladia & sixtydb
-  capture -->|"AudioWorklet\nPCM16 (batch)"| groq & silicon & cloudflare & whisper
+  capture -->|"AudioWorklet\nPCM16 (batch)"| whisper
   capture -->|"MediaRecorder\n(batch)"| openai & sensevoice
 
   style registry fill:#6366f1,color:#fff
@@ -146,7 +145,7 @@ All session data lives in the Renderer's IndexedDB with an in-memory cache in `s
 
 ### Single HTTP Server
 
-Port 23456 (or the next free port in 23456–23460, then any free system port) hosts multiple WebSocket proxies (`/ws/volc`, `/ws/mistral`, `/ws/deepgram`, `/ws/assemblyai`, `/ws/elevenlabs`, `/ws/gladia`, `/ws/sixtydb`), the REST API (`/api/v1/*`), and the live transcript WebSocket (`/ws/live`) on a single `http.createServer()`. Each proxy uses `noServer: true` mode with manual `upgrade` event routing.
+Port 23456 (or the next free port in 23456–23460, then any free system port) hosts the Volcengine WebSocket proxy (`/ws/volc`), the REST API (`/api/v1/*`), and the live transcript WebSocket (`/ws/live`) on a single `http.createServer()`. Each proxy uses `noServer: true` mode with manual `upgrade` event routing.
 
 ### MCP as Separate Process
 
@@ -154,18 +153,18 @@ The MCP server is a standalone Node.js script, not embedded in Electron. Claude 
 
 ### Provider Registry
 
-Fourteen ASR backends are registered in a singleton `ProviderRegistry`. Each provider implements a common `ASRProvider` contract but uses different audio formats and transport methods. The `CaptureManager` selects the right audio pipeline based on provider capabilities.
+Four ASR backends are registered in a singleton `ProviderRegistry`. Each provider implements a common `ASRProvider` contract but uses different audio formats and transport methods. The `CaptureManager` selects the right audio pipeline based on provider capabilities.
 
 ## Module Map
 
 | Layer | Key Modules |
 |-------|------------|
-| Desktop Shell | `main.ts`, `mainWindow.ts`, `captionWindow.ts`, `tray.ts`, `shortcuts.ts` |
-| IPC | `appIpc.ts`, `captionIpc.ts`, `safeStorageIpc.ts`, `updaterIpc.ts`, `diagnosticsIpc.ts`, `apiIpc.ts`, `localRuntimeIpc.ts` |
+| Desktop Shell | `main.ts`, `mainWindow.ts`, `tray.ts`, `shortcuts.ts` |
+| IPC | `appIpc.ts`, `safeStorageIpc.ts`, `updaterIpc.ts`, `diagnosticsIpc.ts`, `apiIpc.ts`, `localRuntimeIpc.ts` |
 | API | `apiServer.ts`, `apiBroadcast.ts` |
 | Proxy | `volcProxy.ts`, `shared/volcProxyCore.ts`, `shared/mistralProxyCore.ts`, `shared/deepgramProxyCore.ts`, `shared/assemblyaiProxyCore.ts`, `shared/elevenlabsProxyCore.ts` |
 | Renderer App | `App.tsx`, `components/*`, `i18n/*` |
-| Orchestration | `useASR.ts`, `captureManager.ts`, `providerSession.ts`, `captionBridge.ts` |
+| Orchestration | `useASR.ts`, `captureManager.ts`, `providerSession.ts` |
 | Providers | `registry.ts`, `base.ts`, `windowedBatch.ts`, `implementations/*` |
 | State | `sessionStore.ts`, `settingsStore.ts`, `uiStore.ts`, `topicStore.ts`, `tagStore.ts`, `transcriptStore.ts` (backward-compat facade) |
 | Persistence | `sessionRepository.ts`, `sessionStorage.ts`, `settingsStorage.ts`, `backupStorage.ts` |

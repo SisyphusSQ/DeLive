@@ -56,7 +56,7 @@ describe('current session autosave', () => {
 
 it('settles a streaming chat turn when model validation fails', async () => {
   const { useSettingsStore } = await import('../settingsStore')
-  useSettingsStore.setState({ settings: { apiKey: '', languageHints: [], aiPostProcess: { enabled: true } } })
+  useSettingsStore.setState({ settings: { languageHints: [], aiPostProcess: { enabled: true } } })
   const id = useSessionStore.getState().startNewSession()
   useSessionStore.getState().applyTranscriptEvent({ type: 'final-text', text: '验证对话校验错误。' })
   useSessionStore.getState().endCurrentSession()

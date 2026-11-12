@@ -230,8 +230,8 @@ const entries: WhatsNewEntry[] = [
 ]
 
 export function getWhatsNewForVersion(version: string): WhatsNewEntry | undefined {
-  const major = version.replace(/-.*$/, '')
-  return entries.find((e) => e.version === major)
+  const entryVersion = version.includes('-sq.') ? version : version.replace(/-.*$/, '')
+  return entries.find((entry) => entry.version === entryVersion)
 }
 
 export function getAllWhatsNew(): WhatsNewEntry[] {

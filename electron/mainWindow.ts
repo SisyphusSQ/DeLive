@@ -9,13 +9,6 @@ interface CreateMainWindowOptions {
   isDev: boolean
   windowIconPath?: string
   shouldHideToTray: () => boolean
-  onShow?: () => void
-  onHide?: () => void
-  onMinimize?: () => void
-  onRestore?: () => void
-  onFocus?: () => void
-  onBlur?: () => void
-  onCloseToTray?: () => void
   onClosed?: () => void
 }
 
@@ -46,30 +39,6 @@ export function createMainWindow(options: CreateMainWindowOptions): BrowserWindo
 
   const mainWindow = new BrowserWindow(windowOptions)
   installWindowZoom(mainWindow)
-
-  mainWindow.on('show', () => {
-    options.onShow?.()
-  })
-
-  mainWindow.on('hide', () => {
-    options.onHide?.()
-  })
-
-  mainWindow.on('minimize', () => {
-    options.onMinimize?.()
-  })
-
-  mainWindow.on('restore', () => {
-    options.onRestore?.()
-  })
-
-  mainWindow.on('focus', () => {
-    options.onFocus?.()
-  })
-
-  mainWindow.on('blur', () => {
-    options.onBlur?.()
-  })
 
   mainWindow.webContents.session.webRequest.onHeadersReceived((details, callback) => {
     const localCors = applyLocalServiceCors(details)
@@ -112,7 +81,6 @@ export function createMainWindow(options: CreateMainWindowOptions): BrowserWindo
       if (process.platform === 'darwin') {
         app.dock?.hide()
       }
-      options.onCloseToTray?.()
     }
   })
 

@@ -11,6 +11,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### 破坏性变更
+- 云端转写统一为火山实时 2.0 和标准文件转写 2.0。保留本地 OpenAI 兼容、FunASR / SenseVoice、whisper.cpp。停用服务的配置和任务不做迁移。
+- 移除悬浮字幕和实时翻译。回顾页仍可导出带逐句时间的原文 SRT/VTT，接口不再返回译文字段。
+
+### 修复
+- 录音按钮和全局快捷键在采集前检查识别配置。火山文件转写分别显示识别凭据和私有存储的状态。
+
 ---
 
 ## [2.3.0-sq.2] - 2026-11-12

@@ -76,7 +76,7 @@ function ReviewPreview({ initial = 'proposal', scenario = 'normal', initialTab =
       <button className="design-icon" aria-label="重置合成预览" onClick={() => { setReady(false); setState(initialState); setReset(n => n + 1) }}><RotateCcw size={14} /></button>
     </div>
     {error ? <p role="alert">{error}</p> : !ready ? <p className="p-8">正在准备合成会议…</p> : <div className="review-stage" key={reset}>
-      <Sidebar collapsed={collapsed} onToggle={() => setCollapsed(v => !v)} currentView="review" onNavigate={() => setNotice('本次只预览回顾页，其他页面保留现有设计。')} recordingState="idle" captionEnabled={false} onToggleCaption={() => setNotice('此预览不启动字幕。')} onOpenCaptionSettings={() => setNotice('此预览不修改字幕配置。')} />
+      <Sidebar collapsed={collapsed} onToggle={() => setCollapsed(v => !v)} currentView="review" onNavigate={() => setNotice('本次只预览回顾页，其他页面保留现有设计。')} recordingState="idle" />
       <div className="review-stage-content" style={{ marginLeft: collapsed ? 56 : 224 }}>
         {view === 'current' ? <ReviewDeskView /> : <NotebookReview scenario={scenario} initialTab={initialTab} state={state} onState={setState} />}
       </div>
