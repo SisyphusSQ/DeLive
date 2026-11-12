@@ -30,7 +30,9 @@
     "generate-icons": "node scripts/generate-icons.mjs",
     "docs:dev": "vitepress dev docs",
     "docs:build": "vitepress build docs",
-    "docs:preview": "vitepress preview docs"
+    "docs:preview": "vitepress preview docs",
+    "storybook": "npm --prefix frontend run storybook",
+    "build:storybook": "npm --prefix frontend run build:storybook"
   },
   "devDependencies": {
     "@electron/osx-sign": "1.3.1",

@@ -86,6 +86,8 @@ describe('yourFunction', () => {
 
 ## DeLive 会议开发证据
 
+- [回顾页 Storybook 设计预览](./review-design-storybook.md)：现有页面与笔记式提案对照、主题切换和合成交互自检；不是正式业务验收。
+
 - [原音存储与恢复](./recording-assets.md) / [TOO-682 证据](./evidence-too-682.md)
 - [火山实时 2.0](./volc-realtime.md) / [TOO-683 证据](./evidence-too-683.md)
 - [标准文件转写与临时存储](./volc-file.md) / [TOO-684 证据](./evidence-too-684.md)
