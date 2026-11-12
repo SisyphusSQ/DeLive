@@ -322,4 +322,4 @@ features:
 
 [火山实时 2.0 与匿名说话人](./development/volc-realtime)
 
-[火山文件转写与自动逐句校正](./development/transcript-reconciliation)
+[火山文件转写、逐句校正与历史校正版恢复](./development/transcript-reconciliation)

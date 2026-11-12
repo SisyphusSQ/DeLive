@@ -6,7 +6,7 @@ import { useSessionStore } from '../stores/sessionStore'
 import { sessionRepository } from './sessionRepository'
 import { createDraftSession } from './sessionLifecycle'
 import { addPostMeetingVersion } from './transcriptVersions'
-import { addReconciledVersion, reconciliationBase } from './transcriptMerge'
+import { addReconciledVersion, reconciliationBase, recoverTranscript } from './transcriptMerge'
 import { reviewVersions } from './reviewVersions'
 import { useReviewDraftStore } from '../stores/reviewDraftStore'
 
@@ -72,12 +72,23 @@ export function ingestFileTasks(jobs: FileTask[]): Promise<Record<string, string
 }
 
 export async function generateReconciledVersion(sessionId: string, postId: string): Promise<void> {
-  if (useReviewDraftStore.getState().drafts[sessionId]) throw new Error('请先保存或放弃当前校对草稿')
   const sessions = await sessionRepository.mutateDurable(sessionId, current => {
+    if (useReviewDraftStore.getState().drafts[sessionId]) throw new Error('请先保存或放弃当前校对草稿')
     const next = addReconciledVersion(current, postId, reconciliationBase(current).id)
     return { versions: next.versions }
   })
   useSessionStore.setState({ sessions })
+}
+export async function recoverReconciledVersion(sessionId: string, originalId: string, postId: string): Promise<string> {
+  let versionId = ''
+  const sessions = await sessionRepository.mutateDurable(sessionId, current => {
+    if (useReviewDraftStore.getState().drafts[sessionId]) throw new Error('请先保存或放弃当前校对草稿')
+    const restored = recoverTranscript(current, originalId, postId)
+    versionId = restored.versionId
+    return restored.session === current ? {} : { versions: restored.session.versions }
+  })
+  useSessionStore.setState({ sessions })
+  return versionId
 }
 async function readDuration(file: File): Promise<number> {
   const url = URL.createObjectURL(file), audio = new Audio()

@@ -63,6 +63,8 @@ idle → starting → recording → stopping → completed
 
 本 fork 的双来源、仅录音、原音路径、配额、显式删除与中断恢复见[原音资产说明](../development/recording-assets)。正式真实验收留待 TOO-686。
 
+使用「仅录音」保存会议后，可在回顾页手动提交会后转写。结果保存后可直接查看匿名说话人、逐句时间和原音定位。详情见[回顾工作台](./review-desk)。
+
 火山实时稿的临时/稳定标签、独立识别段、手动重连和安全配置见[实时 2.0 说明](../development/volc-realtime)。
 
 ## 图片时间轴

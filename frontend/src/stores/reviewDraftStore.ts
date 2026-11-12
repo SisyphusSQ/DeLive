@@ -2,7 +2,8 @@ import { create } from 'zustand'
 import type { TranscriptVersion } from '../../../shared/fileTranscription'
 import { normalizeVersions } from '../utils/versionSchema'
 
-type Draft = { source: TranscriptVersion; value: TranscriptVersion }
+export type MergeGroupDraft = { id: string; text: string }
+type Draft = { source: TranscriptVersion } & ({ value: TranscriptVersion } | { group: MergeGroupDraft })
 const key='delive_review_drafts'
 let unreadable=false
 function save(drafts:Record<string,Draft>) {
@@ -14,11 +15,17 @@ export const useReviewDraftStore = create<{
   drafts: Record<string, Draft>
   error: string
   put: (sessionId: string, draft: Draft) => void
-  clear: (sessionId: string) => void
+  clear: (sessionId: string, expected?: Draft) => void
 }>((set) => ({
   drafts: {}, error:'',
   put: (sessionId, draft) => set(state => {const drafts={...state.drafts,[sessionId]:draft};return {drafts,error:save(drafts)}}),
-  clear: sessionId => set(state => { const drafts = { ...state.drafts }; delete drafts[sessionId]; return { drafts,error:save(drafts) } }),
+  clear: (sessionId, expected) => set(state => {
+    const current = state.drafts[sessionId]
+    if (!current || (expected && current !== expected)) return state
+    const drafts = { ...state.drafts }
+    delete drafts[sessionId]
+    return { drafts, error: save(drafts) }
+  }),
 }))
 export function loadReviewDrafts(sessionIds:string[]) {
   try {
@@ -27,9 +34,17 @@ export function loadReviewDrafts(sessionIds:string[]) {
     const drafts:Record<string,Draft>={}
     for(const [id,value]of Object.entries(raw)) {
       if(!sessionIds.includes(id))continue
-      const source=normalizeVersions([value?.source])?.[0],draft=normalizeVersions([value?.value])?.[0]
-      if(!source||!draft)throw new Error('invalid draft')
-      drafts[id]={source,value:draft}
+      const source = normalizeVersions([value?.source])?.[0]
+      if (!source) throw new Error('invalid draft source')
+      if (value?.group) {
+        const { id: groupId, text } = value.group
+        if (typeof text !== 'string' || !source.merge?.groups.some(g => g.id === groupId && !g.comparisonOnly)) throw new Error('invalid group draft')
+        drafts[id] = { source, group: { id: groupId, text } }
+      } else {
+        const draft = normalizeVersions([value?.value])?.[0]
+        if (!draft) throw new Error('invalid draft')
+        drafts[id] = { source, value: draft }
+      }
     }
     unreadable=false
     useReviewDraftStore.setState({drafts,error:''})

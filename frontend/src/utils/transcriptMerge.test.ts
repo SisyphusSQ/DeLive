@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'vitest'
 import type { TranscriptVersion as V } from '../../../shared/fileTranscription'
-import { addReconciledVersion, editMergeGroup, reconcileTranscript, resolveMergeGroup } from './transcriptMerge'
+import { addReconciledVersion, editMergeGroup, reconcileTranscript, recoverTranscript, resolveMergeGroup, transcriptRecoverySources } from './transcriptMerge'
 import { editedVersion, reviewExport, selectedReviewVersion, versionLabel } from './reviewVersions'
 import { normalizeTranscriptSession } from './sessionSchema'
+import { contextChunks } from '../services/aiSessionContext'
+import { upgradeBackupData } from './backupStorage'
 const seg=(id:string,text:string,startMs?:number,endMs?:number,speakerId='live:1')=>({id,text,startMs,endMs,speakerId,isFinal:true})
 const v=(id:string,segments:V['segments'],kind:V['kind']='realtime'):V=>({id,kind,createdAt:1,text:segments.map(s=>s.text).join('\n'),segments,speakers:[{id:'live:1',label:'匿名1'},{id:'post:1',label:'匿名1 · 会后稿'}]})
 const base=()=>v('base',[seg('a','今天下雨',0,1000),seg('b','明天开会',2000,3000)])
@@ -25,4 +27,43 @@ describe('三方自动逐句合并',()=>{
  it('当前仍采用旧人工稿时也保护后续保存的修订',()=>{const b=base(),p=post(),a=editedVersion(b,{...b,segments:[{...b.segments[0],text:'旧人工稿'},b.segments[1]]},'第一版');a.createdAt=2;const z=editedVersion(a,{...a,segments:[{...a.segments[0],text:'最新人工修改'},a.segments[1]]},'第二版');z.createdAt=3;const s=normalizeTranscriptSession({id:'s',transcript:b.text,segments:b.segments,speakers:b.speakers,versions:[b,p,a,z],selectedVersionId:a.id});expect(addReconciledVersion(s,p.id,b.id).versions?.slice(-1)[0].text).toContain('最新人工修改')})
  it('坏来源记录不能伪装为可审阅，文字仍保留',()=>{const b=base(),p=post(),m=run(b,p);const raw=JSON.parse(JSON.stringify(m));raw.merge.groups[0].status='not-a-state';const s=normalizeTranscriptSession({id:'s',transcript:b.text,versions:[b,p,raw]});expect(s.versions?.[2].merge).toBeUndefined();expect(s.versions?.[2].text).toBe(m.text)})
 
+})
+
+it('旧校正版和纯文字人工稿可恢复真实分句，旧全文单独核对', () => {
+  const b = base(), p = post()
+  const manual = { ...v('manual', [], 'edited'), text: '整篇人工校对内容', parentVersionId: b.id }
+  const broken = {
+    ...v('broken', [{ text: manual.text }], 'reconciled'),
+    merge: { key: 'old-key', strategy: 1 as const, baseVersionId: b.id, postVersionId: p.id, currentVersionId: manual.id, groups: [] },
+  }
+  const session = normalizeTranscriptSession({ id: 'session', transcript: b.text,
+    versions: [b, p, manual, broken], selectedVersionId: b.id })
+  const automatic = addReconciledVersion(session, p.id, b.id)
+  expect(automatic.versions?.slice(-1)[0]).toMatchObject({ segments: p.segments, merge: { strategy: 2 } })
+  const unstructuredBase = { ...b, segments: [] }
+  expect(run(unstructuredBase, p, unstructuredBase)).toMatchObject({ segments: p.segments, merge: { strategy: 2 } })
+  const recovered = recoverTranscript(session, broken.id, p.id)
+  const restored = recovered.session.versions!.find(v => v.id === recovered.versionId)!
+  const group = restored.merge!.groups[0]
+  expect(restored).toMatchObject({ segments: p.segments, merge: { currentVersionId: broken.id, postVersionId: p.id } })
+  expect(group).toMatchObject({ status: 'pending', comparisonOnly: true, outputIds: [] })
+  expect(recovered.session.selectedVersionId).toBe(b.id)
+  expect(recovered.session.versions?.find(v => v.id === broken.id)?.text).toBe(manual.text)
+  expect(recoverTranscript(recovered.session, broken.id, p.id)).toEqual(recovered)
+  expect(transcriptRecoverySources([p, {...p,id:'other'}], broken)).toEqual([p])
+  expect(() => resolveMergeGroup(restored, group.id, 'original', [broken, p])).toThrow('对照')
+  const changed = editedVersion(restored, {
+    ...restored, segments: restored.segments.map((s, i) => i === 0 ? { ...s, text: '补回人工修改' } : s),
+  }, '对照补回')
+  expect(changed.merge?.groups[0].status).toBe('pending')
+  const reviewed = resolveMergeGroup(changed, group.id, 'reviewed', [broken, p])
+  const backup = JSON.parse(JSON.stringify({
+    version:'1.1', sessions:[{...recovered.session, versions:[...recovered.session.versions!,reviewed],selectedVersionId:reviewed.id}],
+    tags:[], settings:{},
+  }))
+  const [restoredSession] = upgradeBackupData(backup).sessions
+  expect(selectedReviewVersion(restoredSession).merge?.groups[0]).toMatchObject({ status: 'confirmed', decision: 'reviewed' })
+  expect(recoverTranscript(restoredSession, broken.id, p.id).versionId).toBe(reviewed.id)
+  expect(reviewExport(restoredSession, 'srt')).toContain('00:00:00,010 --> 00:00:01,010')
+  expect(contextChunks(restoredSession, 'auto')[0].text).toContain('[转录 00:00:00.010 匿名1 · 会后稿] 补回人工修改')
 })

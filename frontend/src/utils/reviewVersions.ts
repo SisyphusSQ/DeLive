@@ -2,7 +2,7 @@ import type { TranscriptSession } from '../types'
 import type { TranscriptVersion } from '../../../shared/fileTranscription'
 
 export function versionLabel(version: TranscriptVersion): string {
-  const kind = version.editNote?.startsWith('历史译文') ? '历史译文' : { realtime:'实时稿', 'post-meeting':'会后稿', edited:'人工修订', legacy:'历史原稿', reconciled:'自动校正版' }[version.kind]
+  const kind = version.editNote?.startsWith('历史译文') ? '历史译文' : { realtime:'实时稿', 'post-meeting':'会后稿', edited:'人工修订', legacy:'历史原稿', reconciled:version.merge?.strategy === 2 ? '恢复修订' : '自动校正版' }[version.kind]
   return kind + ' · ' + new Date(version.createdAt).toLocaleString()
 }
 export function reviewVersions(session: TranscriptSession): TranscriptVersion[] {

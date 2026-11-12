@@ -17,11 +17,12 @@ export interface TranscriptMergeGroup {
   outputIds: string[]
   status: 'automatic' | 'added' | 'manual' | 'pending' | 'confirmed'
   reason?: string
-  decision?: 'original' | 'incoming' | 'edited'
+  comparisonOnly?: true
+  decision?: 'original' | 'incoming' | 'edited' | 'reviewed'
 }
 export interface TranscriptMerge {
   key: string
-  strategy: 1
+  strategy: 1 | 2
   baseVersionId: string
   postVersionId: string
   currentVersionId: string

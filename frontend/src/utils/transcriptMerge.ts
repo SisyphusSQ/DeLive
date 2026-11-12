@@ -7,10 +7,53 @@ export function versionSegments(version: TranscriptVersion): Segment[] {
   const segments = version.segments.length ? version.segments : version.text ? [{ text: version.text }] : []
   return segments.map((s, i) => ({ ...s, id: s.id || version.id + ':' + i }))
 }
-const timed = (s: Segment) => s.startMs !== undefined && s.endMs !== undefined && s.endMs > s.startMs
+const timed = (s: Segment) => s.startMs !== undefined && s.endMs !== undefined &&
+  Number.isFinite(s.startMs) && Number.isFinite(s.endMs) && s.startMs >= 0 && s.endMs > s.startMs
 const content = (s: Segment) => JSON.stringify([s.text, s.startMs, s.endMs, s.speakerId, s.isFinal])
 const plain = (s: string) => s.replace(/[\s\p{P}\p{S}]/gu, '').toLowerCase()
 const ids = (segments: Segment[]) => segments.map(s => s.id!)
+
+export function needsTranscriptRecovery(version: TranscriptVersion): boolean {
+  return version.kind !== 'post-meeting' && !version.editNote?.startsWith('历史译文') &&
+    !!version.text.trim() && !version.segments.some(s => timed(s) && s.text.trim())
+}
+
+export function transcriptRecoverySources(versions: TranscriptVersion[], original: TranscriptVersion): TranscriptVersion[] {
+  const posts = versions.filter(v => v.kind === 'post-meeting' && v.segments.some(s => timed(s) && s.text.trim()))
+  const recordedSource = posts.find(v => v.id === original.merge?.postVersionId)
+  return recordedSource ? [recordedSource] : posts
+}
+
+const recoveryKey = (original: TranscriptVersion, post: TranscriptVersion) => JSON.stringify([2, original.id, post.id])
+
+function recoveredTranscript(original: TranscriptVersion, post: TranscriptVersion, baseId = original.id): TranscriptVersion {
+  const id = 'merge-' + crypto.randomUUID()
+  const group: TranscriptMergeGroup = {
+    id: id + ':comparison', baseIds: [], postIds: [], currentIds: ids(versionSegments(original)), outputIds: [],
+    comparisonOnly: true, status: 'pending', reason: '历史文字未逐句对齐，请对照旧稿，按需补回人工修改',
+  }
+  const segments = versionSegments(post).sort((a, b) => (a.startMs ?? Infinity) - (b.startMs ?? Infinity))
+  return {
+    id, kind: 'reconciled', createdAt: Date.now(), parentVersionId: original.id,
+    text: segments.map(s => s.text).join('\n'), segments, speakers: structuredClone(post.speakers),
+    editNote: '从已有会后稿恢复分句、说话人和时间。历史全文保留供核对。',
+    merge: { key: recoveryKey(original, post), strategy: 2, baseVersionId: baseId,
+      postVersionId: post.id, currentVersionId: original.id, groups: [group] },
+  }
+}
+
+export function recoverTranscript(session: TranscriptSession, originalId: string, postId: string) {
+  const versions = reviewVersions(session)
+  const original = versions.find(v => v.id === originalId)
+  if (!original || !needsTranscriptRecovery(original)) throw new Error('待恢复的历史稿件已变化，请重新查看')
+  const post = transcriptRecoverySources(versions, original).find(v => v.id === postId)
+  if (!post) throw new Error('没有可用的结构化会后稿，历史全文已保留')
+  const key = recoveryKey(original, post)
+  const existing = versions.filter(v => v.merge?.key === key).slice(-1)[0]
+  if (existing) return { session, versionId: existing.id }
+  const version = recoveredTranscript(original, post, original.merge?.baseVersionId)
+  return { session: { ...session, versions: [...versions, version] }, versionId: version.id }
+}
 
 export function reconciliationBase(session: TranscriptSession): TranscriptVersion {
   const versions = reviewVersions(session)
@@ -47,6 +90,10 @@ function overlapping(segments: Segment[]): boolean {
 /** Time windows bound alignment; ambiguous timing and manual changes stay reviewable. */
 export function reconcileTranscript(base: TranscriptVersion, post: TranscriptVersion, current: TranscriptVersion, versions: TranscriptVersion[]): TranscriptVersion {
   if (!post.text.trim()) throw new Error('会后稿没有文字，保留原稿，不生成空校正版')
+  if (needsTranscriptRecovery(current)) {
+    if (!post.segments.some(s => timed(s) && s.text.trim())) throw new Error('会后稿没有有效的逐句时间，无法恢复历史稿')
+    return recoveredTranscript(current, post, base.id)
+  }
   const id = 'merge-' + crypto.randomUUID()
   const key = JSON.stringify([1, base.id, post.id, current.id])
   const b = versionSegments(base), p = versionSegments(post), c = versionSegments(current)
@@ -126,8 +173,9 @@ export function addReconciledVersion(session: TranscriptSession, postId: string,
     current = versions.filter(v => v.kind === 'edited' && descendsFrom(v, base, versions)).sort((a,b)=>b.createdAt-a.createdAt)[0] ?? base
   }
   current = versions.filter(v=>v.kind==='edited' && v.createdAt>current.createdAt && descendsFrom(v,current,versions)).sort((a,b)=>b.createdAt-a.createdAt)[0] ?? current
-  const existing = versions.find(v => v.merge?.baseVersionId === baseId && v.merge.postVersionId === postId &&
-    (v.merge.currentVersionId === current.id || v.id === current.id))
+  const existing = versions.find(v => v.id === current.id && v.merge?.postVersionId === postId && !needsTranscriptRecovery(v)) ??
+    versions.find(v => v.merge?.baseVersionId === baseId && v.merge.postVersionId === postId &&
+      v.merge.currentVersionId === current.id && (!needsTranscriptRecovery(current) || v.merge.strategy === 2))
   if (existing) return session
   const version = reconcileTranscript(base, post, current, versions)
   return { ...session, versions: [...versions, version] }
@@ -136,6 +184,7 @@ export function addReconciledVersion(session: TranscriptSession, postId: string,
 export function editMergeGroup(version: TranscriptVersion, groupId: string, text: string): TranscriptVersion {
   const merge = version.merge, group = merge?.groups.find(g=>g.id===groupId)
   if (!merge || !group) throw new Error('校对区段不存在')
+  if (group.comparisonOnly) throw new Error('请在对应分句中补回人工修改')
   const old = version.segments.filter(s=>group.outputIds.includes(s.id!))
   const chosen: Segment[] = text.trim() ? [{ ...(old.length === 1 ? old[0] : {}), id: group.id + ':edited', text, isFinal: true }] : []
   const segments = [...version.segments.filter(s=>!group.outputIds.includes(s.id!)), ...chosen]
@@ -143,9 +192,15 @@ export function editMergeGroup(version: TranscriptVersion, groupId: string, text
   return { ...version, segments, text: segments.map(s=>s.text).join('\n'), merge: { ...merge, groups: merge.groups.map(g=>g.id===groupId ? {...g, outputIds:ids(chosen), status:'confirmed', decision:'edited'} : g) } }
 }
 
-export function resolveMergeGroup(version: TranscriptVersion, groupId: string, decision: 'original' | 'incoming', versions: TranscriptVersion[]): TranscriptVersion {
+export function resolveMergeGroup(version: TranscriptVersion, groupId: string, decision: 'original' | 'incoming' | 'reviewed', versions: TranscriptVersion[]): TranscriptVersion {
   const merge = version.merge, group = merge?.groups.find(g => g.id === groupId)
   if (!merge || !group) throw new Error('校对区段不存在')
+  if (group.comparisonOnly) {
+    if (decision !== 'reviewed' || !versions.some(v => v.id === merge.currentVersionId)) throw new Error('请先对照完整的历史稿件')
+    return { ...version, merge: { ...merge, groups: merge.groups.map(g =>
+      g.id === groupId ? { ...g, status: 'confirmed', decision } : g) } }
+  }
+  if (decision === 'reviewed') throw new Error('请选择本区段的校正处理方式')
   const source = versions.find(v => v.id === (decision === 'incoming' ? merge.postVersionId : merge.currentVersionId))
   if (!source) throw new Error('来源稿件已缺失，不能应用建议')
   const wanted = new Set(decision === 'incoming' ? group.postIds : group.currentIds)
