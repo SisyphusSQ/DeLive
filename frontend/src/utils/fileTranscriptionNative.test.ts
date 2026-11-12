@@ -201,6 +201,23 @@ describe('standard protocol and version persistence',()=>{
     expect(fileVersion('unknown',unknown,'200').speakers).toEqual([])
     expect(normalizeTranscriptSession({transcript:'legacy'}).versions).toBeUndefined()
   })
+  it('recovers lost anonymous speakers from the same stored result without guessing ambiguous or missing speakers', () => {
+    const version = fileVersion('recover', { text: '一二三重复未知', durationMs: 8000, utterances: [
+      { text:'一', startMs:0, endMs:1000, speaker:'11' },
+      { text:'二', startMs:1000, endMs:2000, speaker:'7' },
+      { text:'三', startMs:2000, endMs:3000, speaker:'13' },
+      { text:'重复', startMs:3000, endMs:4000, speaker:'11' },
+      { text:'重复', startMs:3000, endMs:4000, speaker:'7' },
+      { text:'未知', startMs:4000, endMs:5000 },
+    ] }, '200')
+    const lost = { ...version, speakers: [], segments: version.segments.map(s => ({...s,speakerId:undefined})) }
+    const normalize = (input: typeof version) => normalizeTranscriptSession({ versions: [input] }).versions![0]
+    expect(normalize(lost).segments.map(s => s.speakerId)).toEqual([
+      'file-recover:speaker:11','file-recover:speaker:7','file-recover:speaker:13',undefined,undefined,undefined,
+    ])
+    expect(normalize({...lost,segments:[]}).segments).toEqual(version.segments)
+    expect(normalize({...lost,text:'不同来源'}).segments.every(s=>!s.speakerId)).toBe(true)
+  })
   it('keeps full text and sentence timing when the service emits untimed spaces',()=>{
     const response = {audio_info:{duration:1500},result:{text:'one two',utterances:[{
       text:'one two',start_time:0,end_time:1500,words:[

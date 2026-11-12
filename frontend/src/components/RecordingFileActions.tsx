@@ -5,7 +5,7 @@ import { useReviewDraftStore } from '../stores/reviewDraftStore'
 import { useUIStore } from '../stores/uiStore'
 import { fileTaskApi, generateReconciledVersion, startRecordingFileTask } from '../utils/volcFileApi'
 import { reviewVersions, versionLabel } from '../utils/reviewVersions'
-import { reconciliationBase } from '../utils/transcriptMerge'
+import { needsTranscriptRecovery, reconciliationBase } from '../utils/transcriptMerge'
 import { ActionDialog } from './ActionDialog'
 import { Select } from './ui/Select'
 
@@ -16,7 +16,7 @@ export function RecordingFileActions({ session, onSelect }: { session: Transcrip
   const jobs=useFileTaskStore(s=>s.jobs), active=jobs.find(job=>job.sessionId===session.id&&taskActive(job.status))
   const draft=useReviewDraftStore(s=>s.drafts[session.id])
   const versions=reviewVersions(session), posts=versions.filter(v=>v.kind==='post-meeting'), post=posts.find(v=>v.id===postId)??posts[posts.length-1]
-  const merged=post&&versions.filter(v=>v.merge?.postVersionId===post.id).slice(-1)[0]
+  const merged=post&&versions.filter(v=>v.merge?.postVersionId===post.id && !needsTranscriptRecovery(v)).slice(-1)[0]
   let canMerge=false
   try { canMerge=!!reconciliationBase(session).text.trim() } catch { /* Pure audio imports have no real-time baseline. */ }
   useEffect(()=>{void Promise.resolve().then(()=>fileTaskApi().settings()).then(value=>setConfigured(value.configured)).catch(e=>setError(e.message))},[])
@@ -26,8 +26,8 @@ export function RecordingFileActions({ session, onSelect }: { session: Transcrip
     <div className="flex flex-wrap items-center gap-2">
       {post&&canMerge&&<>
         {posts.length>1&&<Select aria-label="用于校正的会后稿" className={button+' max-w-72'} value={post.id} onChange={e=>setPostId(e.target.value)}>{posts.map(v=><option key={v.id} value={v.id}>{versionLabel(v)}</option>)}</Select>}
-        <button className={button} disabled={busy||!!draft||session.status==='recording'} onClick={()=>void action(async()=>{await generateReconciledVersion(session.id,post.id);setNotice('校正版已生成，原稿保留；可在当前版本菜单查看')})}>生成校正版</button>
-        {merged&&onSelect&&<button className={button+' text-primary'} disabled={!!draft} onClick={()=>onSelect(merged.id)}>查看校正版{merged.merge?.groups.some(g=>g.status==='pending')?' · '+merged.merge.groups.filter(g=>g.status==='pending').length+' 处待确认':''}</button>}
+        <button className={button} disabled={busy||!!draft||session.status==='recording'} onClick={()=>void action(async()=>{await generateReconciledVersion(session.id,post.id);setNotice('修订已保存，可在稿件菜单查看')})}>生成校正版</button>
+        {merged&&onSelect&&<button className={button+' text-primary'} disabled={!!draft} onClick={()=>onSelect(merged.id)}>{merged.merge?.strategy===2?'查看恢复修订':'查看校正版'}{merged.merge?.groups.some(g=>g.status==='pending')?' · '+merged.merge.groups.filter(g=>g.status==='pending').length+' 处待确认':''}</button>}
       </>}
       {!active&&session.audioRecordingId&&<button className={button} disabled={busy||!!draft||session.status==='recording'} onClick={()=>configured?setConfirm(true):useUIStore.getState().openFileSettings(session.id)}>{configured?(posts.length?'重新转写原音':canMerge?'转写并校正':'会后转写'):'配置文件转写'}</button>}
       {active&&<span className="text-xs text-muted-foreground">已有转写任务，下方可查看进度</span>}
