@@ -6,6 +6,7 @@
 .design-toolbar .design-disclaimer { margin-left:auto; color:hsl(var(--muted-foreground)); font-size:11px; }
 .design-toolbar select { width:100px; }
 .review-stage { flex:1; min-height:0; transform:translateZ(0); overflow:hidden; }
+.review-stage > aside { width:var(--review-sidebar); }
 .review-stage-content { height:100%; }
 .review-stage-content, .workspace-review { container-type:inline-size; }
 .notebook-workspace { display:flex; height:100%; background:hsl(var(--card)); font-size:14px; }
@@ -30,7 +31,7 @@
 .note-list-item.selected { background:hsl(var(--card)); border-color:hsl(var(--primary) / .16); box-shadow:0 2px 7px hsl(var(--foreground) / .025); }
 .note-list-item-top { display:flex; gap:7px; align-items:center; font-size:10px; color:hsl(var(--muted-foreground)); margin-bottom:9px; }
 .note-list-item-top .note-dot { margin-left:auto; }
-.note-list-item strong { display:block; font-size:13px; font-weight:550; line-height:1.65; }
+.note-list-item strong { display:block; font-size:13px; font-weight:550; line-height:1.65; overflow-wrap:anywhere; }
 .note-list-item p { font-size:11px; line-height:1.8; color:hsl(var(--muted-foreground)); margin:6px 0 10px; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
 .note-list-meta { font-size:10px; color:hsl(var(--muted-foreground)); }
 .notes-list-footer { padding:16px 22px; font-size:10px; color:hsl(var(--muted-foreground)); display:flex; align-items:center; gap:7px; }
@@ -42,7 +43,7 @@
 .notebook-breadcrumb { color:hsl(var(--foreground) / .75); }
 .note-text-button { display:inline-flex; align-items:center; justify-content:center; gap:6px; padding:6px 8px; border-radius:6px; font-size:11px; color:hsl(var(--muted-foreground)); }
 .notebook-scroll { flex:1; min-height:0; overflow:auto; scroll-behavior:smooth; }
-.notebook-paper { max-width:840px; margin:0 auto; padding:45px 56px 40px; }
+.notebook-paper { max-width:840px; margin:0 auto; padding:45px 56px 40px; overflow-wrap:anywhere; }
 .note-heading h1 { margin:14px 0 14px; font-size:29px; line-height:1.5; letter-spacing:-.04em; font-weight:650; text-wrap:balance; }
 .note-metadata { display:flex; flex-wrap:wrap; align-items:center; gap:8px; font-size:11px; color:hsl(var(--muted-foreground)); }
 .notebook-tabs { display:flex; gap:26px; border-bottom:1px solid hsl(var(--border) / .7); margin-top:29px; }

@@ -21,6 +21,13 @@ interface ProviderSelectorProps {
 export function ProviderSelector({ selectedVendor, onSelect }: ProviderSelectorProps) {
   const [isOpen, setIsOpen] = useState(false)
   const buttonRef = useRef<HTMLButtonElement>(null)
+  const panelRef = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    if (!isOpen) return
+    panelRef.current?.querySelector<HTMLButtonElement>('button')?.focus()
+    const trigger = buttonRef.current
+    return () => { trigger?.focus() }
+  }, [isOpen])
   
   const { t } = useUIStore()
   const { settings, availableProviders, setCurrentVendor } = useSettingsStore()
@@ -155,10 +162,18 @@ export function ProviderSelector({ selectedVendor, onSelect }: ProviderSelectorP
         {/* 模态框内容 */}
         <div className="absolute inset-0 flex items-center justify-center p-4">
           <div
+            ref={panelRef}
+            onKeyDown={event => {
+              if (event.key !== 'Tab') return
+              const items = [...event.currentTarget.querySelectorAll<HTMLButtonElement>('button')]
+              const first = items[0], last = items[items.length - 1]
+              if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last?.focus() }
+              else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus() }
+            }}
             role="dialog"
             aria-modal="true"
             aria-labelledby="provider-selector-title"
-            className="relative w-full max-w-md bg-card border border-border rounded-2xl shadow-2xl animate-in zoom-in-95 fade-in duration-200 overflow-hidden dark:ring-1 dark:ring-white/[0.08]"
+            className="relative w-full max-w-[640px] max-h-[calc(100dvh-40px)] bg-card border border-border rounded-xl shadow-2xl animate-in zoom-in-95 fade-in duration-200 overflow-hidden dark:ring-1 dark:ring-white/[0.08]"
           >
             {/* 头部 */}
             <div className="flex items-center justify-between px-5 py-4 border-b border-border bg-muted/30">

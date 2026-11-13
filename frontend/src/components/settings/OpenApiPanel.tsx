@@ -1,4 +1,6 @@
 import { useState, useEffect } from 'react'
+import { useConfirmation } from '../../hooks/useConfirmation'
+import { useUIStore } from '../../stores/uiStore'
 import { Check, Clipboard, Eye, EyeOff, Key, Network, Shuffle } from 'lucide-react'
 import { Switch } from '../ui'
 import type { Translations } from '../../i18n'
@@ -17,6 +19,9 @@ export function OpenApiPanel({
   openApiConfig,
   updateOpenApiConfig,
 }: OpenApiPanelProps) {
+  const { confirm, dialog } = useConfirmation()
+  const { t: uiText } = useUIStore()
+  const [error, setError] = useState('')
   const [showApiToken, setShowApiToken] = useState(false)
   const [copiedField, setCopiedField] = useState<string | null>(null)
   const [proxyPort, setProxyPort] = useState(23456)
@@ -29,7 +34,7 @@ export function OpenApiPanel({
     void navigator.clipboard.writeText(text).then(() => {
       setCopiedField(field)
       setTimeout(() => setCopiedField(null), 2000)
-    })
+    }).catch(cause => setError(String(cause)))
   }
 
   const isElectron = !!window.electronAPI
@@ -38,6 +43,8 @@ export function OpenApiPanel({
 
   return (
     <section className="workspace-panel-muted p-4 space-y-3">
+      {dialog}
+      {error && <p role="alert" className="text-destructive text-sm">{error}</p>}
       <label className="text-sm font-medium leading-none flex items-center gap-2">
         <Network className="w-3.5 h-3.5 text-muted-foreground" />
         {t.settings.openApiTitle}
@@ -68,6 +75,7 @@ export function OpenApiPanel({
             <div className="flex gap-2">
               <div className="relative flex-1">
                 <input
+                  aria-label={t.settings.openApiToken}
                   type={showApiToken ? 'text' : 'password'}
                   value={openApiConfig.token || ''}
                   onChange={(e) => updateOpenApiConfig({ token: e.target.value })}
@@ -76,6 +84,8 @@ export function OpenApiPanel({
                 />
                 <button
                   type="button"
+                  aria-label={t.settings.openApiToken}
+                  aria-pressed={showApiToken}
                   onClick={() => setShowApiToken(!showApiToken)}
                   className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-muted-foreground hover:text-foreground transition-colors"
                 >
@@ -84,7 +94,7 @@ export function OpenApiPanel({
               </div>
               <button
                 type="button"
-                onClick={() => updateOpenApiConfig({ token: generateOpenApiToken() })}
+                onClick={() => void confirm(uiText.workspace.tokenConfirm).then(approved => { if (approved) updateOpenApiConfig({ token: generateOpenApiToken() }) }).catch(cause => setError(String(cause)))}
                 className="inline-flex items-center justify-center gap-1.5 h-10 px-3 text-sm font-medium rounded-md border border-input bg-background hover:bg-accent hover:text-accent-foreground transition-colors whitespace-nowrap"
                 title={t.settings.openApiGenerateToken}
               >

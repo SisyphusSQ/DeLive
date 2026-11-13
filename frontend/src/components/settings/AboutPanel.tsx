@@ -37,6 +37,7 @@ export function AboutPanel({
 
   return (
     <div className="space-y-6">
+      <div><h2 className="text-xl font-semibold">DeLive SQ</h2><p className="mt-2 text-sm text-muted-foreground">{t.electron.currentVersion}: {appVersion || '—'}</p></div>
       {hasElectronApi && supportsAutoLaunch && (
         <section className="workspace-panel-muted p-4 space-y-3">
           <label className="text-sm font-medium leading-none flex items-center gap-2">
@@ -90,6 +91,8 @@ export function AboutPanel({
                   ? (t.update?.checking || 'Checking...')
                   : updateStatus === 'not-available'
                   ? (t.update?.upToDate || 'Up to date')
+                  : updateStatus === 'available'
+                  ? t.update.newVersion
                   : updateStatus === 'error'
                   ? (t.update?.error || 'Check failed')
                   : (t.electron.clickToCheck)

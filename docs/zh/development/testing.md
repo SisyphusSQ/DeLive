@@ -29,7 +29,7 @@ cd frontend && npx vitest
 
 ## 测试覆盖
 
-当前套件：**44 个文件中 373 个测试**。
+2026-11-13 本地开发检查：**63 个文件中 485 个测试**。正式工作台另有五组浏览器交互自检，见[正式组件接入记录](./full-workspace-storybook.md#正式组件接入-too-710)。
 
 ### 已测试
 
@@ -85,6 +85,8 @@ describe('yourFunction', () => {
 测试作为 `npm run check` 的一部分在 **CI 管线**（push/PR 时）和 **发布管线**（构建前）中运行。
 
 ## DeLive 会议开发证据
+
+- [全页面 Storybook 设计预览](./full-workspace-storybook.md)：保留五项导航，覆盖所有页面、设置子页、启动状态与跨页流程；待用户确认后接正式功能。
 
 - [核心工作台 Storybook 设计预览](./workspace-design-storybook.md)：录制、文件、设置、主题和跨页合成自检。
 

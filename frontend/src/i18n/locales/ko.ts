@@ -80,7 +80,7 @@ export const ko: Translations = {
     dataExported: '데이터를 내보냈습니다',
     invalidBackupFile: '백업 파일 형식이 올바르지 않습니다',
     importConfirm: (sessions: number, tags: number) =>
-      `백업 파일에 세션 ${sessions}개와 태그 ${tags}개가 들어 있습니다.\n\n"확인"을 누르면 기존 데이터를 덮어씁니다\n"취소"를 누르면 병합합니다 (기존 유지, 새 항목 추가)`,
+      `백업 파일에 세션 ${sessions}개와 태그 ${tags}개가 있습니다. 병합은 기존 자료를 유지하고 새 데이터를 추가합니다. 덮어쓰기는 기존 텍스트 데이터를 바꿉니다. 취소하면 아무것도 변경되지 않습니다.`,
     importedOverwrite: (sessions: number, tags: number) =>
       `세션 ${sessions}개와 태그 ${tags}개를 가져왔습니다`,
     importedMerge: (sessions: number, tags: number) =>
@@ -547,6 +547,28 @@ export const ko: Translations = {
   },
 
   // Command Palette
+  workspace: {
+    clearSearch: "검색 지우기",
+    title: "작업 공간",
+    commands: "명령 팔레트",
+    recordingHint: "오디오 소스를 선택하고 회의 녹음을 시작하세요.",
+    topicsHint: "관련 대화를 주제별로 모아 보세요.",
+    settingsHint: "전사, AI 및 데스크톱 설정을 관리하세요.",
+    allTopics: "모든 주제",
+    backToTopic: "주제로 돌아가기",
+    topicMeetings: "회의 기록",
+    noTopicMeetings: "이 주제에 회의가 없습니다",
+    topicMeetingsHint: "여기에서 녹음을 시작하면 이 주제에 저장됩니다.",
+    loading: "회의 자료를 불러오는 중",
+    loadFailed: "자료를 불러올 수 없습니다",
+    retry: "다시 불러오기",
+    restoring: "백업 복원 중",
+    restoreHint: "앱을 열어 두세요. 완료되지 않은 복원은 다시 불러와 계속할 수 있습니다.",
+    resumeRestore: "다시 불러와 복원 계속",
+    noCommands: "일치하는 명령이 없습니다",
+    tokenConfirm: "새 토큰을 생성하면 이전 토큰을 사용하는 클라이언트의 연결이 끊깁니다. 계속할까요?",
+  },
+
   command: {
     searchPlaceholder: '명령어를 입력하거나 검색하세요...',
     exportData: '데이터 내보내기',

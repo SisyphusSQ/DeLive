@@ -4,7 +4,7 @@
 
 /* ===== CSS 变量 ===== */
 :root {
-  --radius: 1rem;
+  --radius: 0.625rem;
 
   /* Motion tokens */
   --duration-fast: 120ms;

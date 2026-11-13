@@ -1,3 +1,4 @@
+import { useConfirmation } from '../../hooks/useConfirmation'
 import { useState, useCallback, useEffect } from 'react'
 import { buildIpcConfig, uploadCompleteBackup, restoreCompleteBackup } from '../../services/completeBackup'
 import type { PreparedRestore, CloudJob, BackupArtifact, BackupProgress } from '../../../../shared/backup'
@@ -45,6 +46,7 @@ export function CloudBackupPanel({
   cloudBackupConfig,
   updateCloudBackupConfig,
 }: CloudBackupPanelProps) {
+  const { confirm, dialog } = useConfirmation()
   const ts = t.settings
   const [testStatus, setTestStatus] = useState<'idle' | 'testing' | 'success' | 'error'>('idle')
   const [testError, setTestError] = useState('')
@@ -136,15 +138,15 @@ export function CloudBackupPanel({
 
   const handleDelete = useCallback(async (key: string) => {
     if (!window.electronAPI) return
-    if (!confirm(ts.cloudBackupDeleteConfirm)) return
+    if (!await confirm(ts.cloudBackupDeleteConfirm)) return
 
     const result = await window.electronAPI.cloudBackupDelete(buildIpcConfig(cloudBackupConfig), key)
     if (result.ok) {
       setFiles(prev => prev.filter(f => f.key !== key))
     } else {
-      alert(result.error || 'Delete failed')
+      setUploadError(result.error || 'Delete failed')
     }
-  }, [cloudBackupConfig, ts])
+  }, [cloudBackupConfig, ts, confirm])
 
   const hasElectronApi = typeof window !== 'undefined' && !!window.electronAPI
 
@@ -152,6 +154,7 @@ export function CloudBackupPanel({
 
   return (
     <section className="workspace-panel-muted p-4 space-y-3">
+      {dialog}
       <label className="text-sm font-medium leading-none flex items-center gap-2">
         <Cloud className="w-3.5 h-3.5 text-muted-foreground" />
         {ts.cloudBackupTitle}
@@ -204,51 +207,63 @@ export function CloudBackupPanel({
           {/* S3 config */}
           {provider === 's3' && (
             <div className="space-y-2">
-              <input
+              <label className="grid min-w-0 gap-1 text-xs text-muted-foreground">{ts.cloudBackupEndpoint}
+<input aria-label={ts.cloudBackupEndpoint}
                 type="text"
                 value={s3.endpoint || ''}
                 onChange={(e) => void updateS3({ endpoint: e.target.value })}
                 placeholder={ts.cloudBackupEndpointPlaceholder}
                 className="w-full px-3 py-2 text-xs rounded-md bg-background border border-input"
               />
+</label>
               <div className="grid grid-cols-2 gap-2">
-                <input
+                <label className="grid min-w-0 gap-1 text-xs text-muted-foreground">{ts.cloudBackupRegion}
+<input aria-label={ts.cloudBackupRegion}
                   type="text"
                   value={s3.region || ''}
                   onChange={(e) => void updateS3({ region: e.target.value })}
                   placeholder={ts.cloudBackupRegionPlaceholder}
                   className="px-3 py-2 text-xs rounded-md bg-background border border-input"
                 />
-                <input
+</label>
+                <label className="grid min-w-0 gap-1 text-xs text-muted-foreground">{ts.cloudBackupBucket}
+<input aria-label={ts.cloudBackupBucket}
                   type="text"
                   value={s3.bucket || ''}
                   onChange={(e) => void updateS3({ bucket: e.target.value })}
                   placeholder={ts.cloudBackupBucketPlaceholder}
                   className="px-3 py-2 text-xs rounded-md bg-background border border-input"
                 />
+</label>
               </div>
-              <input
+              <label className="grid min-w-0 gap-1 text-xs text-muted-foreground">{ts.cloudBackupPrefix}
+<input aria-label={ts.cloudBackupPrefix}
                 type="text"
                 value={s3.prefix || ''}
                 onChange={(e) => void updateS3({ prefix: e.target.value })}
                 placeholder={ts.cloudBackupPrefixPlaceholder}
                 className="w-full px-3 py-2 text-xs rounded-md bg-background border border-input"
               />
+</label>
               <div className="grid grid-cols-2 gap-2">
-                <input
+                <label className="grid min-w-0 gap-1 text-xs text-muted-foreground">{ts.cloudBackupAccessKeyId}
+<input aria-label={ts.cloudBackupAccessKeyId}
                   type="text"
                   value={s3.accessKeyId || ''}
                   onChange={(e) => void updateS3({ accessKeyId: e.target.value })}
                   placeholder={ts.cloudBackupAccessKeyId}
                   className="px-3 py-2 text-xs rounded-md bg-background border border-input"
                 />
-                <input
+</label>
+                <label className="grid min-w-0 gap-1 text-xs text-muted-foreground">{ts.cloudBackupSecretAccessKey}
+<input aria-label={ts.cloudBackupSecretAccessKey}
                   type="password"
                   value={s3.secretAccessKey || ''}
                   onChange={(e) => void updateS3({ secretAccessKey: e.target.value })}
                   placeholder={ts.cloudBackupSecretAccessKey}
                   className="px-3 py-2 text-xs rounded-md bg-background border border-input"
                 />
+</label>
               </div>
               <label className="flex items-center gap-2 text-xs text-muted-foreground cursor-pointer">
                 <input
@@ -267,7 +282,7 @@ export function CloudBackupPanel({
             <div className="space-y-3">
               <div>
                 <label className="block text-xs font-medium mb-1">{ts.cloudBackupWebdavUrl}</label>
-                <input
+                <input aria-label={ts.cloudBackupWebdavUrl}
                   type="text"
                   value={webdav.url || ''}
                   onChange={(e) => void updateWebdav({ url: e.target.value })}
@@ -278,7 +293,7 @@ export function CloudBackupPanel({
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-medium mb-1">{ts.cloudBackupWebdavUsername}</label>
-                  <input
+                  <input aria-label={ts.cloudBackupWebdavUsername}
                     type="text"
                     value={webdav.username || ''}
                     onChange={(e) => void updateWebdav({ username: e.target.value })}
@@ -287,7 +302,7 @@ export function CloudBackupPanel({
                 </div>
                 <div>
                   <label className="block text-xs font-medium mb-1">{ts.cloudBackupWebdavPassword}</label>
-                  <input
+                  <input aria-label={ts.cloudBackupWebdavPassword}
                     type="password"
                     value={webdav.password || ''}
                     onChange={(e) => void updateWebdav({ password: e.target.value })}

@@ -166,5 +166,5 @@ export function getTopics(): Topic[] {
 }
 
 export function saveTopics(topics: Topic[]): void {
-  writeJsonToLocalStorage(STORAGE_KEYS.TOPICS, topics, 'Failed to save topics to localStorage:')
+  localStorage.setItem(STORAGE_KEYS.TOPICS, JSON.stringify(topics))
 }

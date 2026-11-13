@@ -131,6 +131,7 @@ export function ServiceSettingsPanel({
             {field.label}
           </label>
           <Select
+            aria-label={field.label}
             value={getStringFieldValue(field.key)}
             onChange={(e) => updateFormField(field.key, e.target.value)}
             className={commonInputClassName}
@@ -165,6 +166,7 @@ export function ServiceSettingsPanel({
         </label>
         <div className="relative group">
           <input
+            aria-label={field.label}
             type={inputType}
             value={value}
             onChange={(e) => updateFormField(field.key, e.target.value)}
@@ -174,6 +176,8 @@ export function ServiceSettingsPanel({
           {isPasswordField && (
             <button
               type="button"
+              aria-label={field.label}
+              aria-pressed={isRevealed}
               onClick={() => toggleFieldVisibility(field.key)}
               className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-muted-foreground hover:text-foreground transition-colors"
             >
