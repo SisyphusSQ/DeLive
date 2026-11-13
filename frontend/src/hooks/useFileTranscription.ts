@@ -1,4 +1,4 @@
-import { useCallback, useRef } from 'react'
+import { useCallback } from 'react'
 import { useFileTranscriptionStore } from '../stores/fileTranscriptionStore'
 import { useSettingsStore } from '../stores/settingsStore'
 import { useSessionStore } from '../stores/sessionStore'
@@ -186,8 +186,9 @@ async function executeWhisperCpp(
   return result
 }
 
+const abortControllers = new Map<string, AbortController>()
+
 export function useFileTranscription() {
-  const abortControllers = useRef<Map<string, AbortController>>(new Map())
   const { addJob, updateJob } = useFileTranscriptionStore()
   const jobs = useFileTranscriptionStore((s) => s.jobs)
 
@@ -221,7 +222,7 @@ export function useFileTranscription() {
     }
 
     const controller = new AbortController()
-    abortControllers.current.set(jobId, controller)
+    abortControllers.set(jobId, controller)
 
     ;(async () => {
       try {
@@ -244,6 +245,7 @@ export function useFileTranscription() {
           throwUserError('fileTranscriptionUnsupported', undefined, providerId)
         }
 
+        controller.signal.throwIfAborted()
         const now = Date.now()
         const session = createDraftSession({
           now,
@@ -267,9 +269,10 @@ export function useFileTranscription() {
           updatedAt: now,
         }
 
-        const currentSessions = useSessionStore.getState().sessions
-        sessionRepository.replaceAllSessions([completedSession, ...currentSessions])
-        useSessionStore.setState({ sessions: [completedSession, ...currentSessions] })
+        abortControllers.delete(jobId)
+        updateJob(jobId, { status: 'saving' })
+        const sessions = await sessionRepository.addCompletedSession(completedSession)
+        useSessionStore.setState({ sessions })
 
         updateJob(jobId, {
           status: 'completed',
@@ -284,7 +287,7 @@ export function useFileTranscription() {
           updateJob(jobId, { status: 'error', error: message })
         }
       } finally {
-        abortControllers.current.delete(jobId)
+        abortControllers.delete(jobId)
       }
     })()
 
@@ -292,11 +295,10 @@ export function useFileTranscription() {
   }, [addJob, updateJob])
 
   const cancelJob = useCallback((jobId: string) => {
-    const controller = abortControllers.current.get(jobId)
-    if (controller) {
-      controller.abort()
-      abortControllers.current.delete(jobId)
-    }
+    const controller = abortControllers.get(jobId)
+    if (!controller) return
+    controller.abort()
+    abortControllers.delete(jobId)
     updateJob(jobId, { status: 'cancelled' })
   }, [updateJob])
 

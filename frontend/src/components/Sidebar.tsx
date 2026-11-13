@@ -47,7 +47,7 @@ export function Sidebar({
     const active = currentView === item.id
     const Icon = item.icon
     const label = getLabel(item.id)
-    const showRecDot = item.id === 'live' && recordingState === 'recording'
+    const showRecDot = item.id === 'live' && recordingState !== 'idle'
 
     return (
       <button
@@ -63,6 +63,8 @@ export function Sidebar({
           ${collapsed ? 'justify-center px-0' : ''}
         `}
         title={collapsed ? label : undefined}
+        aria-label={label}
+        data-settings-entry={item.id === 'settings' ? 'workspace-settings' : undefined}
         aria-current={active ? 'page' : undefined}
       >
         {active && (

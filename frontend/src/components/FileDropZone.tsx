@@ -16,12 +16,13 @@ function estimateDuration(sizeBytes: number): string {
 interface FileDropZoneProps {
   onFilesSelected: (files: File[]) => void
   disabled?: boolean
+  submitDisabled?: boolean
 }
 
-export function FileDropZone({ onFilesSelected, disabled }: FileDropZoneProps) {
+export function FileDropZone({ onFilesSelected, disabled, submitDisabled }: FileDropZoneProps) {
   const { t } = useUIStore()
   const [isDragging, setIsDragging] = useState(false)
-  const [selectedFiles, setSelectedFiles] = useState<File[]>([])
+  const selectedFiles = useUIStore(state => state.pendingAudioFiles)
   const inputRef = useRef<HTMLInputElement>(null)
 
   const formatGroups = [
@@ -49,28 +50,25 @@ export function FileDropZone({ onFilesSelected, disabled }: FileDropZoneProps) {
 
     const files = Array.from(e.dataTransfer.files).filter(isAcceptedAudioFile)
     if (files.length > 0) {
-      setSelectedFiles((prev) => [...prev, ...files])
+      useUIStore.setState(state => ({ pendingAudioFiles: [...state.pendingAudioFiles, ...files] }))
     }
   }, [disabled])
 
   const handleInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []).filter(isAcceptedAudioFile)
     if (files.length > 0) {
-      setSelectedFiles((prev) => [...prev, ...files])
+      useUIStore.setState(state => ({ pendingAudioFiles: [...state.pendingAudioFiles, ...files] }))
     }
     if (inputRef.current) inputRef.current.value = ''
   }, [])
 
   const removeFile = useCallback((index: number) => {
-    setSelectedFiles((prev) => prev.filter((_, i) => i !== index))
+    useUIStore.setState(state => ({ pendingAudioFiles: state.pendingAudioFiles.filter((_, i) => i !== index) }))
   }, [])
 
   const handleSubmit = useCallback(() => {
-    if (selectedFiles.length > 0) {
-      onFilesSelected(selectedFiles)
-      setSelectedFiles([])
-    }
-  }, [selectedFiles, onFilesSelected])
+    if (selectedFiles.length > 0 && !disabled && !submitDisabled) onFilesSelected(selectedFiles)
+  }, [selectedFiles, onFilesSelected, disabled, submitDisabled])
 
   const acceptAttr = ACCEPTED_AUDIO_EXTENSIONS.join(',')
 
@@ -80,6 +78,14 @@ export function FileDropZone({ onFilesSelected, disabled }: FileDropZoneProps) {
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
+        role="button"
+        tabIndex={disabled ? -1 : 0}
+        aria-disabled={disabled || undefined}
+        onKeyDown={event => {
+          if (disabled || !['Enter', ' '].includes(event.key)) return
+          event.preventDefault()
+          inputRef.current?.click()
+        }}
         onClick={() => !disabled && inputRef.current?.click()}
         className={`
           relative flex flex-col items-center justify-center gap-3
@@ -142,6 +148,8 @@ export function FileDropZone({ onFilesSelected, disabled }: FileDropZoneProps) {
                 </div>
               </div>
               <button
+                aria-label={t.common.delete + ' ' + file.name}
+                disabled={disabled}
                 onClick={(e) => { e.stopPropagation(); removeFile(index) }}
                 className="rounded-md p-1 text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
               >
@@ -157,7 +165,7 @@ export function FileDropZone({ onFilesSelected, disabled }: FileDropZoneProps) {
           </div>
           <button
             onClick={handleSubmit}
-            disabled={disabled}
+            disabled={disabled || submitDisabled}
             className="w-full rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50"
           >
             {t.file?.startTranscription?.(selectedFiles.length) ?? `Start Transcription (${selectedFiles.length})`}

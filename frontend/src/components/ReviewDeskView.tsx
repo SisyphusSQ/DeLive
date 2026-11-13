@@ -1,16 +1,16 @@
-import { useMemo, useState, useCallback } from 'react'
+import { useMemo, useCallback } from 'react'
 import { useUIStore } from '../stores/uiStore'
 import { useSessionStore } from '../stores/sessionStore'
 import { useTagStore } from '../stores/tagStore'
 import { PreviewModal } from './PreviewModal'
 import { HistoryPanel } from './HistoryPanel'
 import { ActivityHeatmap } from './ActivityHeatmap'
+import './review/review-workspace.css'
 
 export function ReviewDeskView() {
   const { reviewSessionId } = useUIStore()
   const sessions = useSessionStore((s) => s.sessions)
   const { searchQuery, setSearchQuery } = useTagStore()
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
 
   const session = useMemo(
     () => sessions.find((s) => s.id === reviewSessionId) ?? null,
@@ -21,6 +21,7 @@ export function ReviewDeskView() {
     setSearchQuery(searchQuery === date ? '' : date)
   }, [searchQuery, setSearchQuery])
 
+  const closeReview = useCallback(() => useUIStore.getState().setView('review'), [])
   const activeDate = /^\d{4}-\d{2}-\d{2}$/.test(searchQuery) ? searchQuery : null
 
   if (!session) {
@@ -39,27 +40,20 @@ export function ReviewDeskView() {
   }
 
   return (
-    <div className="h-full flex animate-view-enter">
-      {/* Collapsible sidebar */}
-      <aside
-        className={`hidden lg:flex shrink-0 overflow-hidden transition-[width] duration-300 ease-in-out ${
-          sidebarCollapsed ? 'w-0' : 'w-[380px] border-r border-border/40'
-        }`}
-      >
-        <div className="flex-1 overflow-y-auto p-3 w-[380px]">
-          <HistoryPanel variant="rail" contentHeightClassName="h-[calc(100vh-8rem)]" />
+    <div className="review-workspace h-full min-w-0">
+      <div className="review-workspace-layout flex h-full min-h-0">
+        <aside className="review-meeting-list flex min-h-0 shrink-0 flex-col border-r border-border/60 bg-muted/25" aria-label="会议列表">
+          <HistoryPanel variant="rail" />
+        </aside>
+        <div className="min-h-0 min-w-0 flex-1">
+          <PreviewModal
+            key={session.id}
+            session={session}
+            onClose={closeReview}
+            mode="view"
+            preserveTab
+          />
         </div>
-      </aside>
-
-      {/* Main content */}
-      <div className="flex-1 overflow-hidden">
-        <PreviewModal
-          session={session}
-          onClose={() => useUIStore.getState().setView('review')}
-          mode="view"
-          sidebarCollapsed={sidebarCollapsed}
-          onToggleSidebar={() => setSidebarCollapsed(!sidebarCollapsed)}
-        />
       </div>
     </div>
   )

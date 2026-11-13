@@ -69,8 +69,8 @@ export function AiTab({ session }: AiTabProps) {
   }
 
   return (
-    <div className="flex-1 overflow-y-auto p-6 space-y-6">
-      <div className="rounded-xl border border-border bg-gradient-to-br from-card/90 to-card/60 p-5 space-y-4 border-l-4 border-l-primary/40 backdrop-blur">
+    <div className="flex-1 space-y-5 overflow-y-auto px-2 pb-4">
+      <div className="space-y-4 border-b border-border/60 pb-4">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="space-y-1">
             <div className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-primary">
@@ -79,7 +79,8 @@ export function AiTab({ session }: AiTabProps) {
             </div>
             <TextSourceBanner session={session} /><AiStaleNotice session={session} result={session.postProcess} />
             {!aiConfigured && (
-              <p className="text-xs text-muted-foreground">{t.preview.aiNotConfigured}</p>
+              <p className="text-xs text-muted-foreground">{t.preview.aiNotConfigured}{' '}
+              <button data-settings-entry="review-ai" type="button" className="text-primary underline" onClick={() => useUIStore.getState().openSettings('aiPostProcess')}>{t.common.settings}</button></p>
             )}
             {postProcess?.status === 'error' && postProcess.error && (
               <p className="text-xs text-destructive">{postProcess.error}</p>

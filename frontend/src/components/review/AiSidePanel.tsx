@@ -1,3 +1,4 @@
+import { resolveInputText } from '../../services/aiSessionContext'
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react'
 import {
   PanelRightClose,
@@ -54,7 +55,7 @@ export function AiSidePanel({
 
   const aiConfigured = isAiPostProcessConfigured(settings, 'chat')
   const isPending = panelHistory.some((turn) => turn.status === 'pending')
-  const hasTranscript = !!session.transcript.trim()
+  const hasTranscript = Boolean(resolveInputText(session, settings.aiPostProcess?.preferCorrectedText) || session.images?.length)
 
   useEffect(() => {
     if (selectedText?.trim() && isOpen) {

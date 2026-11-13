@@ -4,6 +4,8 @@ import { imageDataUrl } from './sessionImages'
 import { cancelAiTasks } from './aiTransport'
 import type { TranscriptSession, AiPostProcessConfig } from '../types'
 import type { SessionImage } from '../../../shared/sessionImages'
+import { reviewVersions } from '../utils/reviewVersions'
+import { normalizeTranscriptSession } from '../utils/sessionSchema'
 vi.mock('./sessionImages', () => ({ imageDataUrl: vi.fn(async () => 'data:image/png;base64,AAAA') }))
 const image: SessionImage = { id:'11111111-1111-1111-1111-111111111111', assetPath:'s/11111111-1111-1111-1111-111111111111.png', name:'chart.png', mimeType:'image/png', bytes:4, width:1,height:1,sha256:'a'.repeat(64),atMs:1500,caption:'收入图',createdAt:1 }
 const session: TranscriptSession = { id:'s',title:'test',transcript:'one\ntwo',createdAt:1,updatedAt:1,date:'',time:'',segments:[{id:'1',text:'one',startMs:1000,endMs:1400},{id:'2',text:'two',startMs:2000,endMs:2400}],images:[image] }
@@ -28,6 +30,21 @@ describe('AI image context',()=>{
     const version = {id:'edit',kind:'edited' as const,createdAt:2,text:'changed',segments:[],speakers:[]}
     expect(await inputFingerprint({...session,versions:[version],selectedVersionId:'edit'},'original')).not.toBe(base)
     expect(contextChunks({...session,versions:[version],selectedVersionId:'edit'},'original')[0].text).toContain('changed')
+  })
+  it('uses a new AI correction only after it is saved and adopted, while reading older corrections', async () => {
+    const inputFingerprintValue = await inputFingerprint(session, 'original')
+    const correction = { status: 'done' as const, mode: 'quick' as const, correctedText: 'AI correction' }
+    const legacy = { ...session, correction: { ...correction, inputFingerprint: inputFingerprintValue } }
+    expect(contextChunks(legacy, 'auto')[0].text).toContain('AI correction')
+    expect(reviewVersions(legacy).some(version => version.text === 'AI correction')).toBe(true)
+
+    const current = normalizeTranscriptSession({ ...legacy, correction: { ...legacy.correction, requiresAdoption: true } })
+    expect(reviewVersions(current).some(version => version.text === 'AI correction')).toBe(false)
+    expect(contextChunks(current, 'auto')[0].text).toContain('one')
+    const revision = { id: 'saved', kind: 'edited' as const, createdAt: 2, text: 'AI correction', segments: [], speakers: [] }
+    const saved = { ...current, versions: [revision] }
+    expect(contextChunks(saved, 'auto')[0].text).toContain('one')
+    expect(contextChunks({ ...saved, selectedVersionId: revision.id }, 'auto')[0].text).toContain('AI correction')
   })
   it('sends actual images and records the immutable starting input',async()=>{
     const expected=await inputFingerprint(session,'auto')

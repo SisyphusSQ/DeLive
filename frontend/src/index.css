@@ -381,3 +381,22 @@ body {
     transform: none;
   }
 }
+
+.settings-workspace { container: settings-workspace / inline-size; }
+
+@container settings-workspace (max-width: 38rem) {
+  .settings-workspace-layout { flex-direction: column; }
+  .settings-workspace-nav {
+    display: flex;
+    width: 100%;
+    gap: 0.25rem;
+    overflow-x: auto;
+    border-right: 0;
+    border-bottom: 1px solid hsl(var(--border));
+  }
+  .settings-workspace-nav > button {
+    width: auto;
+    flex-shrink: 0;
+    margin-top: 0;
+  }
+}

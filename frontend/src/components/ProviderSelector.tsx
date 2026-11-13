@@ -14,24 +14,27 @@ import { getProviderName, getProviderDescription } from '../utils/providerI18n'
 import { getProviderLogo } from './icons/ProviderLogos'
 
 interface ProviderSelectorProps {
+  selectedVendor?: string
   onSelect?: (vendorId: string) => void
 }
 
-export function ProviderSelector({ onSelect }: ProviderSelectorProps) {
+export function ProviderSelector({ selectedVendor, onSelect }: ProviderSelectorProps) {
   const [isOpen, setIsOpen] = useState(false)
   const buttonRef = useRef<HTMLButtonElement>(null)
   
   const { t } = useUIStore()
   const { settings, availableProviders, setCurrentVendor } = useSettingsStore()
 
-  const currentVendor = settings.currentVendor || DEFAULT_ASR_VENDOR
+  const currentVendor = selectedVendor || settings.currentVendor || DEFAULT_ASR_VENDOR
   const currentProvider = availableProviders.find(p => p.id === currentVendor)
 
   // ESC 键关闭
   useEffect(() => {
     function handleKeyDown(event: KeyboardEvent) {
       if (event.key === 'Escape' && isOpen) {
+        event.preventDefault()
         setIsOpen(false)
+        buttonRef.current?.focus()
       }
     }
     document.addEventListener('keydown', handleKeyDown)
@@ -39,9 +42,10 @@ export function ProviderSelector({ onSelect }: ProviderSelectorProps) {
   }, [isOpen])
 
   const handleSelect = (vendorId: string) => {
-    setCurrentVendor(vendorId)
-    onSelect?.(vendorId)
+    if (onSelect) onSelect(vendorId)
+    else setCurrentVendor(vendorId)
     setIsOpen(false)
+    buttonRef.current?.focus()
   }
 
   // 按类型分组

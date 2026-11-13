@@ -6,9 +6,9 @@ import {
   FileText,
   LayoutList,
 } from 'lucide-react'
-import { useUIStore } from '../../stores/uiStore'
+import { useUIStore, type ReviewTab } from '../../stores/uiStore'
+export type { ReviewTab } from '../../stores/uiStore'
 
-export type ReviewTab = 'transcript' | 'summary' | 'chat' | 'mindmap'
 
 interface SessionTabBarProps {
   activeTab: ReviewTab
@@ -51,7 +51,7 @@ export function SessionTabBar({ activeTab, onTabChange }: SessionTabBarProps) {
 
   return (
     <div
-      className="relative flex items-center gap-0.5 border-b border-border/40 px-5"
+      className="relative mx-3 flex shrink-0 items-center gap-1 overflow-x-auto border-b border-border/60 sm:mx-6"
       role="tablist"
       aria-label="Review tabs"
     >
@@ -81,13 +81,13 @@ export function SessionTabBar({ activeTab, onTabChange }: SessionTabBarProps) {
               onTabChange(next.id)
               tabRefs.current.get(next.id)?.focus()
             }}
-            className={`relative inline-flex items-center gap-2 px-3.5 py-3 text-[13px] transition-colors ${
+            className={`relative inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap px-2.5 py-2 text-xs transition-colors sm:text-[13px] ${
               isActive
                 ? 'text-foreground font-medium'
                 : 'text-muted-foreground font-normal hover:text-foreground'
             }`}
           >
-            <Icon className="h-4 w-4" />
+            <Icon className="hidden h-3.5 w-3.5 sm:block" />
             <span>{label || id}</span>
           </button>
         )
@@ -95,7 +95,7 @@ export function SessionTabBar({ activeTab, onTabChange }: SessionTabBarProps) {
 
       {/* Animated active indicator */}
       <span
-        className="absolute bottom-0 h-0.5 rounded-t-full bg-foreground/80 transition-all duration-250 ease-out"
+        className="absolute bottom-0 h-0.5 rounded-t-full bg-primary transition-all duration-250 ease-out"
         style={{ left: indicator.left, width: indicator.width }}
       />
     </div>

@@ -86,6 +86,7 @@ export interface CorrectionIssue {
 
 export interface TranscriptCorrection extends AiInputStamp {
   correctedText?: string
+  requiresAdoption?: boolean
   issues?: CorrectionIssue[]
   status: TranscriptCorrectionStatus
   mode: 'quick' | 'review'

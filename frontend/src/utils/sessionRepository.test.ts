@@ -73,6 +73,23 @@ describe('sessionRepository persistence strategy', () => {
     expect(sessionStorageMock.saveSessions).not.toHaveBeenCalled()
   })
 
+  it('publishes a local file result only after saving its own session', async () => {
+    const existing = makeSession({ id: 'existing', status: 'completed' })
+    sessionStorageMock.getSessions.mockResolvedValue([existing])
+    const { sessionRepository } = await import('./sessionRepository')
+    await sessionRepository.loadForLaunch()
+    const result = makeSession({ id: 'file', status: 'completed', transcript: 'local result' })
+    sessionStorageMock.upsertSession.mockRejectedValueOnce(new Error('disk full'))
+    await expect(sessionRepository.addCompletedSession(result)).rejects.toThrow('disk full')
+    expect((await sessionRepository.snapshot()).map(session => session.id)).toEqual(['existing'])
+    sessionStorageMock.saveSessions.mockClear()
+
+    const sessions = await sessionRepository.addCompletedSession(result)
+    expect(sessions.map(session => session.id)).toEqual(['file', 'existing'])
+    expect(sessionStorageMock.upsertSession).toHaveBeenLastCalledWith(expect.objectContaining(result))
+    expect(sessionStorageMock.saveSessions).not.toHaveBeenCalled()
+  })
+
   it('marks interrupted sessions in batch on launch recovery', async () => {
     sessionStorageMock.getSessions.mockResolvedValue([
       makeSession({ id: 'recording-1', status: 'recording', transcript: 'alpha' }),

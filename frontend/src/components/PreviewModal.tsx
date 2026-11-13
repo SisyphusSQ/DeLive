@@ -12,6 +12,9 @@ import {
 } from './review'
 import type { ReviewTab } from './review'
 import { AiSidePanel } from './review/AiSidePanel'
+import { useUIStore } from '../stores/uiStore'
+import { ReviewPlayer } from './review/ReviewPlayer'
+import { useRecordingPlayback } from '../hooks/useRecordingPlayback'
 
 interface PreviewModalProps {
   session: TranscriptSession | null
@@ -19,6 +22,7 @@ interface PreviewModalProps {
   mode?: 'modal' | 'view'
   sidebarCollapsed?: boolean
   onToggleSidebar?: () => void
+  preserveTab?: boolean
 }
 
 export function PreviewModal({
@@ -27,19 +31,29 @@ export function PreviewModal({
   mode = 'modal',
   sidebarCollapsed,
   onToggleSidebar,
+  preserveTab = false,
 }: PreviewModalProps) {
+  const playback = useRecordingPlayback(session?.audioRecordingId)
   const isViewMode = mode === 'view'
-  const [activeTab, setActiveTab] = useState<ReviewTab>('transcript')
+  const [activeTab, setTab] = useState<ReviewTab>(() => preserveTab ? useUIStore.getState().reviewTab : 'transcript')
+  const setActiveTab = useCallback((tab: ReviewTab) => {
+    setTab(tab)
+    if (preserveTab) useUIStore.setState({ reviewTab: tab })
+  }, [preserveTab])
   const [aiPanelOpen, setAiPanelOpen] = useState(false)
   const [selectedText, setSelectedText] = useState<string | undefined>()
   const [floatingBtn, setFloatingBtn] = useState<{ x: number; y: number; text: string } | null>(null)
+  const [citation, setCitation] = useState<{ quote: string }>()
+  const clearCitation = useCallback(() => setCitation(undefined), [])
   const tabPanelRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
-    setActiveTab('transcript')
+    setTab(preserveTab ? useUIStore.getState().reviewTab : 'transcript')
     setAiPanelOpen(false)
+    setSelectedText(undefined)
+    setCitation(undefined)
     setFloatingBtn(null)
-  }, [session?.id])
+  }, [session?.id, preserveTab])
 
   const handleToggleAiPanel = useCallback(() => {
     setAiPanelOpen((prev) => !prev)
@@ -69,6 +83,7 @@ export function PreviewModal({
           return
         }
         const range = sel.getRangeAt(0)
+        if (!tabPanelRef.current?.contains(range.commonAncestorContainer)) return
         const rect = range.getBoundingClientRect()
         const panelRect = tabPanelRef.current?.getBoundingClientRect()
         if (!panelRect) return
@@ -100,7 +115,10 @@ export function PreviewModal({
     const handleKeyDown = (event: KeyboardEvent) => {
       const dialogs = document.querySelectorAll('[aria-modal="true"]')
       if (dialogs.length && dialogs[dialogs.length - 1].getAttribute('aria-labelledby') !== 'session-review-title') return
+      if (event.defaultPrevented) return
       if (event.key === 'Escape') {
+        if (isViewMode && event.target instanceof Node &&
+          !tabPanelRef.current?.closest('.review-session')?.contains(event.target)) return
         onClose()
       }
       if ((event.ctrlKey || event.metaKey) && event.key >= '1' && event.key <= '4') {
@@ -115,7 +133,7 @@ export function PreviewModal({
 
     document.addEventListener('keydown', handleKeyDown)
     return () => document.removeEventListener('keydown', handleKeyDown)
-  }, [onClose, session])
+  }, [isViewMode, onClose, session, setActiveTab])
 
   if (!session) return null
 
@@ -130,12 +148,15 @@ export function PreviewModal({
       case 'summary':
         return <SummaryTab session={session} />
       case 'chat':
-        return <ChatTab session={session} />
+        return <ChatTab session={session} onCitation={quote => {
+          setCitation({ quote })
+          setActiveTab('transcript')
+        }} />
       case 'mindmap':
         return <MindMapTab session={session} />
       case 'transcript':
       default:
-        return <TranscriptTab session={session} />
+        return <TranscriptTab session={session} playback={playback} citation={citation} onCitationHandled={clearCitation} />
     }
   })()
 
@@ -152,7 +173,7 @@ export function PreviewModal({
       <div
         ref={tabPanelRef}
         key={activeTab}
-        className="flex-1 overflow-hidden flex animate-tab-enter relative"
+        className="relative flex min-h-0 flex-1 overflow-hidden animate-tab-enter"
         role="tabpanel"
         id={`tabpanel-${activeTab}`}
         aria-labelledby={`tab-${activeTab}`}
@@ -188,12 +209,13 @@ export function PreviewModal({
           </button>
         )}
       </div>
+      <ReviewPlayer playback={playback} />
     </>
   )
 
   if (isViewMode) {
     return (
-      <div className="flex h-full flex-col overflow-hidden bg-card text-card-foreground">
+      <div className="review-session flex h-full flex-col overflow-hidden bg-card text-card-foreground">
         {containerContent}
       </div>
     )

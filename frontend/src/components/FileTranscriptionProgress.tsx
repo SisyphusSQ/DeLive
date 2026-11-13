@@ -22,6 +22,7 @@ export function FileTranscriptionProgress({
     queued: t.file?.statusQueued || 'Queued',
     uploading: t.file?.statusUploading || 'Uploading',
     transcribing: t.file?.statusTranscribing || 'Transcribing',
+    saving: t.file.statusSaving,
     completed: t.file?.statusCompleted || 'Completed',
     error: t.file?.statusError || 'Error',
     cancelled: t.file?.statusCancelled || 'Cancelled',

@@ -851,6 +851,7 @@ export const useSessionStore = create<SessionState>((set, get) => {
                 status: 'done',
                 ...stamp,
                 correctedText: fullText,
+                requiresAdoption: true,
                 completedAt: Date.now(),
               })
               resolve(fullText)
@@ -915,6 +916,7 @@ export const useSessionStore = create<SessionState>((set, get) => {
                 status: 'done',
                 ...stamp,
                 correctedText: fullText,
+                requiresAdoption: true,
                 completedAt: Date.now(),
               })
               resolve(fullText)

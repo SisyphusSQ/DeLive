@@ -4,6 +4,7 @@ export type FileTranscriptionJobStatus =
   | 'queued'
   | 'uploading'
   | 'transcribing'
+  | 'saving'
   | 'completed'
   | 'error'
   | 'cancelled'

@@ -1,9 +1,10 @@
+import { useConfirmation } from '../hooks/useConfirmation'
 import { DEFAULT_ASR_VENDOR } from '../types/asr/common'
 import { FileStorageSettings } from './settings/FileStorageSettings'
-import { useState, useRef, useEffect, useCallback, useMemo } from 'react'
+import { useState, useRef, useEffect, useCallback } from 'react'
 import { Settings, Check, Volume2, Palette, Bot, Globe, Cloud, HardDrive, Info } from 'lucide-react'
 import { Button } from './ui'
-import { useUIStore } from '../stores/uiStore'
+import { setSettingsLeaveGuard, useUIStore } from '../stores/uiStore'
 import { useSettingsStore } from '../stores/settingsStore'
 import { useSessionStore } from '../stores/sessionStore'
 import { useTagStore } from '../stores/tagStore'
@@ -38,7 +39,7 @@ type SettingsGroup = 'provider' | 'fileStorage' | 'appearance' | 'aiPostProcess'
 
 interface ApiKeyConfigProps {
   isOpen: boolean
-  onClose: () => void
+  onClose: (saved?: boolean) => void
   mode?: 'modal' | 'view'
   onViewChangelog?: () => void
 }
@@ -56,7 +57,7 @@ const NAV_ITEMS: { id: SettingsGroup; icon: typeof Settings; labelKey: string }[
 
 export function ApiKeyConfig({ isOpen, onClose, mode = 'modal', onViewChangelog }: ApiKeyConfigProps) {
   const isViewMode = mode === 'view'
-  const { t, language, setLanguage, colorTheme, setColorTheme } = useUIStore()
+  const { t, language, setLanguage, colorTheme, setColorTheme, settingsOrigin, settingsProviderId, settingsSection } = useUIStore()
   const {
     settings,
     updateSettings,
@@ -69,9 +70,15 @@ export function ApiKeyConfig({ isOpen, onClose, mode = 'modal', onViewChangelog 
   const { loadSessions } = useSessionStore()
   const { loadTags } = useTagStore()
 
-  const [activeGroup, setActiveGroup] = useState<SettingsGroup>(useUIStore.getState().settingsSection)
+  const [storageDirty, setStorageDirty] = useState(false)
+  const [storageSaving, setStorageSaving] = useState(false)
+  const [saving, setSaving] = useState(false)
+  const { confirm, dialog } = useConfirmation()
+  const [activeGroup, setActiveGroup] = useState<SettingsGroup>(settingsSection)
 
-  const currentVendor = settings.currentVendor || DEFAULT_ASR_VENDOR
+  const savedVendor = settingsProviderId || settings.currentVendor || DEFAULT_ASR_VENDOR
+  const makeCurrent = !settingsProviderId || settingsOrigin === 'live'
+  const [currentVendor, selectVendor] = useState(savedVendor)
   const currentProvider = availableProviders.find(p => p.id === currentVendor)
   const currentStoredConfig = settings.providerConfigs?.[currentVendor]
 
@@ -97,7 +104,7 @@ export function ApiKeyConfig({ isOpen, onClose, mode = 'modal', onViewChangelog 
   const supportsAutoLaunch = !!window.electronAPI?.supportsAutoLaunch
   const supportsAutoUpdate = !!window.electronAPI?.supportsAutoUpdate
 
-  const snapshotRef = useRef({ formState, languageHints, aiPostProcessConfig, currentVendor: settings.currentVendor })
+  const snapshotRef = useRef({ formState, languageHints, aiPostProcessConfig })
 
   useEffect(() => {
     const newFormState = buildProviderFormState(currentProvider, currentStoredConfig, settings)
@@ -109,18 +116,14 @@ export function ApiKeyConfig({ isOpen, onClose, mode = 'modal', onViewChangelog 
     setRevealedFields({})
     setTestStatus('idle')
     setTestMessage('')
-    snapshotRef.current = { formState: newFormState, languageHints: newLanguageHints, aiPostProcessConfig: newAiConfig, currentVendor: settings.currentVendor || DEFAULT_ASR_VENDOR }
+    snapshotRef.current = { formState: newFormState, languageHints: newLanguageHints, aiPostProcessConfig: newAiConfig }
   }, [currentProvider, currentStoredConfig, settings])
 
-  const isDirty = useMemo(() => {
-    const snap = snapshotRef.current
-    return (
-      JSON.stringify(formState) !== JSON.stringify(snap.formState) ||
-      languageHints !== snap.languageHints ||
-      JSON.stringify(aiPostProcessConfig) !== JSON.stringify(snap.aiPostProcessConfig) ||
-      (settings.currentVendor || DEFAULT_ASR_VENDOR) !== snap.currentVendor
-    )
-  }, [formState, languageHints, aiPostProcessConfig, settings.currentVendor])
+  const snap = snapshotRef.current
+  const fieldsDirty = JSON.stringify(formState) !== JSON.stringify(snap.formState) ||
+    languageHints !== snap.languageHints ||
+    JSON.stringify(aiPostProcessConfig) !== JSON.stringify(snap.aiPostProcessConfig)
+  const isDirty = fieldsDirty || (makeCurrent && currentVendor !== savedVendor)
 
   useEffect(() => {
     if (isOpen && window.electronAPI) {
@@ -216,27 +219,28 @@ export function ApiKeyConfig({ isOpen, onClose, mode = 'modal', onViewChangelog 
   }
 
   const handleSave = async () => {
+    if (saving) return
+    setSaving(true)
+    setTestMessage('')
+    try { await saveSection() } finally { setSaving(false) }
+  }
+
+  const saveSection = async () => {
     if (activeGroup === 'aiPostProcess') {
-      try { await updateAiPostProcessConfig(aiPostProcessConfig); onClose() }
+      try { await updateAiPostProcessConfig(aiPostProcessConfig); onClose(true) }
       catch (error) { setTestStatus('error'); setTestMessage((error as Error).message) }
       return
     }
     const providerConfig = buildEditableProviderConfig()
-    const normalizedHints = Array.isArray(providerConfig.languageHints) && providerConfig.languageHints.length > 0
-      ? providerConfig.languageHints.map((item) => String(item).trim()).filter(Boolean)
-      : ['zh', 'en']
     const missingLabels = getMissingRequiredConfigLabels(currentProvider, providerConfig)
     if (missingLabels.length > 0) {
       setTestStatus('error')
       setTestMessage(`Please fill: ${missingLabels.join(', ')}`)
       return
     }
-    try { await updateProviderConfig(currentVendor, providerConfig) }
+    try { await updateProviderConfig(currentVendor, providerConfig, makeCurrent) }
     catch (error) { setTestStatus('error'); setTestMessage((error as Error).message); return }
-    updateSettings({ languageHints: normalizedHints })
-    try { await updateAiPostProcessConfig(aiPostProcessConfig) }
-    catch (error) { setTestStatus('error'); setTestMessage((error as Error).message); return }
-    onClose()
+    onClose(true)
   }
 
   const handleExport = async () => {
@@ -313,21 +317,36 @@ export function ApiKeyConfig({ isOpen, onClose, mode = 'modal', onViewChangelog 
     }
   }, [loadSessions, loadTags, pendingImportData, t.settings])
 
+  const askLeave = () => saving || storageSaving ? Promise.resolve(false) : isDirty || storageDirty
+    ? confirm('放弃尚未保存的设置修改？') : Promise.resolve(true)
+
   useEffect(() => {
-    if (!isOpen) return undefined
+    if (isOpen && isViewMode) return setSettingsLeaveGuard(askLeave)
+  })
+
+  useEffect(() => {
+    if (!isOpen) return
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') onClose()
+      if (event.key !== 'Escape' || event.defaultPrevented || document.querySelector('[aria-modal="true"]:not([aria-labelledby="settings-dialog-title"])')) return
+      if (isViewMode) onClose()
+      else void askLeave().then(confirmed => { if (confirmed) onClose() })
     }
     document.addEventListener('keydown', handleKeyDown)
     return () => document.removeEventListener('keydown', handleKeyDown)
-  }, [isOpen, onClose])
+  })
 
   if (!isOpen && !isViewMode) return null
 
   const settingsContent = (
-    <div className="flex h-full">
+    <div className="settings-workspace flex h-full min-h-0 flex-col">
+      {dialog}
+      <header className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-b border-border/60 px-4 py-2">
+        <h1 id={isViewMode ? undefined : "settings-dialog-title"} className="text-xl font-semibold tracking-tight">{t.common.settings}</h1>
+        {settingsOrigin && <Button variant="ghost" size="sm" onClick={() => onClose()}>{({ live: "返回录制", file: "返回文件转写", review: "返回会议继续", topics: "返回主题" })[settingsOrigin]}</Button>}
+      </header>
+      <div className="settings-workspace-layout flex min-h-0 flex-1">
       {/* Left navigation */}
-      <nav className="w-48 shrink-0 border-r border-border/40 p-3 space-y-1 overflow-y-auto">
+      <nav className="settings-workspace-nav w-40 shrink-0 space-y-1 overflow-y-auto border-r border-border/40 p-2">
         {NAV_ITEMS.map(item => {
           const Icon = item.icon
           const label = (t.settings as unknown as Record<string, string>)?.[item.labelKey] ?? item.labelKey
@@ -335,7 +354,19 @@ export function ApiKeyConfig({ isOpen, onClose, mode = 'modal', onViewChangelog 
           return (
             <button
               key={item.id}
-              onClick={() => setActiveGroup(item.id)}
+              onClick={() => {
+                if (activeGroup === item.id) return
+                void askLeave().then(confirmed => {
+                  if (!confirmed) return
+                  if (isDirty) {
+                    selectVendor(savedVendor)
+                    setFormState(snapshotRef.current.formState)
+                    setLanguageHints(snapshotRef.current.languageHints)
+                    setAiPostProcessConfig(snapshotRef.current.aiPostProcessConfig)
+                  }
+                  setActiveGroup(item.id)
+                })
+              }}
               className={`
                 w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium transition-colors
                 ${active
@@ -353,12 +384,18 @@ export function ApiKeyConfig({ isOpen, onClose, mode = 'modal', onViewChangelog 
 
       {/* Right content */}
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-        <div className="flex-1 overflow-y-auto p-6">
+        <div key={activeGroup} className="flex-1 overflow-y-auto p-3 sm:p-6">
           <div className="mx-auto max-w-2xl space-y-6">
-            {activeGroup === 'fileStorage' && <FileStorageSettings />}
+            {activeGroup === 'fileStorage' && <FileStorageSettings onDirty={setStorageDirty} onSaving={setStorageSaving} />}
             {activeGroup === 'provider' && (
               <ServiceSettingsPanel
                 t={t}
+                selectedVendor={currentVendor}
+                onSelectProvider={vendorId => {
+                  if (vendorId === currentVendor) return
+                  if (!fieldsDirty) selectVendor(vendorId)
+                  else void askLeave().then(confirmed => { if (confirmed) selectVendor(vendorId) })
+                }}
                 currentProvider={currentProvider}
                 languageHints={languageHints}
                 onLanguageHintsChange={(value) => {
@@ -459,14 +496,14 @@ export function ApiKeyConfig({ isOpen, onClose, mode = 'modal', onViewChangelog 
 
         {/* Save bar — only shown for groups that need manual save */}
         {(activeGroup === 'provider' || activeGroup === 'aiPostProcess') && (
-          <div className="flex items-center justify-end gap-3 px-6 py-3 bg-muted/30 border-t border-border shrink-0">
-            {activeGroup === 'aiPostProcess' && testStatus === 'error' && <p role="alert" className="mr-auto text-sm text-destructive">{testMessage}</p>}
+          <div className="flex shrink-0 flex-wrap items-center justify-end gap-2 border-t border-border bg-muted/30 px-3 py-2 sm:px-6">
+            {testStatus === 'error' && <p role="alert" className="mr-auto text-sm text-destructive">{testMessage}</p>}
             {isDirty && (
               <span className="mr-auto text-xs text-warning font-medium">
                 {t.electron.unsavedChanges}
               </span>
             )}
-            <Button variant="primary" onClick={() => void handleSave()}>
+            <Button variant="primary" loading={saving} onClick={() => void handleSave()}>
               <Check className="w-4 h-4" />
               {t.common.save}
             </Button>
@@ -474,6 +511,7 @@ export function ApiKeyConfig({ isOpen, onClose, mode = 'modal', onViewChangelog 
         )}
       </div>
 
+      </div>
       <ActionDialog
         open={pendingImportData !== null}
         title={t.electron.chooseImportMode}

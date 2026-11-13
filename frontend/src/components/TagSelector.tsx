@@ -1,4 +1,5 @@
-import { useState, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { Tag as TagIcon, Plus, X, Check, Trash2, Settings } from 'lucide-react'
 import { useUIStore } from '../stores/uiStore'
 import { useTagStore } from '../stores/tagStore'
@@ -23,7 +24,30 @@ export function TagSelector({ sessionId, sessionTagIds, compact = false }: TagSe
   const [newTagName, setNewTagName] = useState('')
   const [selectedColor, setSelectedColor] = useState<string>(TAG_COLORS[0].name)
   const [pendingDeleteTag, setPendingDeleteTag] = useState<{ id: string; name: string } | null>(null)
-  const dropdownRef = useRef<HTMLDivElement>(null)
+  const trigger = useRef<HTMLButtonElement>(null)
+  const menu = useRef<HTMLDivElement>(null)
+  const [anchor, setAnchor] = useState({ left: 0, top: 0, bottom: 0, width: 256, above: false })
+
+  useEffect(() => {
+    if (!isOpen) return
+    menu.current?.focus({ preventScroll: true })
+    const close = () => setIsOpen(false)
+    const closeOnScroll = (event: Event) => {
+      if (event.target instanceof Node && event.target.contains(trigger.current) &&
+        !menu.current?.contains(event.target) && !menu.current?.contains(document.activeElement)) close()
+    }
+    window.addEventListener('resize', close)
+    window.addEventListener('scroll', closeOnScroll, true)
+    return () => {
+      window.removeEventListener('resize', close)
+      window.removeEventListener('scroll', closeOnScroll, true)
+    }
+  }, [isOpen])
+
+  const close = () => {
+    setIsOpen(false)
+    trigger.current?.focus({ preventScroll: true })
+  }
 
   const toggleTag = (tagId: string) => {
     const newTagIds = sessionTagIds.includes(tagId)
@@ -53,7 +77,12 @@ export function TagSelector({ sessionId, sessionTagIds, compact = false }: TagSe
   const sessionTags = tags.filter(t => sessionTagIds.includes(t.id))
 
   return (
-    <div className="relative" ref={dropdownRef}>
+    <div onKeyDown={event => {
+      if (event.key !== 'Escape' || !isOpen) return
+      event.preventDefault()
+      event.stopPropagation()
+      close()
+    }}>
       {/* 显示已有标签 + 添加按钮 */}
       <div className="flex items-center gap-1.5 flex-wrap">
         {sessionTags.map(tag => {
@@ -69,11 +98,25 @@ export function TagSelector({ sessionId, sessionTagIds, compact = false }: TagSe
           )
         })}
         <button
-          onClick={(e) => {
-            e.stopPropagation()
-            setIsOpen(!isOpen)
+          ref={trigger}
+          aria-label={t.tag.tags}
+          aria-expanded={isOpen}
+          onClick={event => {
+            event.stopPropagation()
+            if (isOpen) { close(); return }
+            const rect = event.currentTarget.getBoundingClientRect()
+            const width = Math.min(256, window.innerWidth - 16)
+            const bottom = window.innerHeight - rect.bottom
+            setAnchor({
+              left: Math.max(8, Math.min(rect.left, window.innerWidth - width - 8)),
+              top: rect.bottom + 4,
+              bottom: window.innerHeight - rect.top + 4,
+              width,
+              above: bottom < 190 && rect.top > bottom,
+            })
             setIsManaging(false)
             setIsCreating(false)
+            setIsOpen(true)
           }}
           className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs
                     text-muted-foreground hover:text-foreground hover:bg-muted
@@ -85,24 +128,27 @@ export function TagSelector({ sessionId, sessionTagIds, compact = false }: TagSe
       </div>
 
       {/* 下拉菜单 */}
-      {isOpen && (
+      {isOpen && createPortal(
         <>
-          {/* 背景遮罩 - 处理点击外部关闭和背景模糊 */}
-          <div 
-            className="fixed inset-0 z-40 bg-background/20 backdrop-blur-sm animate-in fade-in duration-200"
-            onClick={(e) => {
-              e.stopPropagation()
-              setIsOpen(false)
-              setIsCreating(false)
-              setIsManaging(false)
+          <div className="fixed inset-0 z-[89]" onClick={close} aria-hidden="true" />
+          <div
+            ref={menu}
+            role="group"
+            aria-label={t.tag.tags}
+            tabIndex={-1}
+            className="fixed z-[90] overflow-y-auto rounded-lg border border-border bg-card text-card-foreground shadow-xl outline-none"
+            style={{
+              left: anchor.left,
+              width: anchor.width,
+              ...(anchor.above ? { bottom: anchor.bottom } : { top: anchor.top }),
+              maxHeight: anchor.above ? window.innerHeight - anchor.bottom - 8 : window.innerHeight - anchor.top - 8,
             }}
-          />
-
-          <div 
-            className="absolute top-full left-0 mt-1 w-64 bg-card text-card-foreground
-                      rounded-lg shadow-xl border border-border z-50 overflow-hidden
-                      animate-in fade-in zoom-in-95 duration-100 ring-1 ring-black/5"
-            onClick={e => e.stopPropagation()}
+            onKeyDown={event => {
+              if (event.key !== 'Escape') return
+              event.preventDefault()
+              event.stopPropagation()
+              close()
+            }}
           >
             {/* 管理模式 */}
             {isManaging ? (
@@ -160,7 +206,11 @@ export function TagSelector({ sessionId, sessionTagIds, compact = false }: TagSe
                   autoFocus
                   onKeyDown={e => {
                     if (e.key === 'Enter') handleCreateTag()
-                    if (e.key === 'Escape') setIsCreating(false)
+                    if (e.key === 'Escape') {
+                      e.stopPropagation()
+                      setIsCreating(false)
+                      menu.current?.focus()
+                    }
                   }}
                 />
                 {/* 颜色选择 */}
@@ -245,7 +295,7 @@ export function TagSelector({ sessionId, sessionTagIds, compact = false }: TagSe
               </>
             )}
           </div>
-        </>
+        </>, document.body
       )}
       <ActionDialog
         open={pendingDeleteTag !== null}

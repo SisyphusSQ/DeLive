@@ -1,3 +1,6 @@
+import { appendRevision, editedVersion, selectedReviewVersion } from '../../utils/reviewVersions'
+import { sessionRepository } from '../../utils/sessionRepository'
+import { aiInputKey, inputFingerprint, resolveInputText } from '../../services/aiSessionContext'
 import { AiStaleNotice } from './AiStaleNotice'
 import { useState, useRef, useEffect, useCallback } from 'react'
 import {
@@ -65,11 +68,13 @@ export function CorrectionTab({ session }: CorrectionTabProps) {
     (s) => s.correctionStreamingText[session.id] || '',
   )
   const correction = liveSession?.correction ?? session.correction
-  const correctionMode = settings.aiPostProcess?.correctionMode || 'quick'
   const storeStatus = correction?.status || 'idle'
 
   const streamingText = storeStreamingText
   const [localStatus, setLocalStatus] = useState(storeStatus)
+  const [savingRevision, setSavingRevision] = useState(false)
+  const [revisionNotice, setRevisionNotice] = useState('')
+  const [revisionError, setRevisionError] = useState('')
   const [localError, setLocalError] = useState<string | null>(null)
   const [localIssues, setLocalIssues] = useState<CorrectionIssue[]>([])
   const [expandedIssue, setExpandedIssue] = useState<string | null>(null)
@@ -110,12 +115,15 @@ export function CorrectionTab({ session }: CorrectionTabProps) {
     'correction',
   )
   const activeSession = liveSession ?? session
-  const hasTranscript = !!activeSession.transcript.trim()
+  const transcriptText = resolveInputText(activeSession, 'original')
+  const hasTranscript = !!transcriptText
   const canStart = settings.aiPostProcess?.enabled && hasModel && hasTranscript
 
   const handleQuickCorrection = useCallback(async () => {
     setLocalStatus('correcting')
     setLocalError(null)
+    setRevisionNotice('')
+    setRevisionError('')
     setStartTime(Date.now())
     setElapsed(0)
     try {
@@ -128,11 +136,13 @@ export function CorrectionTab({ session }: CorrectionTabProps) {
     } finally {
       setStartTime(null)
     }
-  }, [session.id, startSessionQuickCorrection])
+  }, [session.id, startSessionQuickCorrection, language])
 
   const handleDetect = useCallback(async () => {
     setLocalStatus('detecting')
     setLocalError(null)
+    setRevisionNotice('')
+    setRevisionError('')
     setStartTime(Date.now())
     setElapsed(0)
     try {
@@ -147,20 +157,18 @@ export function CorrectionTab({ session }: CorrectionTabProps) {
     } finally {
       setStartTime(null)
     }
-  }, [session.id, detectSessionCorrectionIssues])
+  }, [session.id, detectSessionCorrectionIssues, t.localModel.detectFailed])
 
   const handleReviewCorrection = useCallback(async () => {
     const accepted = localIssues.filter((i) => i.accepted)
     setLocalStatus('correcting')
     setLocalError(null)
+    setRevisionNotice('')
+    setRevisionError('')
     setStartTime(Date.now())
     setElapsed(0)
     try {
-      if (accepted.length === 0) {
-        await startSessionQuickCorrection(session.id)
-      } else {
-        await startSessionReviewCorrection(session.id, accepted)
-      }
+      await startSessionReviewCorrection(session.id, accepted)
       setLocalStatus('done')
     } catch (err) {
       const msg = resolveUserFacingError(err, language, 'correctionFailed')
@@ -169,12 +177,16 @@ export function CorrectionTab({ session }: CorrectionTabProps) {
     } finally {
       setStartTime(null)
     }
-  }, [session.id, localIssues, startSessionQuickCorrection, startSessionReviewCorrection])
+  }, [session.id, localIssues, startSessionReviewCorrection, language])
 
   const handleReset = useCallback(() => {
     updateSessionCorrection(session.id, {
       status: 'idle',
       correctedText: undefined,
+      requiresAdoption: undefined,
+      inputFingerprint: undefined,
+      inputPreference: undefined,
+      imageIds: undefined,
       issues: undefined,
       error: undefined,
       requestedAt: undefined,
@@ -182,6 +194,8 @@ export function CorrectionTab({ session }: CorrectionTabProps) {
     })
     clearCorrectionStreamingText(session.id)
     setLocalIssues([])
+    setRevisionNotice('')
+    setRevisionError('')
     setLocalStatus('idle')
     setLocalError(null)
     setStartTime(null)
@@ -206,7 +220,6 @@ export function CorrectionTab({ session }: CorrectionTabProps) {
     )
   }
 
-  const transcriptText = activeSession.transcript
 
   if (!canStart && status === 'idle') {
     return (
@@ -217,6 +230,37 @@ export function CorrectionTab({ session }: CorrectionTabProps) {
         </p>
       </div>
     )
+  }
+
+  const saveRevision = async () => {
+    if (!correction?.correctedText?.trim() || savingRevision) return
+    setSavingRevision(true)
+    setRevisionError('')
+    try {
+      const correctedText = correction.correctedText
+      const sourceKey = aiInputKey(activeSession, 'original')
+      if (correction.inputFingerprint && correction.inputFingerprint !== await inputFingerprint(activeSession, 'original')) {
+        throw new Error('校对来源已变化，请先重新生成校对结果')
+      }
+      const sessions = await sessionRepository.mutateDurable(session.id, current => {
+        if (aiInputKey(current, 'original') !== sourceKey) throw new Error('校对来源已变化，请先重新生成校对结果')
+        const parent = selectedReviewVersion(current)
+        const existing = current.versions?.some(version => version.kind === 'edited' &&
+          version.parentVersionId === parent.id && version.text === correctedText)
+        if (existing) return {}
+        const revision = editedVersion(parent, {
+          ...parent, text: correctedText, segments: [], speakers: [], merge: undefined, speakerMapping: undefined,
+        }, 'AI 校对修订；整篇文字保留供核对')
+        const versions = appendRevision(current, revision, parent).versions
+        return { versions }
+      })
+      useSessionStore.setState({ sessions })
+      setRevisionNotice('修订已保存。可在转录页查看，再决定是否采用。')
+    } catch (error) {
+      setRevisionError((error as Error).message)
+    } finally {
+      setSavingRevision(false)
+    }
   }
 
   const isProcessing = status === 'detecting' || status === 'correcting'
@@ -254,26 +298,15 @@ export function CorrectionTab({ session }: CorrectionTabProps) {
             <p className="text-sm text-muted-foreground text-center max-w-md">
               {p.correctionDesc as string}
             </p>
-            <div className="flex gap-3">
-              {correctionMode === 'quick' ? (
-                <button
-                  type="button"
-                  onClick={() => void handleQuickCorrection()}
-                  className="inline-flex items-center gap-2 h-10 px-5 text-sm font-medium rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
-                >
-                  <Zap className="w-4 h-4" />
-                  {p.correctionStart as string}
-                </button>
-              ) : (
-                <button
-                  type="button"
-                  onClick={() => void handleDetect()}
-                  className="inline-flex items-center gap-2 h-10 px-5 text-sm font-medium rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
-                >
-                  <SpellCheck className="w-4 h-4" />
-                  {p.correctionDetect as string}
-                </button>
-              )}
+            <div className="flex flex-wrap gap-3">
+              <button type="button" onClick={() => void handleQuickCorrection()}
+                className="inline-flex items-center gap-2 rounded-lg bg-primary px-3 py-2 text-sm text-primary-foreground">
+                <Zap className="h-4 w-4" />{p.correctionStart as string}
+              </button>
+              <button type="button" onClick={() => void handleDetect()}
+                className="inline-flex items-center gap-2 rounded-lg border border-border px-3 py-2 text-sm hover:bg-muted">
+                <SpellCheck className="h-4 w-4" />{p.correctionDetect as string}
+              </button>
             </div>
           </div>
         )}
@@ -393,6 +426,7 @@ export function CorrectionTab({ session }: CorrectionTabProps) {
             <div className="pt-2">
               <button
                 type="button"
+                disabled={!localIssues.some(issue => issue.accepted)}
                 onClick={() => void handleReviewCorrection()}
                 className="inline-flex items-center gap-2 h-10 px-5 text-sm font-medium rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-colors w-full justify-center"
               >
@@ -452,6 +486,12 @@ export function CorrectionTab({ session }: CorrectionTabProps) {
         {/* Done — show result */}
         {status === 'done' && (
           <div className="space-y-4">
+            {correction?.correctedText?.trim() && (
+              <button type="button" disabled={savingRevision || !!revisionNotice} onClick={() => void saveRevision()}
+                className="rounded-md bg-primary px-3 py-2 text-sm text-primary-foreground disabled:opacity-60">另存校对修订</button>
+            )}
+            {revisionError && <p role="alert" className="text-sm text-destructive">{revisionError}</p>}
+            {revisionNotice && <p role="status" className="text-sm text-success">{revisionNotice}</p>}
             <div className="flex items-center gap-2">
               <CheckCircle2 className="w-5 h-5 text-green-500" />
               <p className="text-sm font-medium">{p.correctionDone as string}</p>

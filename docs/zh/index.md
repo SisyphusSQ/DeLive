@@ -250,52 +250,27 @@ features:
 
 <div class="whats-new">
   <h2>最新特性</h2>
-  <p class="subtitle">v2.3 即将发布（现已提供测试版）：两个新 Provider、韩语界面，以及所有 Provider 均可文件转录</p>
+  <p class="subtitle">双来源录制、火山与本地转写、原音回放与版本审阅</p>
   <div class="new-features">
     <div class="new-feature">
       <div class="icon">📁</div>
-      <h3>所有 Provider 均可文件转录</h3>
+      <h3>火山与本地文件转写</h3>
       <p>火山标准文件转写支持导入和会议原音。三种本地服务也支持文件转写。</p>
-    </div>
-    <div class="new-feature">
-      <div class="icon">🔊</div>
-      <h3>60db</h3>
-      <p>新增云端 Provider，支持约 40 种语言（含印度语系与英语混说）。实时转录经内置代理连接；文件转录走 60db REST 接口（单文件最大 10MB）。</p>
     </div>
     <div class="new-feature">
       <div class="icon">🖥️</div>
       <h3>FunASR / SenseVoice</h3>
-      <p>新增本地 Provider，连接自建的 <code>funasr-server</code>。可选 SenseVoice（情感与音频事件标签）、Paraformer 或 Fun-ASR-Nano，无 API 费用。</p>
+      <p>可连接自建的 <code>funasr-server</code>。可选 SenseVoice（情感与音频事件标签）、Paraformer 或 Fun-ASR-Nano，无 API 费用。</p>
     </div>
     <div class="new-feature">
       <div class="icon">🇰🇷</div>
       <h3>韩语界面</h3>
-      <p>在中文、英文之外新增完整韩语界面，涵盖托盘菜单、主进程文案和本地化错误信息。</p>
-    </div>
-    <div class="new-feature">
-      <div class="icon">⬆️</div>
-      <h3>Soniox V5</h3>
-      <p>火山标准文件转写支持导入和会议原音。三种本地服务也支持文件转写。</p>
-    </div>
-    <div class="new-feature">
-      <div class="icon">⚡</div>
-      <h3>ElevenLabs Turbo 与 Lite</h3>
-      <p>Scribe v2 Realtime 在标准模型之外新增 Turbo 与 Lite 两个版本。</p>
-    </div>
-    <div class="new-feature">
-      <div class="icon">🎙️</div>
-      <h3>Gladia 文件转录 Solaria-3</h3>
-      <p>文件与异步任务可选 Solaria-3；实时流式仍使用 Solaria-1。</p>
+      <p>提供中文、英文和韩语界面，涵盖托盘菜单、主进程文案和本地化错误信息。</p>
     </div>
     <div class="new-feature">
       <div class="icon">🔌</div>
       <h3>代理端口更稳健</h3>
       <p>内置代理依次尝试 23456–23460 端口，均被占用时改用系统分配的空闲端口；代理启动失败时主窗口仍会打开。</p>
-    </div>
-    <div class="new-feature">
-      <div class="icon">🧪</div>
-      <h3>373 个测试通过</h3>
-      <p>测试套件扩展到 44 个文件、373 个测试，覆盖新 Provider、文件转录路由和代理握手。</p>
     </div>
   </div>
 </div>

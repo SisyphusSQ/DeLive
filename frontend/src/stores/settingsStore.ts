@@ -35,7 +35,7 @@ export interface SettingsState {
 
   availableProviders: ASRProviderInfo[]
   setCurrentVendor: (vendorId: string) => void
-  updateProviderConfig: (vendorId: string, config: Partial<ProviderConfigData>) => Promise<void>
+  updateProviderConfig: (vendorId: string, config: Partial<ProviderConfigData>, makeCurrent?: boolean) => Promise<void>
   getProviderConfig: (vendorId: string) => ProviderConfigData | undefined
 }
 
@@ -129,7 +129,7 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
         ...nextConfig,
         apiKey: encryptedApiKey,
       },
-    })
+    }, true)
     set({ settings: inMemorySettings })
   },
   updateOpenApiConfig: (config) => {
@@ -188,7 +188,7 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
     saveSettings(newSettings)
     set({ settings: newSettings })
   },
-  updateProviderConfig: async (vendorId, config) => {
+  updateProviderConfig: async (vendorId, config, makeCurrent = false) => {
     if (!providerRegistry.has(vendorId as ASRVendor)) throw new Error('不支持此转写服务')
     if (vendorId === 'volc') await storeVolcSecrets(config)
     const { settings } = get()
@@ -200,8 +200,12 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
     const newSettings = {
       ...settings,
       providerConfigs: newProviderConfigs,
+      ...(makeCurrent ? {
+        currentVendor: vendorId,
+        languageHints: Array.isArray(config.languageHints) && config.languageHints.length ? config.languageHints : ['zh', 'en'],
+      } : {}),
     }
-    saveSettings(newSettings)
+    saveSettings(newSettings, true)
     set({ settings: newSettings, ...(vendorId === 'volc' ? { volcCredentialsUnreadable: false } : {}) })
   },
   getProviderConfig: (vendorId) => {

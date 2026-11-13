@@ -1,4 +1,7 @@
+import { MarkdownRenderer } from './MarkdownRenderer'
 import { resolveInputText } from '../../services/aiSessionContext'
+import { sessionRepository } from '../../utils/sessionRepository'
+import { useConfirmation } from '../../hooks/useConfirmation'
 import { AiStaleNotice } from './AiStaleNotice'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
@@ -43,12 +46,44 @@ interface MarkmapInstanceLike {
   destroy: () => void
 }
 
+function useMapSize(
+  svgRef: { current: SVGSVGElement | null },
+  instanceRef: { current: MarkmapInstanceLike | null },
+  visible: boolean,
+) {
+  useEffect(() => {
+    const svg = svgRef.current
+    if (!visible || !svg) return
+    const observer = new ResizeObserver(([entry]) => {
+      const width = Math.round(entry.contentRect.width)
+      const height = Math.round(entry.contentRect.height)
+      if (!width || !height) return
+      svg.setAttribute('width', String(width))
+      svg.setAttribute('height', String(height))
+      void instanceRef.current?.fit()
+    })
+    observer.observe(svg)
+    return () => observer.disconnect()
+  }, [svgRef, instanceRef, visible])
+}
+
 export function MindMapTab({ session }: MindMapTabProps) {
   const { t } = useUIStore()
   const settings = useSettingsStore((state) => state.settings)
   const generateSessionMindMap = useSessionStore((state) => state.generateSessionMindMap)
-  const updateSessionMindMap = useSessionStore((state) => state.updateSessionMindMap)
-  const [draftMarkdown, setDraftMarkdown] = useState(session.mindMap?.markdown || '')
+  const draft = useUIStore(state => state.mindMapDrafts[session.id])
+  const draftMarkdown = draft ?? session.mindMap?.markdown ?? ''
+  const { confirm, dialog } = useConfirmation()
+  const setDraftMarkdown = (value?: string) => useUIStore.setState(state => {
+    const mindMapDrafts = { ...state.mindMapDrafts }
+    if (value === undefined) delete mindMapDrafts[session.id]
+    else mindMapDrafts[session.id] = value
+    return { mindMapDrafts }
+  })
+  const [saving, setSaving] = useState(false)
+  const [showOutline, setShowOutline] = useState(false)
+  const fullscreenTrigger = useRef<HTMLButtonElement>(null)
+  const fullscreenClose = useRef<HTMLButtonElement>(null)
   const [actionError, setActionError] = useState<string | null>(null)
   const [renderError, setRenderError] = useState<string | null>(null)
   const [showEditor, setShowEditor] = useState(false)
@@ -60,15 +95,20 @@ export function MindMapTab({ session }: MindMapTabProps) {
   const fullscreenMarkmapRef = useRef<MarkmapInstanceLike | null>(null)
   const transformerRef = useRef<MarkmapTransformerLike | null>(null)
   const markmapRef = useRef<MarkmapInstanceLike | null>(null)
+  useMapSize(svgRef, markmapRef, Boolean(draftMarkdown.trim()))
+  useMapSize(fullscreenSvgRef, fullscreenMarkmapRef, isFullscreen && Boolean(draftMarkdown.trim()))
 
   useEffect(() => {
-    setDraftMarkdown(session.mindMap?.markdown || '')
     setActionError(null)
-  }, [session.id, session.mindMap?.markdown])
+  }, [session.id])
 
   useEffect(() => {
     const svg = svgRef.current
-    if (!svg) return
+    if (!svg) {
+      markmapRef.current?.destroy()
+      markmapRef.current = null
+      return
+    }
 
     if (!draftMarkdown.trim()) {
       markmapRef.current?.destroy()
@@ -90,8 +130,11 @@ export function MindMapTab({ session }: MindMapTabProps) {
 
           if (cancelled || !svgRef.current) return
 
+          const { width, height } = svg.getBoundingClientRect()
+          svg.setAttribute('width', String(Math.max(1, Math.round(width))))
+          svg.setAttribute('height', String(Math.max(1, Math.round(height))))
           transformerRef.current = new Transformer()
-          markmapRef.current = Markmap.create(svgRef.current, {
+          markmapRef.current = Markmap.create(svg, {
             autoFit: true,
             fitRatio: 0.92,
             maxWidth: 240,
@@ -144,8 +187,11 @@ export function MindMapTab({ session }: MindMapTabProps) {
           ])
           if (cancelled || !fullscreenSvgRef.current) return
 
+          const { width, height } = svg.getBoundingClientRect()
+          svg.setAttribute('width', String(Math.max(1, Math.round(width))))
+          svg.setAttribute('height', String(Math.max(1, Math.round(height))))
           fullscreenTransformerRef.current = new Transformer()
-          fullscreenMarkmapRef.current = Markmap.create(fullscreenSvgRef.current, {
+          fullscreenMarkmapRef.current = Markmap.create(svg, {
             autoFit: true,
             fitRatio: 0.95,
             maxWidth: 300,
@@ -164,17 +210,24 @@ export function MindMapTab({ session }: MindMapTabProps) {
       }
     })()
 
-    return () => { cancelled = true }
+    return () => {
+      cancelled = true
+      fullscreenMarkmapRef.current?.destroy()
+      fullscreenMarkmapRef.current = null
+      fullscreenTransformerRef.current = null
+    }
   }, [isFullscreen, draftMarkdown])
 
   // Escape to exit fullscreen
   useEffect(() => {
     if (!isFullscreen) return
+    const trigger = fullscreenTrigger.current
+    fullscreenClose.current?.focus()
     const handleKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setIsFullscreen(false)
+      if (e.key === 'Escape') { e.preventDefault(); setIsFullscreen(false) }
     }
     document.addEventListener('keydown', handleKey)
-    return () => document.removeEventListener('keydown', handleKey)
+    return () => { document.removeEventListener('keydown', handleKey); trigger?.focus() }
   }, [isFullscreen])
 
   const aiConfigured = isAiPostProcessConfigured(settings, 'mindmap')
@@ -197,15 +250,28 @@ export function MindMapTab({ session }: MindMapTabProps) {
     }
   }
 
-  const handleSave = () => {
+  const handleSave = async () => {
+    if (saving || !isDirty) return
     setActionError(null)
-    updateSessionMindMap(session.id, {
-      markdown: draftMarkdown,
-      title: session.mindMap?.title || session.title,
-      status: 'success',
-      error: undefined,
-      updatedAt: Date.now(),
-    })
+    setSaving(true)
+    try {
+      const sessions = await sessionRepository.mutateDurable(session.id, current => ({
+        mindMap: {
+          ...current.mindMap,
+          markdown: draftMarkdown,
+          title: current.mindMap?.title || current.title,
+          status: 'success',
+          error: undefined,
+          updatedAt: Date.now(),
+        },
+      }))
+      useSessionStore.setState({ sessions })
+      if (useUIStore.getState().mindMapDrafts[session.id] === draftMarkdown) setDraftMarkdown()
+    } catch (error) {
+      setActionError((error as Error).message)
+    } finally {
+      setSaving(false)
+    }
   }
 
   const handleCopy = async () => {
@@ -238,13 +304,17 @@ export function MindMapTab({ session }: MindMapTabProps) {
   }
 
   return (
-    <div className="flex h-full flex-col overflow-hidden">
+    <div className="review-map flex h-full min-h-0 flex-col overflow-y-auto">
+      {dialog}
       {/* Toolbar */}
-      <div className="flex flex-wrap items-center gap-2 border-b border-border bg-muted/20 px-5 py-3">
-        <TextSourceBanner session={session} /><AiStaleNotice session={session} result={session.mindMap} />
+      <div className="review-map-toolbar flex shrink-0 flex-wrap items-center gap-2 border-b border-border bg-muted/20 px-3 py-2 sm:px-5">
+        <details className="basis-full text-xs text-muted-foreground">
+          <summary className="cursor-pointer py-1">导图来源与状态</summary>
+          <TextSourceBanner session={session} /><AiStaleNotice session={session} result={session.mindMap} />
+        </details>
         <button
           onClick={() => void handleGenerate()}
-          disabled={!aiConfigured || !hasTranscript || generating}
+          disabled={!aiConfigured || !hasTranscript || generating || saving || isDirty}
           className={`inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-colors ${
             !aiConfigured || !hasTranscript
               ? 'cursor-not-allowed border border-border bg-muted text-muted-foreground'
@@ -276,9 +346,15 @@ export function MindMapTab({ session }: MindMapTabProps) {
           {t.preview.mindMapMarkdown}
         </button>
 
+        {hasMindMap && <button type="button" className="rounded border border-border px-2 py-1.5 text-sm" aria-pressed={showOutline} onClick={() => {
+          setShowOutline(value => !value)
+          if (showOutline) requestAnimationFrame(() => void markmapRef.current?.fit())
+        }}>{showOutline ? '查看导图' : '查看大纲'}</button>}
+        {isDirty && <button type="button" disabled={saving} className="rounded px-2 py-1.5 text-sm text-muted-foreground" onClick={() => void confirm('放弃尚未保存的导图修改？').then(confirmed => { if (confirmed) setDraftMarkdown() })}>放弃修改</button>}
         {hasMindMap && isDirty && (
           <button
-            onClick={handleSave}
+            disabled={saving}
+            onClick={() => void handleSave()}
             className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-background px-3 py-2 text-sm font-medium text-foreground transition-colors hover:border-primary/30 hover:bg-primary/5 hover:text-primary"
           >
             <Save className="w-4 h-4" />
@@ -290,19 +366,24 @@ export function MindMapTab({ session }: MindMapTabProps) {
           <>
             <button
               onClick={() => void handleCopy()}
+              aria-label={t.preview.mindMapCopyMarkdown}
+              title={t.preview.mindMapCopyMarkdown}
               className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-background px-3 py-2 text-sm font-medium text-foreground transition-colors hover:bg-accent"
             >
               <Copy className="w-4 h-4" />
-              {t.preview.mindMapCopyMarkdown}
+              <span className="review-map-optional-label">{t.preview.mindMapCopyMarkdown}</span>
             </button>
 
             <div className="relative">
               <button
                 onClick={() => setShowExportMenu(!showExportMenu)}
+                aria-label={t.common.export}
+                title={t.common.export}
+                aria-expanded={showExportMenu}
                 className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-background px-3 py-2 text-sm font-medium text-foreground transition-colors hover:bg-accent"
               >
                 <Download className="w-4 h-4" />
-                {t.common.export}
+                <span className="review-map-optional-label">{t.common.export}</span>
                 <ChevronDown className="w-3.5 h-3.5" />
               </button>
               {showExportMenu && (
@@ -332,6 +413,8 @@ export function MindMapTab({ session }: MindMapTabProps) {
           <>
             <div className="h-5 w-px bg-border" />
             <button
+              ref={fullscreenTrigger}
+              aria-label="全屏查看导图"
               onClick={() => setIsFullscreen(true)}
               className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-background px-3 py-2 text-sm font-medium text-foreground transition-colors hover:bg-accent"
             >
@@ -341,7 +424,8 @@ export function MindMapTab({ session }: MindMapTabProps) {
         )}
 
         {!aiConfigured && (
-          <p className="ml-2 text-xs text-muted-foreground">{t.preview.aiNotConfigured}</p>
+          <p className="ml-2 text-xs text-muted-foreground">{t.preview.aiNotConfigured}{' '}
+              <button data-settings-entry="review-ai" type="button" className="text-primary underline" onClick={() => useUIStore.getState().openSettings('aiPostProcess')}>{t.common.settings}</button></p>
         )}
         {!hasTranscript && (
           <p className="ml-2 text-xs text-muted-foreground">{t.preview.mindMapNoTranscript}</p>
@@ -358,15 +442,16 @@ export function MindMapTab({ session }: MindMapTabProps) {
       )}
 
       {/* Content area */}
-      <div className="flex flex-1 overflow-hidden">
+      <div className="review-map-layout flex min-h-40 flex-1 overflow-hidden">
         {/* Editor panel (collapsible) */}
         {showEditor && (
-          <div className="w-[380px] shrink-0 border-r border-border overflow-hidden flex flex-col p-4">
+          <div className="review-map-editor flex w-72 shrink-0 flex-col overflow-hidden border-r border-border p-3">
             <div className="mb-2 inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
               <FileText className="w-3.5 h-3.5" />
               {t.preview.mindMapMarkdown}
             </div>
             <textarea
+              aria-label={t.preview.mindMapMarkdown}
               value={draftMarkdown}
               onChange={(event) => setDraftMarkdown(event.target.value)}
               placeholder={t.preview.mindMapMarkdownPlaceholder}
@@ -376,9 +461,12 @@ export function MindMapTab({ session }: MindMapTabProps) {
         )}
 
         {/* Mind map preview (takes remaining space) */}
-        <div className="flex-1 relative overflow-hidden bg-background/40 dark:bg-muted/20 markmap-container">
+        <div className="relative min-h-24 min-w-0 flex-1 overflow-hidden bg-background/40 dark:bg-muted/20 markmap-container">
           {hasMindMap ? (
-            <svg ref={svgRef} className="h-full w-full" />
+            <>
+              <svg ref={svgRef} aria-hidden={showOutline} className={'h-full w-full ' + (showOutline ? 'invisible' : '')} />
+              {showOutline && <div className="absolute inset-0 overflow-auto p-5"><MarkdownRenderer content={draftMarkdown} /></div>}
+            </>
           ) : (
             <div className="flex h-full flex-col items-center justify-center gap-3 px-6 text-center">
               <div className="flex h-14 w-14 items-center justify-center rounded-full border border-primary/20 bg-primary/10 text-primary">
@@ -401,13 +489,15 @@ export function MindMapTab({ session }: MindMapTabProps) {
 
       {/* Fullscreen overlay */}
       {isFullscreen && createPortal(
-        <div className="fixed inset-0 z-[100] flex flex-col bg-background">
+        <div role="dialog" aria-modal="true" aria-label={t.preview.mindMapTitle} className="fixed inset-0 z-[100] flex flex-col bg-background">
           <div className="flex items-center justify-between border-b border-border px-5 py-3">
             <div className="inline-flex items-center gap-2 text-sm font-semibold text-foreground">
               <Network className="w-4 h-4 text-primary" />
               {t.preview.mindMapTitle}
             </div>
             <button
+              ref={fullscreenClose}
+              aria-label="退出全屏"
               onClick={() => setIsFullscreen(false)}
               className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-background px-3 py-2 text-sm font-medium text-foreground transition-colors hover:bg-accent"
             >

@@ -115,6 +115,10 @@ function updateSessionCollection(
 }
 
 export const sessionRepository = {
+  async waitForSessionWrite(sessionId: string): Promise<void> {
+    await durableWrites.get(sessionId)
+  },
+
   async snapshot(): Promise<TranscriptSession[]> {
     await Promise.all([...pendingWrites, ...durableWrites.values()])
     const sessions = cacheReady ? getCachedSessions() : await getSessions()
@@ -200,6 +204,12 @@ export const sessionRepository = {
     const baseSessions = cacheReady ? getCachedSessions() : []
     const sessions = [draftSession, ...baseSessions]
     return persistSingleSession(draftSession.id, sessions)
+  },
+
+  async addCompletedSession(session: TranscriptSession): Promise<TranscriptSession[]> {
+    const completed = normalizeSession(session)
+    await trackWrite(upsertSession(completed))
+    return updateCachedSessions([completed, ...getCachedSessions()])
   },
 
   updateMetadata(sessionId: string, updates: Partial<TranscriptSession>): TranscriptSession[] {

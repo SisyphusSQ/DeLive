@@ -15,7 +15,7 @@ interface FileTranscriptionState {
   getCompletedJobs: () => FileTranscriptionJob[]
 }
 
-const ACTIVE_STATUSES: FileTranscriptionJobStatus[] = ['queued', 'uploading', 'transcribing']
+const ACTIVE_STATUSES: FileTranscriptionJobStatus[] = ['queued', 'uploading', 'transcribing', 'saving']
 
 export const useFileTranscriptionStore = create<FileTranscriptionState>((set, get) => ({
   jobs: [],

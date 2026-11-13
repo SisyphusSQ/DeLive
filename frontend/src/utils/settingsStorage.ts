@@ -146,7 +146,7 @@ export function getSettings(): AppSettings {
   return settings ?? getDefaultSettings()
 }
 
-export function saveSettings(settings: AppSettings): void {
+export function saveSettings(settings: AppSettings, reportFailure = false): void {
   if (settings.aiPostProcess?.apiKey) {
     settings = { ...settings, aiPostProcess: { ...settings.aiPostProcess, apiKey: '{{SAFE_STORAGE}}' } }
   }
@@ -156,11 +156,8 @@ export function saveSettings(settings: AppSettings): void {
     for (const key of ['apiKey', 'appKey', 'accessKey']) if (volc[key]) volc[key] = '{{SAFE_STORAGE}}'
     settings = { ...settings, providerConfigs: { ...settings.providerConfigs, volc } }
   }
-  writeJsonToLocalStorage(
-    STORAGE_KEYS.SETTINGS,
-    settings,
-    'Failed to save settings to localStorage:',
-  )
+  if (reportFailure) localStorage.setItem(STORAGE_KEYS.SETTINGS, JSON.stringify(settings))
+  else writeJsonToLocalStorage(STORAGE_KEYS.SETTINGS, settings, 'Failed to save settings to localStorage:')
   void mirrorSettingsToIdb(settings)
 }
 
