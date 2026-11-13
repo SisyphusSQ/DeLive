@@ -48,7 +48,7 @@ export function RecordingStorage() {
         {devices.map((d, i) => <option key={d.deviceId || i} value={d.deviceId}>{d.label || '麦克风 ' + (i + 1)}</option>)}
       </Select>
     </div>
-    <p className="text-xs text-muted-foreground">麦克风启用系统回声消除。来源不代表说话人；外放回声效果待真实设备验收。</p>
+    <p className="text-xs text-muted-foreground">已选来源保存到本机。录音来源与稿件的说话人独立。</p>
     {capture.sources.map(source => <div key={source.source} className="flex gap-2 items-center">
       <span>{source.source === 'system' ? '系统声音' : '麦克风'}：{({ disabled: '未启用', requesting: '等待权限', active: '采集中', muted: '无数据／静音', ended: '来源已结束', denied: '权限拒绝', error: '采集失败' })[source.status]}</span>
       <span>{source.device}</span><meter aria-label={source.source + ' 音量'} min={0} max={1} value={source.level} />

@@ -44,6 +44,21 @@ const applyTheme = (resolvedTheme: ResolvedTheme) => {
 
 export type WorkspaceView = 'live' | 'review' | 'topics' | 'file' | 'settings'
 
+export type ReviewTab = 'transcript' | 'summary' | 'chat' | 'mindmap'
+export type SettingsSection = 'provider' | 'fileStorage' | 'aiPostProcess'
+
+let settingsLeaveGuard: (() => Promise<boolean>) | undefined
+
+export function setSettingsLeaveGuard(guard: () => Promise<boolean>) {
+  settingsLeaveGuard = guard
+  return () => { if (settingsLeaveGuard === guard) settingsLeaveGuard = undefined }
+}
+
+function leaveSettings(currentView: WorkspaceView, navigate: () => void) {
+  if (currentView !== 'settings' || !settingsLeaveGuard) navigate()
+  else void settingsLeaveGuard().then(confirmed => { if (confirmed) navigate() })
+}
+
 export interface UIState {
   language: Language
   t: Translations
@@ -59,12 +74,21 @@ export interface UIState {
   currentView: WorkspaceView
   reviewSessionId: string | null
   reviewVersionId: string | null
+  reviewTab: ReviewTab
   fileSessionId: string | null
-  settingsSection: 'provider' | 'fileStorage'
-  openFileSettings: (sessionId?: string) => void
+  fileSource: 'recording' | 'import'
+  pendingAudioFiles: File[]
+  importingAudio: boolean
+  audioImportError: string
+  mindMapDrafts: Record<string, string>
+  settingsSection: SettingsSection
+  settingsProviderId?: string
+  settingsOrigin: Exclude<WorkspaceView, 'settings'> | null
+  settingsReturnFocus?: string
+  openSettings: (section: SettingsSection, providerId?: string) => void
+  returnFromSettings: (saved?: boolean) => void
   setView: (view: WorkspaceView, reviewSessionId?: string | null) => void
   openReview: (sessionId: string, versionId?: string) => void
-  backToLive: () => void
 
   commandPaletteOpen: boolean
   setCommandPaletteOpen: (open: boolean) => void
@@ -113,12 +137,35 @@ export const useUIStore = create<UIState>((set, get) => ({
   currentView: 'live',
   reviewSessionId: null,
   reviewVersionId: null,
+  reviewTab: 'transcript',
   fileSessionId: null,
+  fileSource: 'recording',
+  pendingAudioFiles: [],
+  importingAudio: false,
+  audioImportError: '',
+  mindMapDrafts: {},
   settingsSection: 'provider',
-  openFileSettings: (sessionId) => set({ currentView: 'settings', settingsSection: 'fileStorage', fileSessionId: sessionId ?? null }),
-  setView: (view, reviewSessionId = null) => set({ currentView: view, reviewSessionId }),
-  openReview: (sessionId, versionId) => set({ currentView: 'review', reviewSessionId: sessionId, reviewVersionId: versionId ?? null }),
-  backToLive: () => set({ currentView: 'live', reviewSessionId: null }),
+  settingsOrigin: null,
+  openSettings: (section, providerId) => {
+    const { currentView } = get()
+    if (currentView === 'settings') return
+    const settingsReturnFocus = typeof document === 'undefined' ? undefined : document.activeElement?.getAttribute('data-settings-entry') ?? undefined
+    set({ currentView: 'settings', settingsSection: section, settingsProviderId: providerId, settingsOrigin: currentView, settingsReturnFocus })
+  },
+  returnFromSettings: (saved = false) => {
+    const { currentView, settingsOrigin } = get()
+    if (currentView !== 'settings') return
+    const restore = () => set({ currentView: settingsOrigin ?? 'live', settingsOrigin: null, settingsProviderId: undefined })
+    if (saved) restore()
+    else leaveSettings(currentView, restore)
+  },
+  setView: (view, reviewSessionId = null) => {
+    if (view === 'settings') { get().openSettings('provider'); return }
+    leaveSettings(get().currentView, () => set({ currentView: view, reviewSessionId, reviewVersionId: null, reviewTab: 'transcript', settingsOrigin: null, settingsReturnFocus: undefined }))
+  },
+  openReview: (sessionId, versionId) => leaveSettings(get().currentView, () => set({
+    currentView: 'review', reviewSessionId: sessionId, reviewVersionId: versionId ?? null, reviewTab: 'transcript', settingsOrigin: null, settingsReturnFocus: undefined,
+  })),
 
   commandPaletteOpen: false,
   setCommandPaletteOpen: (open) => set({ commandPaletteOpen: open }),

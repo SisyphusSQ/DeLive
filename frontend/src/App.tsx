@@ -1,11 +1,10 @@
-import { DEFAULT_ASR_VENDOR } from './types/asr/common'
 import { loadReviewDrafts, useReviewDraftStore } from './stores/reviewDraftStore'
 import { recoverBackupRestore, restoringBackup } from './services/completeBackup'
 import { startAutoBackup } from './services/autoBackup'
 import { flushImageRemovals } from './services/imageCleanup'
 import { refreshFileTasks } from './stores/fileTaskStore'
-import { useState, useEffect, useCallback, useRef } from 'react'
-import { AlertTriangle, Settings } from 'lucide-react'
+import { useState, useEffect, useCallback } from 'react'
+import { AlertTriangle } from 'lucide-react'
 import { useUIStore } from './stores/uiStore'
 import { useSettingsStore } from './stores/settingsStore'
 import { useSessionStore } from './stores/sessionStore'
@@ -14,7 +13,6 @@ import { useTopicStore } from './stores/topicStore'
 import { useASR } from './hooks/useASR'
 import { useApiIpcResponder } from './hooks/useApiIpcResponder'
 import { useSidebarState } from './hooks/useSidebarState'
-import { buildProviderConnectConfig, isProviderConfigured } from './utils/providerConfig'
 import { getWhatsNewForVersion, getAllWhatsNew } from './utils/whatsNew'
 import { 
   ApiKeyConfig, 
@@ -43,8 +41,8 @@ function App() {
   useEffect(()=>{const update=()=>setRestoreBusy(restoringBackup);window.addEventListener('backup-restore-state',update);return()=>window.removeEventListener('backup-restore-state',update)},[])
   const [storageError, setStorageError] = useState('')
   const [isInitialized, setIsInitialized] = useState(false)
-  const { initTheme, t, currentView, setView, backToLive } = useUIStore()
-  const { loadSettings, settings, availableProviders, credentialError } = useSettingsStore()
+  const { initTheme, t, currentView, setView, returnFromSettings } = useUIStore()
+  const { loadSettings, settings, credentialError } = useSettingsStore()
   const { collapsed: sidebarCollapsed, toggle: toggleSidebar } = useSidebarState()
   const {
     loadSessions,
@@ -55,8 +53,6 @@ function App() {
   } = useSessionStore()
   const { loadTags } = useTagStore()
   const { loadTopics } = useTopicStore()
-  const hasCheckedApiKey = useRef(false)
-  const prevRecordingState = useRef(recordingState)
   const [lastFinishedSessionId, setLastFinishedSessionId] = useState<string | null>(null)
   const [whatsNewOpen, setWhatsNewOpen] = useState(false)
   const [whatsNewShowAll, setWhatsNewShowAll] = useState(false)
@@ -68,16 +64,6 @@ function App() {
     // reached it and everything outside the renderer stayed Chinese.
     void window.electronAPI?.langChange?.(useUIStore.getState().language).catch(() => {})
   }, [])
-
-  useEffect(() => {
-    if (prevRecordingState.current === 'recording' && recordingState === 'idle') {
-      const sessions = useSessionStore.getState().sessions
-      if (sessions.length > 0) {
-        setLastFinishedSessionId(sessions[0].id)
-      }
-    }
-    prevRecordingState.current = recordingState
-  }, [recordingState])
 
   // Toast 管理
   const addToast = useCallback((type: 'success' | 'error', message: string) => {
@@ -102,7 +88,8 @@ function App() {
   // ASR — lifted to App so global shortcut can reach it
   const { startRecording, stopRecording, switchProvider, getMediaStream, getRecordingTime, reconnectTranscription } = useASR({
     onError: handleError,
-    onStarted: () => console.log('[App] Recording started'),
+    onStarted: () => setLastFinishedSessionId(null),
+    onSaved: setLastFinishedSessionId,
   })
 
   // Global shortcut: toggle recording from Electron
@@ -201,22 +188,22 @@ function App() {
     }
   }, [])
 
-  // 检查当前提供商是否已配置
-  const currentVendor = settings.currentVendor || DEFAULT_ASR_VENDOR
-  const currentProvider = availableProviders.find(p => p.id === currentVendor)
-  const currentConfig = settings.providerConfigs?.[currentVendor]
-  const normalizedConfig = buildProviderConnectConfig(currentConfig, settings)
-  const hasApiKey = isProviderConfigured(currentProvider, normalizedConfig)
-
-  // 只在初始化完成后检查一次是否需要弹出设置窗口
   useEffect(() => {
-    if (isInitialized && !hasCheckedApiKey.current) {
-      hasCheckedApiKey.current = true
-      if (!hasApiKey) {
-        setView('settings')
+    const { settingsReturnFocus } = useUIStore.getState()
+    if (currentView === 'settings' || !settingsReturnFocus) return
+    const frame = requestAnimationFrame(() => {
+      const controls = [...document.querySelectorAll<HTMLElement>('[data-settings-entry]')]
+      const target = controls.find(control => control.dataset.settingsEntry === settingsReturnFocus && (control.getClientRects().length || control.closest('details')))
+        ?? document.querySelector<HTMLElement>('[aria-current="page"]')
+      if (target) {
+        const details = target.closest('details')
+        if (details) details.open = true
+        target.focus()
       }
-    }
-  }, [isInitialized, hasApiKey, setView])
+      useUIStore.setState({ settingsReturnFocus: undefined })
+    })
+    return () => cancelAnimationFrame(frame)
+  }, [currentView])
 
   const isElectron = !!window.electronAPI?.isElectron
 
@@ -261,7 +248,7 @@ function App() {
             <ApiKeyConfig
               isOpen
               mode="view"
-              onClose={backToLive}
+              onClose={returnFromSettings}
               onViewChangelog={() => { setWhatsNewShowAll(true); setWhatsNewOpen(true) }}
             />
           </div>
@@ -293,25 +280,9 @@ function App() {
           id="app-main"
           className={`flex-1 overflow-y-auto ${currentView === 'live' ? '' : 'hidden'}`}
         >
-          <div className={`container mx-auto max-w-5xl px-4 pb-8 sm:px-6 ${recordingState === 'idle' ? 'min-h-full flex flex-col justify-center' : 'pt-4'}`}>
+          <div className="mx-auto max-w-4xl px-4 py-4 sm:px-6 sm:py-6">
+            <h1 className="mb-4 text-2xl font-semibold tracking-tight">{t.nav.live}</h1>
             <div className="space-y-6">
-              {isInitialized && !hasApiKey && recordingState === 'idle' && (
-                <div className="rounded-xl border border-primary/20 bg-primary/5 p-6 space-y-3 text-center">
-                  <h3 className="text-lg font-semibold text-foreground">{t.live?.welcomeTitle || t.api.needConfig}</h3>
-                  <p className="text-sm text-muted-foreground max-w-md mx-auto">{t.live?.welcomeDesc || t.api.needConfigDesc}</p>
-                  <button
-                    onClick={() => setView('settings')}
-                    className="inline-flex items-center gap-2 h-9 px-4 text-sm font-medium rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
-                  >
-                    <Settings className="h-4 w-4" />
-                    {t.live?.goToSettings || t.common.settings}
-                  </button>
-                  <p className="text-xs text-muted-foreground/70 pt-1">
-                    {t.live?.welcomeLocalHint}
-                  </p>
-                </div>
-              )}
-
               {isInitialized && recordingState === 'idle' && recoverySession && (
                 <div className="flex flex-col gap-3 rounded-xl border border-info/30 bg-info/5 p-4 sm:flex-row sm:items-center sm:justify-between">
                   <div className="flex items-start gap-3">
@@ -362,21 +333,12 @@ function App() {
                 </div>
               )}
 
-              <div className="animate-reveal-up delay-1">
-                <TranscriptDisplay getRecordingTime={getRecordingTime} contentHeightClassName="h-[min(50vh,36rem)] min-h-[24rem]" />
-              </div>
-
-              <div className="workspace-panel p-6 animate-reveal-up delay-2 space-y-4">
-                {recordingState === 'idle' && <TopicPicker />}
+              <div className="rounded-xl border border-border/60 bg-card p-4 sm:p-5">
+                {recordingState === 'idle' && <div className="mb-3"><TopicPicker /></div>}
                 <RecordingControls startRecording={startRecording} stopRecording={stopRecording} switchProvider={switchProvider} reconnectTranscription={reconnectTranscription} />
-                <WaveformVisualizer
-                  getStream={getMediaStream}
-                  isActive={recordingState === 'recording'}
-                  barCount={48}
-                  height={40}
-                  className="rounded-lg"
-                />
+                <WaveformVisualizer getStream={getMediaStream} isActive={recordingState === 'recording'} barCount={48} height={40} className="mt-3 rounded-lg" />
               </div>
+              {recordingState !== 'idle' && <TranscriptDisplay getRecordingTime={getRecordingTime} contentHeightClassName="h-[min(54vh,36rem)]" />}
             </div>
           </div>
         </main>

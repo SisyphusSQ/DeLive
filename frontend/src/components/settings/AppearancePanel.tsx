@@ -58,7 +58,7 @@ export function AppearancePanel({
         <p className="text-xs text-muted-foreground">
           {t.settings?.colorThemeDesc || 'Choose the accent color'}
         </p>
-        <div className="flex gap-4 justify-start">
+        <div className="flex flex-wrap justify-start gap-4">
           {colorThemes.map((theme) => (
             <button
               key={theme.id}

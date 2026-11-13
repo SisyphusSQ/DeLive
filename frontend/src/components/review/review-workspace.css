@@ -1,0 +1,113 @@
+.review-workspace {
+  container: review-workspace / inline-size;
+}
+
+.review-meeting-list {
+  width: clamp(13.5rem, 25cqi, 17rem);
+}
+
+@container review-workspace (max-width: 41rem) {
+  .review-workspace-layout {
+    flex-direction: column;
+  }
+
+  .review-meeting-list {
+    width: 100%;
+    max-height: clamp(6.25rem, 26%, 9.5rem);
+    border-right: 0;
+    border-bottom: 1px solid hsl(var(--border));
+  }
+
+  .review-meeting-list .review-history-heading,
+  .review-meeting-list .review-history-preview {
+    display: none;
+  }
+
+  .review-workspace .review-history-toolbar {
+    padding-block: 0.25rem;
+  }
+
+  .review-history-toolbar input {
+    height: 1.75rem;
+  }
+
+  .review-workspace .review-history-date,
+  .review-workspace .review-history-row {
+    padding-block: 0.1875rem;
+  }
+
+  .review-workspace .review-session-header {
+    padding-top: 0.5rem;
+  }
+
+  .review-workspace .review-session-title {
+    font-size: 1.125rem;
+  }
+
+  .review-workspace .review-session-meta {
+    margin-top: 0.125rem;
+  }
+
+  .review-workspace .review-passage-meta {
+    margin-bottom: 0.125rem;
+  }
+
+  .review-workspace .review-reading-content {
+    padding-top: 0.5rem;
+  }
+
+  .review-workspace .review-version-toolbar {
+    padding-bottom: 0.375rem;
+  }
+
+  .review-workspace .review-version-controls {
+    column-gap: 0.375rem;
+  }
+
+  .review-workspace .review-control-label {
+    display: none;
+  }
+
+  .review-workspace .review-version-select {
+    width: 7.5rem;
+  }
+
+  .review-workspace .review-compare-select,
+  .review-workspace .review-speaker-select {
+    width: 5.25rem;
+  }
+
+  .review-workspace .review-edit-button {
+    padding-inline: 0.375rem;
+  }
+
+  .review-workspace .review-comparison {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@container review-workspace (max-width: 31rem) {
+  .review-workspace .review-version-toolbar + div {
+    margin-top: 0.375rem;
+  }
+
+  .review-workspace .review-session-meta {
+    display: none;
+  }
+}
+
+@container review-workspace (max-width: 41rem) {
+  .review-map-toolbar { row-gap: 0.25rem; }
+  .review-map-toolbar > button,
+  .review-map-toolbar > div > button { padding: 0.25rem 0.5rem; }
+  .review-map-toolbar > .w-px,
+  .review-map-optional-label { display: none; }
+  .review-map-layout { flex-direction: column; }
+  .review-map-editor {
+    width: 100%;
+    height: 40%;
+    min-height: 5rem;
+    border-right: 0;
+    border-bottom: 1px solid hsl(var(--border));
+  }
+}

@@ -21,7 +21,7 @@ export function reviewVersions(session: TranscriptSession): TranscriptVersion[] 
     versions.unshift(original)
   }
   const corrected = session.correction?.correctedText
-  if (corrected && !versions.some(v=>v.kind==='edited' && v.text===corrected)) versions.push({
+  if (corrected && !session.correction?.requiresAdoption && !versions.some(v=>v.kind==='edited' && v.text===corrected)) versions.push({
     id:freeId('correction-'+session.id),kind:'edited',createdAt:session.correction?.completedAt ?? session.updatedAt,
     parentVersionId:original?.id,text:corrected,segments:[],speakers:[],editNote:'旧会话校对结果；没有逐句时间对齐',
   })

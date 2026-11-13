@@ -19,6 +19,7 @@ import type { ASRVendor } from '../types/asr'
 interface UseASROptions {
   onError?: (message: string) => void
   onStarted?: () => void
+  onSaved?: (sessionId: string) => void
   onFinished?: () => void
 }
 
@@ -44,6 +45,7 @@ export function useASR(options: UseASROptions = {}) {
     console.log('[useASR] 停止录制...')
     setRecordingState('stopping')
 
+    const sessionId = useSessionStore.getState().currentSessionId
     let audioSaved = false
     try {
       const audio = await captureRef.current.stop()
@@ -60,6 +62,14 @@ export function useASR(options: UseASROptions = {}) {
 
     selectedVendorRef.current = null
     endCurrentSession()
+    if (audioSaved && sessionId && useSessionStore.getState().sessions.some(session => session.id === sessionId)) {
+      try {
+        await sessionRepository.waitForSessionWrite(sessionId)
+        options.onSaved?.(sessionId)
+      } catch (error) {
+        options.onError?.('会议保存失败，已保存原音仍可恢复：' + (error as Error).message)
+      }
+    }
     setRecordingState('idle')
     console.log('[useASR] 录制已停止')
   }, [setRecordingState, endCurrentSession, options])

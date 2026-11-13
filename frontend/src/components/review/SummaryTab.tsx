@@ -28,7 +28,7 @@ export function SummaryTab({ session }: SummaryTabProps) {
   const { t } = useUIStore()
   const p = t.preview as Record<string, unknown>
   const [expandedSections, setExpandedSections] = useState<Set<SectionId>>(
-    new Set(['overview', 'ai']),
+    new Set(['ai']),
   )
 
   const toggleSection = (id: SectionId) => {
@@ -45,8 +45,8 @@ export function SummaryTab({ session }: SummaryTabProps) {
 
   return (
     <div className="flex-1 overflow-y-auto">
-      <div className="divide-y divide-border">
-        {SECTION_CONFIG.map(({ id, icon: Icon, labelKey }) => {
+      <div className="mx-auto max-w-[52rem] divide-y divide-border px-3 sm:px-6">
+        {[SECTION_CONFIG[1], SECTION_CONFIG[2], SECTION_CONFIG[0]].map(({ id, icon: Icon, labelKey }) => {
           const isExpanded = expandedSections.has(id)
           const label = (p[labelKey] as string) || labelKey
 
@@ -54,8 +54,9 @@ export function SummaryTab({ session }: SummaryTabProps) {
             <div key={id}>
               <button
                 type="button"
+                aria-expanded={isExpanded}
                 onClick={() => toggleSection(id)}
-                className="flex w-full items-center gap-3 px-6 py-3.5 text-sm font-medium text-foreground transition-colors hover:bg-accent/50"
+                className="flex w-full items-center gap-3 px-2 py-3 text-sm font-medium text-foreground transition-colors hover:bg-accent/50"
               >
                 {isExpanded ? (
                   <ChevronDown className="h-4 w-4 text-muted-foreground" />
@@ -67,7 +68,7 @@ export function SummaryTab({ session }: SummaryTabProps) {
               </button>
 
               {isExpanded && (
-                <div className="border-t border-border/50">
+                <div className="pb-2">
                   {id === 'overview' && (
                     <div className="[&>div]:!overflow-visible [&>div]:!flex-none">
                       <OverviewTab session={session} />

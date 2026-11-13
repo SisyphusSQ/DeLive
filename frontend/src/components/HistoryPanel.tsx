@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect, useRef } from 'react'
-import { History, Calendar, Pencil, Trash2, Check, X, ChevronDown, ChevronRight, Search, FileText, Sparkles } from 'lucide-react'
+import { History, Calendar, Pencil, Trash2, Check, X, ChevronDown, ChevronRight, Search, FileText } from 'lucide-react'
 import { useUIStore } from '../stores/uiStore'
 import { useSessionStore } from '../stores/sessionStore'
 import { useTagStore } from '../stores/tagStore'
@@ -19,13 +19,13 @@ export function HistoryPanel({
   className = '',
   contentHeightClassName,
 }: HistoryPanelProps) {
-  const { t, openReview } = useUIStore()
+  const { t, openReview, reviewSessionId } = useUIStore()
+  const isRail = variant === 'rail'
   const { sessions, updateSessionTitle, deleteSession } = useSessionStore()
   const { tags, selectedTagIds, searchQuery, setSearchQuery } = useTagStore()
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editingTitle, setEditingTitle] = useState('')
-  const [expandedDates, setExpandedDates] = useState<Set<string>>(new Set())
-  const [collapsedDates, setCollapsedDates] = useState<Set<string>>(new Set())
+  const [dateOverrides, setDateOverrides] = useState<Record<string, boolean>>({})
   const [inputValue, setInputValue] = useState(searchQuery)
   const [pendingDeleteSession, setPendingDeleteSession] = useState<TranscriptSession | null>(null)
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -58,7 +58,7 @@ export function HistoryPanel({
       return summary
     }
 
-    return session.transcript.trim()
+    return (session.versions?.find(version => version.id === session.selectedVersionId)?.text ?? session.transcript).trim()
   }
 
   // 按标签和搜索词筛选会话
@@ -67,7 +67,7 @@ export function HistoryPanel({
 
     // 搜索时包含所有 session（含主题内的），否则隐藏有 topicId 的 session
     if (!searchQuery.trim()) {
-      result = result.filter((session) => !session.topicId)
+      result = result.filter((session) => !session.topicId || (isRail && session.id === reviewSessionId))
     }
     
     // 标签筛选
@@ -107,6 +107,7 @@ export function HistoryPanel({
           session.date,
           session.time,
           session.transcript,
+          session.versions?.find(version => version.id === session.selectedVersionId)?.text || '',
           session.providerId || '',
           ...tagNames,
           ...postProcessSearch,
@@ -120,7 +121,7 @@ export function HistoryPanel({
     }
     
     return result
-  }, [sessions, selectedTagIds, searchQuery, tags])
+  }, [sessions, selectedTagIds, searchQuery, tags, isRail, reviewSessionId])
 
   // 按日期分组
   const groupedSessions = useMemo(() => {
@@ -140,26 +141,13 @@ export function HistoryPanel({
   const today = new Date().toISOString().split('T')[0]
   const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0]
 
-  const toggleDate = (date: string) => {
-    const isDefault = date === today || date === yesterday
-    if (isDefault) {
-      const next = new Set(collapsedDates)
-      if (next.has(date)) {
-        next.delete(date)
-      } else {
-        next.add(date)
-      }
-      setCollapsedDates(next)
-    } else {
-      const next = new Set(expandedDates)
-      if (next.has(date)) {
-        next.delete(date)
-      } else {
-        next.add(date)
-      }
-      setExpandedDates(next)
-    }
-  }
+  const defaultExpanded = (date: string) => date === today || date === yesterday ||
+    (isRail && (groupedSessions[0]?.[0] === date || groupedSessions.some(
+      ([groupDate, items]) => groupDate === date && items.some(item => item.id === reviewSessionId)
+    )))
+
+  const isExpanded = (date: string) => dateOverrides[date] ?? defaultExpanded(date)
+  const toggleDate = (date: string) => setDateOverrides(previous => ({ ...previous, [date]: !isExpanded(date) }))
 
   const startEditing = (e: React.MouseEvent, session: TranscriptSession) => {
     e.stopPropagation()
@@ -209,32 +197,24 @@ export function HistoryPanel({
     return dateStr
   }
 
-  const isExpanded = (date: string) => {
-    const isDefault = date === today || date === yesterday
-    if (isDefault) return !collapsedDates.has(date)
-    return expandedDates.has(date)
-  }
-  const isRail = variant === 'rail'
-  const resolvedContentHeightClassName = contentHeightClassName || (isRail ? 'h-[min(62vh,44rem)]' : 'max-h-[400px]')
+  const resolvedContentHeightClassName = contentHeightClassName || (isRail ? 'min-h-0 flex-1' : 'max-h-[400px]')
   const railDescription = (t.history as Record<string, unknown>).railDescription as string | undefined
     || 'Search, reopen, and organize finished sessions.'
 
   return (
     <>
-      <div className={`workspace-panel overflow-hidden ${className}`}>
+      <div className={`${isRail ? 'flex min-h-0 flex-1 flex-col' : 'workspace-panel overflow-hidden'} ${className}`}>
         {/* 头部 */}
-        <div className={`space-y-3 border-b border-border/70 bg-muted/20 ${isRail ? 'px-5 py-4' : 'px-6 py-4'}`}>
-          <div className="flex items-center justify-between gap-3">
+        <div className={`shrink-0 border-b border-border/50 ${isRail ? 'review-history-toolbar space-y-2 px-3 py-2 sm:px-4' : 'space-y-3 bg-muted/20 px-6 py-4'}`}>
+          <div className="review-history-heading flex items-center justify-between gap-2">
             <div className="space-y-1">
-              <div className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.24em] text-primary/80">
-                <History className="h-3.5 w-3.5" />
+              <div className={isRail ? 'text-sm font-semibold text-foreground' : 'inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.24em] text-primary/80'}>
+                {!isRail && <History className="h-3.5 w-3.5" />}
                 {t.history.title}
               </div>
-              <p className="text-xs text-muted-foreground">
-                {railDescription}
-              </p>
+              {!isRail && <p className="text-xs text-muted-foreground">{railDescription}</p>}
             </div>
-            <span className="workspace-badge">
+            <span className={isRail ? 'shrink-0 text-xs text-muted-foreground' : 'workspace-badge'}>
               {(selectedTagIds.length > 0 || searchQuery.trim())
                 ? `${filteredSessions.length}/${sessions.length} ${t.common.items}`
                 : `${sessions.length} ${t.common.items}`
@@ -249,7 +229,8 @@ export function HistoryPanel({
               type="text"
               value={inputValue}
               onChange={(e) => setInputValue(e.target.value)}
-              placeholder={t.history.searchPlaceholder}
+              placeholder={isRail ? t.history.searchCompact : t.history.searchPlaceholder}
+              aria-label={t.history.searchCompact}
               className="w-full h-9 pl-9 pr-8 text-sm rounded-md border border-input bg-background
                        placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-1"
             />
@@ -265,11 +246,11 @@ export function HistoryPanel({
           </div>
           
           {/* 标签筛选栏 */}
-          <TagFilter />
+          <div className={isRail ? 'max-h-10 overflow-y-auto empty:hidden' : undefined}><TagFilter /></div>
         </div>
 
         {/* 内容 */}
-        <div className={`${resolvedContentHeightClassName} overflow-y-auto bg-background/40`}>
+        <div className={`${resolvedContentHeightClassName} overflow-y-auto ${isRail ? '' : 'bg-background/40'}`}>
           {groupedSessions.length === 0 ? (
             <div className="py-12 text-center text-muted-foreground">
               <div className="bg-muted w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-3">
@@ -295,14 +276,15 @@ export function HistoryPanel({
                   {/* 日期头部 */}
                   <button
                     onClick={() => toggleDate(date)}
-                    className="w-full flex items-center gap-2 px-6 py-3 hover:bg-muted/50 transition-colors group"
+                    aria-expanded={isExpanded(date)}
+                    className={`group flex w-full items-center gap-2 transition-colors hover:bg-muted/50 ${isRail ? 'review-history-date px-4 py-1.5' : 'px-6 py-3'}`}
                   >
                     {isExpanded(date) ? (
                       <ChevronDown className="w-4 h-4 text-muted-foreground group-hover:text-foreground transition-colors" />
                     ) : (
                       <ChevronRight className="w-4 h-4 text-muted-foreground group-hover:text-foreground transition-colors" />
                     )}
-                    <Calendar className="w-4 h-4 text-primary/70" />
+                    {!isRail && <Calendar className="w-4 h-4 text-primary/70" />}
                     <span className="text-sm font-medium text-foreground">
                       {formatDateDisplay(date)}
                     </span>
@@ -317,118 +299,65 @@ export function HistoryPanel({
                       {dateSessions.map((session) => (
                         <div
                           key={session.id}
-                          role="button"
-                          tabIndex={0}
-                          onClick={() => handlePreview(session)}
-                          onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handlePreview(session) } }}
-                          className="group flex flex-col gap-2 px-4 py-3 rounded-lg mx-2
-                                   cursor-pointer interactive-card border border-transparent hover:border-primary/20 hover:bg-primary/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                          className={`group rounded-lg border ${reviewSessionId === session.id ? 'border-primary/25 bg-card' : 'border-transparent hover:bg-muted/65'}`}
                         >
-                          {/* 第一行：时间、标题、操作 */}
-                          <div className="flex items-center gap-3">
-                            {/* 时间 */}
-                            <span className="text-xs text-muted-foreground font-mono w-12 flex-shrink-0 bg-muted/50 px-1.5 py-0.5 rounded text-center">
-                              {session.time}
-                            </span>
-
-                            {/* 标题 */}
-                            {editingId === session.id ? (
-                              <div className="flex-1 flex items-center gap-2" onClick={e => e.stopPropagation()}>
-                                <input
-                                  type="text"
-                                  value={editingTitle}
-                                  onChange={(e) => setEditingTitle(e.target.value)}
-                                  onKeyDown={(e) => {
-                                    if (e.key === 'Enter') saveTitle()
-                                    if (e.key === 'Escape') cancelEditing()
-                                  }}
-                                  className="flex-1 h-8 px-2 text-sm border border-input rounded bg-background 
-                                           focus:outline-none focus:ring-1 focus:ring-ring"
-                                  autoFocus
-                                />
-                                <button
-                                  onClick={saveTitle}
-                                  className="h-8 w-8 min-h-8 min-w-8 flex items-center justify-center text-success hover:bg-success/10 dark:hover:bg-success/10 rounded transition-colors"
-                                  aria-label="Save title"
-                                >
-                                  <Check className="w-4 h-4" />
-                                </button>
-                                <button
-                                  onClick={cancelEditing}
-                                  className="h-8 w-8 min-h-8 min-w-8 flex items-center justify-center text-muted-foreground hover:bg-muted rounded transition-colors"
-                                  aria-label="Cancel editing"
-                                >
-                                  <X className="w-4 h-4" />
-                                </button>
-                              </div>
-                            ) : (
-                              <>
-                                <span className="flex-1 min-w-0 text-sm font-medium text-foreground truncate group-hover:text-primary transition-colors">
-                                  {session.title}
-                                </span>
-                                {session.providerId && (
-                                  <span className={`shrink-0 rounded-full border border-border/70 bg-background/80 px-2 py-0.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground ${isRail ? 'inline-flex' : 'hidden md:inline-flex'}`}>
-                                    {session.providerId}
-                                  </span>
-                                )}
-
-                                {/* 操作按钮 - hidden until hover, don't reserve space */}
-                                <div className="hidden items-center gap-1 group-hover:flex flex-shrink-0">
-                                  <button
-                                    onClick={(e) => startEditing(e, session)}
-                                    className="h-8 w-8 min-h-8 min-w-8 flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-background rounded-md transition-all shadow-sm border border-transparent hover:border-border"
-                                    title={t.history.editTitle}
-                                    aria-label="Edit title"
-                                  >
-                                    <Pencil className="w-3.5 h-3.5" />
-                                  </button>
-                                  <button
-                                    onClick={(e) => handleExport(e, session)}
-                                    className="h-8 w-8 min-h-8 min-w-8 flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-background rounded-md transition-all shadow-sm border border-transparent hover:border-border"
-                                    title={t.history.exportTxt}
-                                    aria-label="Export as TXT"
-                                  >
-                                    <FileText className="w-3.5 h-3.5" />
-                                  </button>
-                                  <button
-                                    onClick={(e) => handleDelete(e, session.id)}
-                                    className="h-8 w-8 min-h-8 min-w-8 flex items-center justify-center text-muted-foreground hover:text-destructive hover:bg-destructive/10 dark:hover:bg-destructive/10 rounded-md transition-all shadow-sm border border-transparent hover:border-destructive/30 dark:hover:border-destructive/30"
-                                    title={t.common.delete}
-                                    aria-label="Delete session"
-                                  >
-                                    <Trash2 className="w-3.5 h-3.5" />
-                                  </button>
-                                </div>
-                                <ChevronRight className="w-4 h-4 shrink-0 text-muted-foreground/30 group-hover:text-muted-foreground group-hover:translate-x-0.5 transition-all" />
-                              </>
-                            )}
-                          </div>
-
-                          {/* 第二行：标签 */}
-                          {editingId !== session.id && (
-                            <div className="pl-[3.75rem]">
-                              <div className="space-y-2">
-                                <div className="flex flex-wrap items-center gap-2" onClick={e => e.stopPropagation()}>
-                                  <TagSelector 
-                                    sessionId={session.id} 
-                                    sessionTagIds={session.tagIds || []}
-                                    compact
-                                  />
-                                  {session.postProcess?.summary && (
-                                    <span className="inline-flex items-center gap-1 rounded-full border border-primary/30 bg-primary/10 px-2 py-0.5 text-xs font-semibold uppercase tracking-wide text-primary">
-                                      <Sparkles className="h-3 w-3" />
-                                      AI
-                                    </span>
-                                  )}
-                                </div>
-                                {getSessionPreviewText(session) && (
-                                  <p className="text-xs leading-5 text-muted-foreground">
-                                    {getSessionPreviewText(session).slice(0, 150)}
-                                    {getSessionPreviewText(session).length > 150 ? '...' : ''}
-                                  </p>
-                                )}
-                              </div>
+                          {editingId === session.id ? (
+                            <div className="flex items-center gap-1 p-1">
+                              <input
+                                type="text"
+                                aria-label={t.history.editTitle}
+                                value={editingTitle}
+                                onChange={e => setEditingTitle(e.target.value)}
+                                onKeyDown={e => {
+                                  if (e.key === 'Enter') saveTitle()
+                                  if (e.key === 'Escape') {
+                                    e.stopPropagation()
+                                    cancelEditing()
+                                  }
+                                }}
+                                className="h-8 min-w-0 flex-1 rounded border border-input bg-background px-2 text-sm"
+                                autoFocus
+                              />
+                              <button onClick={saveTitle} className="h-8 w-8 shrink-0 rounded text-success hover:bg-muted" aria-label={t.common.save}>
+                                <Check className="mx-auto h-4 w-4" />
+                              </button>
+                              <button onClick={cancelEditing} className="h-8 w-8 shrink-0 rounded text-muted-foreground hover:bg-muted" aria-label={t.common.cancel}>
+                                <X className="mx-auto h-4 w-4" />
+                              </button>
                             </div>
+                          ) : (
+                            <>
+                              <button
+                                type="button"
+                                title={session.title}
+                                onClick={() => handlePreview(session)}
+                                aria-current={reviewSessionId === session.id ? 'true' : undefined}
+                                className={`block w-full rounded-lg px-3 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring ${isRail ? 'review-history-row py-1.5' : 'py-3'}`}
+                              >
+                                <span className="flex min-w-0 items-baseline gap-2">
+                                  <span className="shrink-0 text-[11px] tabular-nums text-muted-foreground">{session.time}</span>
+                                  <span className="min-w-0 flex-1 truncate text-sm font-medium">{session.title}</span>
+                                  {reviewSessionId === session.id && <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-primary" />}
+                                </span>
+                                <span className="review-history-preview mt-1 line-clamp-2 break-words text-xs leading-relaxed text-muted-foreground">
+                                  {getSessionPreviewText(session).slice(0, 180)}
+                                </span>
+                              </button>
+                              <div className="hidden flex-wrap items-center gap-1 px-2 pb-1 group-focus-within:flex group-hover:flex group-has-[[aria-expanded=true]]:flex">
+                                <TagSelector sessionId={session.id} sessionTagIds={session.tagIds || []} compact />
+                                <div className="ml-auto flex shrink-0 items-center gap-1">
+                                  <button onClick={e => startEditing(e, session)} className="rounded p-1.5 text-muted-foreground hover:bg-background hover:text-foreground" title={t.history.editTitle} aria-label={t.history.editTitle}>
+                                    <Pencil className="h-3.5 w-3.5" />
+                                  </button>
+                                  <button onClick={e => handleExport(e, session)} className="rounded p-1.5 text-muted-foreground hover:bg-background hover:text-foreground" title={t.history.exportTxt} aria-label={t.history.exportTxt}>
+                                    <FileText className="h-3.5 w-3.5" />
+                                  </button>
+                                  <button onClick={e => handleDelete(e, session.id)} className="rounded p-1.5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive" title={t.common.delete} aria-label={t.common.delete}>
+                                    <Trash2 className="h-3.5 w-3.5" />
+                                  </button>
+                                </div>
+                              </div>
+                            </>
                           )}
                         </div>
                       ))}

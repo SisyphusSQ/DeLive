@@ -4,6 +4,7 @@ import type { TranscriptSession } from '../../types'
 import { useUIStore } from '../../stores/uiStore'
 import { useSettingsStore } from '../../stores/settingsStore'
 import { useSessionStore } from '../../stores/sessionStore'
+import { legacyAiCorrectionText } from '../../services/aiSessionContext'
 
 interface TextSourceBannerProps {
   session: TranscriptSession
@@ -22,10 +23,6 @@ export function TextSourceBanner({ session }: TextSourceBannerProps) {
 
   const isCorrecting = correctionStatus === 'correcting' || correctionStatus === 'detecting'
 
-  const hasCorrected = correctionStatus === 'done'
-    && typeof correction?.correctedText === 'string'
-    && correction.correctedText.trim().length > 0
-
   if (session.selectedVersionId) return <div className="inline-flex items-center gap-1.5 rounded-md bg-muted px-2.5 py-1 text-xs font-medium text-muted-foreground"><Info className="h-3 w-3 shrink-0" />AI 文字来源：{versionLabel(selectedReviewVersion(session))}</div>
 
   if (isCorrecting && preference !== 'original') {
@@ -37,7 +34,7 @@ export function TextSourceBanner({ session }: TextSourceBannerProps) {
     )
   }
 
-  if (!hasCorrected) return null
+  if (!legacyAiCorrectionText(liveSession ?? session)) return null
 
   const usingCorrected = preference === 'corrected' || preference === 'auto'
 

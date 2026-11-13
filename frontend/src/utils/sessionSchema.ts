@@ -359,6 +359,7 @@ function normalizeCorrection(raw: unknown): TranscriptCorrection | undefined {
     status,
     mode,
     correctedText: correctedText || undefined,
+    requiresAdoption: obj.requiresAdoption === true ? true : undefined,
     issues: issues && issues.length > 0 ? issues : undefined,
     model: getString(obj.model) || undefined,
     requestedAt: getNumber(obj.requestedAt),

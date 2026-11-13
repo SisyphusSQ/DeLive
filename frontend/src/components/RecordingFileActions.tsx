@@ -16,9 +16,11 @@ export function RecordingFileActions({ session, onSelect }: { session: Transcrip
   const [configured,setConfigured]=useState<boolean>(),[busy,setBusy]=useState(false),[error,setError]=useState(''),[notice,setNotice]=useState('')
   const [confirm,setConfirm]=useState(false),[postId,setPostId]=useState('')
   const jobs=useFileTaskStore(s=>s.jobs), active=jobs.find(job=>job.sessionId===session.id&&taskActive(job.status))
+  const awaitingRecovery = jobs.find(job => job.sessionId === session.id && !taskActive(job.status) && (job.cleanup === 'pending' || job.cleanup === 'failed' || (job.status === 'completed' && job.version && !session.versions?.some(version => version.id === job.version?.id))))
   const draft=useReviewDraftStore(s=>s.drafts[session.id])
   const versions=reviewVersions(session), posts=versions.filter(v=>v.kind==='post-meeting'), post=posts.find(v=>v.id===postId)??posts[posts.length-1]
   const merged=post&&versions.filter(v=>v.merge?.postVersionId===post.id && !needsTranscriptRecovery(v)).slice(-1)[0]
+  const postHasTask = post && jobs.some(job => job.sessionId === session.id && job.version?.id === post.id)
   let canMerge=false
   try { canMerge=!!reconciliationBase(session).text.trim() } catch { /* Pure audio imports have no real-time baseline. */ }
   useEffect(()=>{void Promise.resolve().then(()=>fileTaskApi().settings()).then(value=>setConfigured(value.configured)).catch(e=>setError(e.message))},[])
@@ -29,17 +31,19 @@ export function RecordingFileActions({ session, onSelect }: { session: Transcrip
       {post&&canMerge&&<>
         {posts.length>1&&<Select aria-label="用于校正的会后稿" className={button+' max-w-72'} value={post.id} onChange={e=>setPostId(e.target.value)}>{posts.map(v=><option key={v.id} value={v.id}>{versionLabel(v)}</option>)}</Select>}
         <button className={button} disabled={busy||!!draft||session.status==='recording'} onClick={()=>void action(async()=>{await generateReconciledVersion(session.id,post.id);setNotice('修订已保存，可在稿件菜单查看')})}>生成校正版</button>
-        {merged&&onSelect&&<button className={button+' text-primary'} disabled={!!draft} onClick={()=>onSelect(merged.id)}>{merged.merge?.strategy===2?'查看恢复修订':'查看校正版'}{merged.merge?.groups.some(g=>g.status==='pending')?' · '+merged.merge.groups.filter(g=>g.status==='pending').length+' 处待确认':''}</button>}
+        {merged&&!postHasTask&&onSelect&&<button className={button+' text-primary'} disabled={!!draft} onClick={()=>onSelect(merged.id)}>{merged.merge?.strategy===2?'查看恢复修订':'查看校正版'}{merged.merge?.groups.some(g=>g.status==='pending')?' · '+merged.merge.groups.filter(g=>g.status==='pending').length+' 处待确认':''}</button>}
       </>}
-      {!active&&session.audioRecordingId&&<button
+      {!active && !awaitingRecovery && session.audioRecordingId && <button
         className={button}
+        data-settings-entry={credentialIssue || !configured ? 'recording-file-config' : undefined}
         disabled={busy||!!draft||session.status==='recording'||(configured===undefined&&!error)}
         onClick={()=>{
-          if (credentialIssue) useUIStore.setState({currentView:'settings',settingsSection:'provider'})
-          else if (!configured) useUIStore.getState().openFileSettings(session.id)
+          if (credentialIssue) useUIStore.getState().openSettings('provider', 'volc')
+          else if (!configured) useUIStore.getState().openSettings('fileStorage')
           else setConfirm(true)
         }}
       >{credentialIssue ? '配置火山凭据' : !configured ? '配置私有存储' : posts.length ? '重新转写原音' : canMerge ? '转写并校正' : '会后转写'}</button>}
+      {awaitingRecovery && <span className="text-xs text-muted-foreground">请先处理现有任务的保存或清理状态</span>}
       {active&&<span className="text-xs text-muted-foreground">已有转写任务，下方可查看进度</span>}
       {!session.audioRecordingId&&<span className="text-xs text-muted-foreground">此会议没有本地原音</span>}
       {draft&&<span className="text-xs text-amber-700 dark:text-amber-400">请先保存或放弃校对草稿</span>}

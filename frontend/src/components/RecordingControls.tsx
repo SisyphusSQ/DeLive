@@ -3,6 +3,7 @@ import { Select } from './ui/Select'
 import { RecordingStorage } from './RecordingStorage'
 import { useState } from 'react'
 import { Mic, Square, Loader2, Settings2, RefreshCw } from 'lucide-react'
+import { useRecordingStore } from '../stores/recordingStore'
 import { useUIStore } from '../stores/uiStore'
 import { useSettingsStore } from '../stores/settingsStore'
 import { useSessionStore } from '../stores/sessionStore'
@@ -19,7 +20,9 @@ interface RecordingControlsProps {
 }
 
 export function RecordingControls({ startRecording, stopRecording, switchProvider, reconnectTranscription }: RecordingControlsProps) {
-  const { t } = useUIStore()
+  const { t, openSettings } = useUIStore()
+  const localOnly = useRecordingStore(state => state.localOnly)
+  const hasSource = useRecordingStore(state => state.system || state.microphone)
   const { settings, availableProviders } = useSettingsStore()
   const { recordingState, currentTranscript } = useSessionStore()
   const [showQuickSettings, setShowQuickSettings] = useState(false)
@@ -47,6 +50,7 @@ export function RecordingControls({ startRecording, stopRecording, switchProvide
 
   const handleClick = () => {
     if (isIdle) {
+      if (!localOnly && !hasApiKey) { openSettings('provider', currentVendor); return }
       startRecording()
     } else if (isRecording) {
       stopRecording()
@@ -55,13 +59,14 @@ export function RecordingControls({ startRecording, stopRecording, switchProvide
 
   return (
     <div className="space-y-3">
-      {isRecording && reconnectTranscription && <button type="button" className="text-sm underline" onClick={() => void reconnectTranscription()}>重新连接转写（原音继续保存）</button>}
+      {isRecording && !localOnly && reconnectTranscription && <button type="button" className="text-sm underline" onClick={() => void reconnectTranscription()}>重新连接转写（原音继续保存）</button>}
       <RecordingStorage />
       <div className={`flex ${isIdle ? 'flex-col items-center gap-3' : 'items-center gap-5'}`}>
         <div className="flex items-center gap-2">
           <button
+            data-settings-entry="recording-provider"
             onClick={handleClick}
-            disabled={isLoading}
+            disabled={isLoading || (isIdle && !hasSource)}
             className={`
               relative flex shrink-0 items-center gap-2.5 rounded-full px-6 py-3
               text-sm font-semibold tracking-wide shadow-md
@@ -98,7 +103,7 @@ export function RecordingControls({ startRecording, stopRecording, switchProvide
             ) : (
               <>
                 <Mic className="h-4.5 w-4.5" />
-                <span>{t.recording.startRecording}</span>
+                <span>{!localOnly && !hasApiKey ? t.live.goToSettings : t.recording.startRecording}</span>
               </>
             )}
           </button>
@@ -144,8 +149,9 @@ export function RecordingControls({ startRecording, stopRecording, switchProvide
               )}
             </div>
           )}
-          {isIdle && !hasApiKey && (
-            <p className="text-warning">{t.recording.clickToConfigureApi}</p>
+          {isIdle && !hasSource && <p className="text-warning">请选择至少一个录音来源。</p>}
+          {isIdle && hasSource && !localOnly && !hasApiKey && (
+            <p className="text-muted-foreground">实时转写需要配置所选服务。仅录音可以直接开始。</p>
           )}
         </div>
       </div>

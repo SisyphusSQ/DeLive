@@ -20,6 +20,8 @@ import type { ProviderConfigField } from '../../types/asr'
 import { translateConfigField } from '../../utils/providerI18n'
 
 interface ServiceSettingsPanelProps {
+  selectedVendor: string
+  onSelectProvider: (vendorId: string) => void
   t: Translations
   currentProvider?: ASRProviderInfo
   languageHints: string
@@ -50,6 +52,8 @@ function isMonospaceField(field: ProviderConfigField): boolean {
 }
 
 export function ServiceSettingsPanel({
+  selectedVendor,
+  onSelectProvider,
   t,
   currentProvider,
   languageHints,
@@ -280,7 +284,7 @@ export function ServiceSettingsPanel({
               <Cpu className="w-3.5 h-3.5 text-muted-foreground" />
               {t.settings?.asrProvider || '语音识别服务'}
             </label>
-            <ProviderSelector />
+            <ProviderSelector selectedVendor={selectedVendor} onSelect={onSelectProvider} />
             <p className="text-xs text-muted-foreground">
               {t.settings?.asrProviderDesc || '选择语音识别服务提供商，不同提供商有不同的特性和价格'}
             </p>

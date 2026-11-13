@@ -1,3 +1,4 @@
+import { ActionDialog } from './ActionDialog'
 import { DEFAULT_ASR_VENDOR } from '../types/asr/common'
 import { FileTaskPanel } from './FileTaskPanel'
 import { useCallback, useMemo, useState, useEffect } from 'react'
@@ -33,8 +34,9 @@ export function FileTranscriptionView() {
     if (fileProviders.some(p=>p.id===saved)) return saved!
     return DEFAULT_ASR_VENDOR
   })
-  const [nativeError, setNativeError] = useState('')
-  const [importing, setImporting] = useState(false)
+  const nativeError = useUIStore(state => state.audioImportError)
+  const importing = useUIStore(state => state.importingAudio)
+  const [confirmFiles, setConfirmFiles] = useState<File[]>([])
   const [isOpen, setIsOpen] = useState(false)
 
   const selectedProvider = fileProviders.find((p) => p.id === selectedProviderId) ?? fileProviders[0]
@@ -63,6 +65,7 @@ export function FileTranscriptionView() {
   }
 
   const handleFilesSelected = useCallback((files: File[]) => {
+    if (useUIStore.getState().importingAudio) return
     const rawHints: unknown = providerConfig?.languageHints
     let languageHints: string[] | undefined
     if (Array.isArray(rawHints)) {
@@ -76,13 +79,16 @@ export function FileTranscriptionView() {
       languageHints: languageHints?.length ? languageHints : undefined,
     }
 
-    setNativeError(''); setImporting(true)
+    useUIStore.setState({ audioImportError: '', importingAudio: true })
     void (async () => {
       for (const file of files) {
-        try { await submitFile(file, config) }
-        catch (err) { setNativeError((err as Error).message); break }
+        try {
+          await submitFile(file, config)
+          useUIStore.setState(state => ({ pendingAudioFiles: state.pendingAudioFiles.filter(pending => pending !== file) }))
+        }
+        catch (err) { useUIStore.setState({ audioImportError: (err as Error).message }); break }
       }
-    })().finally(() => setImporting(false))
+    })().finally(() => useUIStore.setState({ importingAudio: false }))
   }, [submitFile, providerConfig, selectedProviderId])
 
   const getExecutionModeBadge = (provider: ASRProviderInfo): { label: string; className: string } | null => {
@@ -238,7 +244,7 @@ export function FileTranscriptionView() {
             <FileAudio className="h-5 w-5 text-primary" />
           </div>
           <div>
-            <h1 className="text-lg font-semibold">{t.file?.title || 'File Transcription'}</h1>
+            <h1 className="text-2xl font-semibold tracking-tight">{t.file?.title || 'File Transcription'}</h1>
             <p className="text-sm text-muted-foreground">
               {t.file?.subtitle || 'Upload audio/video files and transcribe with AI'}
             </p>
@@ -285,8 +291,27 @@ export function FileTranscriptionView() {
 
         {nativeError && <p role="alert" className="text-red-600">{nativeError}</p>}
         {importing && <p>正在导入本地音频，请等待完成；尚未创建云端任务时不会计费。</p>}
-        {/* Drop Zone */}
-        {selectedProviderId === 'volc' ? <FileTaskPanel><FileDropZone onFilesSelected={handleFilesSelected} disabled={!hasApiKey || isProcessing || importing}/></FileTaskPanel> : <FileDropZone onFilesSelected={handleFilesSelected} disabled={!hasApiKey || isProcessing || importing}/>}
+        {selectedProviderId === 'volc' ? (
+          <FileTaskPanel>{ready => <FileDropZone onFilesSelected={setConfirmFiles} disabled={importing} submitDisabled={!ready} />}</FileTaskPanel>
+        ) : (
+          <>
+            {!hasApiKey && <button type="button" className="text-sm text-primary underline" onClick={() => useUIStore.getState().openSettings('provider', selectedProviderId)}>配置所选本地服务</button>}
+            <FileDropZone onFilesSelected={handleFilesSelected} disabled={isProcessing || importing} submitDisabled={!hasApiKey} />
+          </>
+        )}
+        <ActionDialog
+          open={confirmFiles.length > 0}
+          title="提交文件转写"
+          description={'将上传 ' + confirmFiles.length + ' 个音频文件的临时副本，可能产生火山转写费用。原文件保留。'}
+          onClose={() => setConfirmFiles([])}
+          actions={[
+            { label: '取消', onClick: () => setConfirmFiles([]) },
+            { label: '确认提交（可能计费）', variant: 'primary', onClick: () => {
+              handleFilesSelected(confirmFiles)
+              setConfirmFiles([])
+            } },
+          ]}
+        />
 
         {/* Job Progress */}
         <FileTranscriptionProgress

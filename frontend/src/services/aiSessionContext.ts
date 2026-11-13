@@ -6,17 +6,24 @@ import { completeAi, withAiTask, type AiRequestOptions } from './aiTransport'
 
 export const CONTEXT_MARKER = '[[DELIVE_SESSION_CONTEXT]]'
 export interface AiInputStamp { imageIds?: string[]; inputFingerprint?: string; inputPreference?: AiPostProcessConfig['preferCorrectedText'] }
+export function legacyAiCorrectionText(session: TranscriptSession): string {
+  const correction = session.correction
+  return correction?.status === 'done' && !correction.requiresAdoption ? correction.correctedText?.trim() || '' : ''
+}
 export function resolveInputText(session: TranscriptSession, preference: AiPostProcessConfig['preferCorrectedText']): string {
   if (session.selectedVersionId) return selectedReviewVersion(session).text.trim()
-  if (preference !== 'original' && session.correction?.status === 'done' && session.correction.correctedText?.trim()) return session.correction.correctedText.trim()
+  if (preference !== 'original') return legacyAiCorrectionText(session) || session.transcript.trim()
   return session.transcript.trim()
 }
-export async function inputFingerprint(session: TranscriptSession, preference: AiPostProcessConfig['preferCorrectedText']): Promise<string> {
+export function aiInputKey(session: TranscriptSession, preference: AiPostProcessConfig['preferCorrectedText']): string {
   const version = selectedReviewVersion(session)
-  const canonical = JSON.stringify({ version: version.id, text: resolveInputText(session, preference),
+  return JSON.stringify({ version: version.id, text: resolveInputText(session, preference),
     segments: version.segments, speakers: version.speakers,
     images: [...(session.images || [])].sort((a,b) => a.atMs-b.atMs || a.id.localeCompare(b.id)).map(i => [i.id,i.sha256,i.atMs,i.caption]) })
-  return Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(canonical)))).map(v => v.toString(16).padStart(2,'0')).join('')
+}
+export async function inputFingerprint(session: TranscriptSession, preference: AiPostProcessConfig['preferCorrectedText']): Promise<string> {
+  const input = new TextEncoder().encode(aiInputKey(session, preference))
+  return Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', input))).map(v => v.toString(16).padStart(2,'0')).join('')
 }
 export interface ContextChunk { text: string; images: NonNullable<TranscriptSession['images']> }
 export function contextChunks(session: TranscriptSession, preference: AiPostProcessConfig['preferCorrectedText']): ContextChunk[] {

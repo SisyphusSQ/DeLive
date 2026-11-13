@@ -27,6 +27,7 @@ import { MarkdownRenderer } from './MarkdownRenderer'
 
 interface ChatTabProps {
   session: TranscriptSession
+  onCitation?: (quote: string) => void
 }
 
 function ThinkingIndicator() {
@@ -66,7 +67,7 @@ function MessageActionButton({
   )
 }
 
-export function ChatTab({ session }: ChatTabProps) {
+export function ChatTab({ session, onCitation }: ChatTabProps) {
   const { t } = useUIStore()
   const settings = useSettingsStore((state) => state.settings)
   const enableStreaming = settings.aiPostProcess?.enableStreaming !== false
@@ -252,9 +253,9 @@ export function ChatTab({ session }: ChatTabProps) {
   return (
     <div className="flex h-full flex-col overflow-hidden">
       {/* Thread bar */}
-      <div className="flex items-center gap-2 border-b border-border bg-muted/20 px-5 py-2.5">
+      <div className="flex flex-wrap items-center gap-2 border-b border-border/60 px-3 py-2 sm:px-6">
         <TextSourceBanner session={session} />
-        <div className="flex flex-1 items-center gap-1.5 overflow-x-auto scrollbar-none">
+        <div className="flex min-w-0 flex-1 items-center gap-1.5 overflow-x-auto scrollbar-none">
           {askConversations.map((conversation, index) => (
             <div key={conversation.id} className="group/thread inline-flex shrink-0 items-center">
               <button
@@ -307,7 +308,8 @@ export function ChatTab({ session }: ChatTabProps) {
       >
         <div className="mx-auto max-w-3xl px-5 py-6">
           {!aiConfigured && (
-            <p className="mb-4 text-xs text-muted-foreground">{t.preview.aiNotConfigured}</p>
+            <p className="mb-4 text-xs text-muted-foreground">{t.preview.aiNotConfigured}{' '}
+              <button data-settings-entry="review-ai" type="button" className="text-primary underline" onClick={() => useUIStore.getState().openSettings('aiPostProcess')}>{t.common.settings}</button></p>
           )}
           {!hasInput && (
             <p className="mb-4 text-xs text-muted-foreground">{t.preview.askNoTranscript}</p>
@@ -387,7 +389,7 @@ export function ChatTab({ session }: ChatTabProps) {
                               >
                                 <div className="inline-flex items-center gap-1 text-[10px] font-medium text-muted-foreground">
                                   <Quote className="w-2.5 h-2.5" />
-                                  {citation.source === 'image' ? <a className="text-primary underline" href={`#image-${citation.imageId}`}>图片内容</a> : citation.speakerLabel || t.preview.askReferenceFallback}
+                                  {citation.source === 'image' ? <a className="text-primary underline" href={`#image-${citation.imageId}`}>图片内容</a> : onCitation ? <button className="text-primary underline" onClick={() => onCitation(citation.quote)}>{citation.speakerLabel || '查看原文'}</button> : citation.speakerLabel || t.preview.askReferenceFallback}
                                 </div>
                                 <MarkdownRenderer content={citation.quote} className="text-xs" />
                               </div>
@@ -398,7 +400,7 @@ export function ChatTab({ session }: ChatTabProps) {
 
                       {/* AI message actions */}
                       {turn.status !== 'pending' && (
-                        <div className="mt-1.5 flex items-center gap-1 opacity-0 transition-opacity group-hover/msg:opacity-100">
+                        <div className="mt-1.5 flex items-center gap-1 opacity-0 transition-opacity group-focus-within/msg:opacity-100 group-hover/msg:opacity-100">
                           <MessageActionButton
                             icon={copiedMessageId === `ai-${turn.id}` ? Check : Copy}
                             label={copiedMessageId === `ai-${turn.id}` ? t.preview.askCopied : t.preview.askCopy}
