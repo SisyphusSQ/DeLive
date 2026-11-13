@@ -185,6 +185,7 @@ export default withMermaid(
                   { text: '项目结构', link: '/zh/development/structure' },
                   { text: '扩展 Provider', link: '/zh/development/extending-providers' },
                   { text: '测试', link: '/zh/development/testing' },
+                  { text: '全页面可点击设计预览', link: '/zh/development/full-workspace-storybook' },
                   { text: '核心工作台设计预览', link: '/zh/development/workspace-design-storybook' },
                   { text: 'AI 接入与权限', link: '/zh/development/ai-providers' },
                   { text: '会话图片与 AI 来源', link: '/zh/development/session-images' },

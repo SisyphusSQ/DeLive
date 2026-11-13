@@ -8,7 +8,7 @@ import { ActivityHeatmap } from './ActivityHeatmap'
 import './review/review-workspace.css'
 
 export function ReviewDeskView() {
-  const { reviewSessionId } = useUIStore()
+  const { reviewSessionId, t } = useUIStore()
   const sessions = useSessionStore((s) => s.sessions)
   const { searchQuery, setSearchQuery } = useTagStore()
 
@@ -27,7 +27,8 @@ export function ReviewDeskView() {
   if (!session) {
     return (
       <div className="h-full flex flex-col animate-view-enter overflow-y-auto">
-        <div className="container mx-auto max-w-5xl px-4 py-4 sm:px-6 space-y-4">
+        <div className="app-page-content w-full">
+          <header className="app-page-heading"><h1>{t.nav.review}</h1></header>
           <ActivityHeatmap
             sessions={sessions}
             onDateClick={handleDateClick}

@@ -3,6 +3,7 @@ import { AppWindow, ImagePlus, Mic, Monitor, Square } from 'lucide-react'
 import { ActionDialog } from '../../components/ActionDialog'
 import { Select } from '../../components/ui/Select'
 import { PreviewDialog } from '../review/NotebookExtras'
+import { useTopicStore } from '../../stores/topicStore'
 import { meeting, post } from '../review/fixtures'
 
 import { engines, type Capture, type Engine } from './workspaceFixtures'
@@ -23,14 +24,16 @@ interface Props {
   onConfigure: () => void
   onStart: () => void
   onReview: () => void
+  onRemoveAudio: () => void
   onInsertImage: (seconds: number) => void
 }
 
-export function WorkspaceRecording({ capture, setCapture, engine, setEngine, localOnly, setLocalOnly, ready, onConfigure, onStart, onReview, onInsertImage }: Props) {
+export function WorkspaceRecording({ capture, setCapture, engine, setEngine, localOnly, setLocalOnly, ready, onConfigure, onStart, onReview, onRemoveAudio, onInsertImage }: Props) {
   const [system, setSystem] = useState(true)
   const [microphone, setMicrophone] = useState(true)
   const [device, setDevice] = useState('default')
-  const [topic, setTopic] = useState('')
+  const topic = useTopicStore(s => s.activeTopicId) ?? ''
+  const topics = useTopicStore(s => s.topics)
   const [source, setSource] = useState('')
   const [sourceState, setSourceState] = useState('ready')
   const [images, setImages] = useState<number[]>([])
@@ -93,7 +96,7 @@ export function WorkspaceRecording({ capture, setCapture, engine, setEngine, loc
       </div>
       <div className="workspace-row">
         {!localOnly && <Select aria-label="实时转写服务" value={engine} onChange={e => setEngine(e.target.value as Engine)}>{engines.map(name => <option key={name}>{name}</option>)}</Select>}
-        <Select aria-label="录制专题" value={topic} onChange={e => setTopic(e.target.value)}><option value="">不归入专题</option><option>产品设计</option><option>团队周会</option></Select>
+        <Select aria-label="录制专题" value={topic} onChange={e => useTopicStore.setState({ activeTopicId: e.target.value || null })}><option value="">不归入专题</option>{topics.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}</Select>
       </div>
       {!localOnly && !ready && <div className="workspace-feedback" role="status"><span>{engine === engines[0] ? '火山转写凭据未配置' : '本地识别服务未就绪'}</span><button className="note-text-button" onClick={onConfigure}>配置转写服务</button></div>}
       {!system && !microphone && <p role="status">请选择至少一个音源。</p>}
@@ -153,7 +156,7 @@ export function WorkspaceRecording({ capture, setCapture, engine, setEngine, loc
         </div></details>
       </div>
     </PreviewDialog>
-    <ActionDialog open={deleteAudio} title="删除本地原音？" description="文字稿继续保留。删除后无法再通过原音回听或提交会后转写。" onClose={() => setDeleteAudio(false)} actions={[{ label: '取消', onClick: () => setDeleteAudio(false) }, { label: '删除原音', variant: 'danger', onClick: () => { setDeleteAudio(false); setAudioRemoved(true); setStorageNotice('示例原音已移除') } }]} />
+    <ActionDialog open={deleteAudio} title="删除本地原音？" description="文字稿继续保留。删除后无法再通过原音回听或提交会后转写。" onClose={() => setDeleteAudio(false)} actions={[{ label: '取消', onClick: () => setDeleteAudio(false) }, { label: '删除原音', variant: 'danger', onClick: () => { setDeleteAudio(false); setAudioRemoved(true); onRemoveAudio(); setStorageNotice('示例原音已移除') } }]} />
     <PreviewDialog open={image !== undefined} title="录制图片" onClose={() => setImage(undefined)}><p>合成截图 · {time(image ?? 0)}</p><div className="workspace-image" role="img" aria-label="合成会议截图"><Monitor size={40} /></div></PreviewDialog>
   </div>
 }

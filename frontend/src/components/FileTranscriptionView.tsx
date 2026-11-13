@@ -2,7 +2,7 @@ import { ActionDialog } from './ActionDialog'
 import { DEFAULT_ASR_VENDOR } from '../types/asr/common'
 import { FileTaskPanel } from './FileTaskPanel'
 import { useCallback, useMemo, useState, useEffect } from 'react'
-import { FileAudio, ChevronDown, Check, Cloud, HardDrive, X } from 'lucide-react'
+import { ChevronDown, Check, Cloud, HardDrive, X } from 'lucide-react'
 import { createPortal } from 'react-dom'
 import { FileDropZone } from './FileDropZone'
 import { FileTranscriptionProgress } from './FileTranscriptionProgress'
@@ -237,12 +237,9 @@ export function FileTranscriptionView() {
 
   return (
     <div className="flex flex-col h-full overflow-y-auto">
-      <div className="max-w-3xl mx-auto w-full px-5 py-6 space-y-5">
+      <div className="app-page-content w-full">
         {/* Header */}
-        <div className="flex items-center gap-3">
-          <div className="rounded-lg bg-primary/10 p-2">
-            <FileAudio className="h-5 w-5 text-primary" />
-          </div>
+        <div className="app-page-heading">
           <div>
             <h1 className="text-2xl font-semibold tracking-tight">{t.file?.title || 'File Transcription'}</h1>
             <p className="text-sm text-muted-foreground">

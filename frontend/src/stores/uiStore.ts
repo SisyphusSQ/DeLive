@@ -45,7 +45,7 @@ const applyTheme = (resolvedTheme: ResolvedTheme) => {
 export type WorkspaceView = 'live' | 'review' | 'topics' | 'file' | 'settings'
 
 export type ReviewTab = 'transcript' | 'summary' | 'chat' | 'mindmap'
-export type SettingsSection = 'provider' | 'fileStorage' | 'aiPostProcess'
+export type SettingsSection = 'provider' | 'fileStorage' | 'aiPostProcess' | 'appearance' | 'openApi' | 'cloudBackup' | 'dataManagement' | 'about'
 
 let settingsLeaveGuard: (() => Promise<boolean>) | undefined
 
@@ -72,6 +72,7 @@ export interface UIState {
   initTheme: () => void
 
   currentView: WorkspaceView
+  reviewOriginTopicId: string | null
   reviewSessionId: string | null
   reviewVersionId: string | null
   reviewTab: ReviewTab
@@ -89,6 +90,7 @@ export interface UIState {
   returnFromSettings: (saved?: boolean) => void
   setView: (view: WorkspaceView, reviewSessionId?: string | null) => void
   openReview: (sessionId: string, versionId?: string) => void
+  openTopicReview: (sessionId: string, topicId: string) => void
 
   commandPaletteOpen: boolean
   setCommandPaletteOpen: (open: boolean) => void
@@ -135,6 +137,7 @@ export const useUIStore = create<UIState>((set, get) => ({
     set({ colorTheme })
   },
   currentView: 'live',
+  reviewOriginTopicId: null,
   reviewSessionId: null,
   reviewVersionId: null,
   reviewTab: 'transcript',
@@ -148,7 +151,11 @@ export const useUIStore = create<UIState>((set, get) => ({
   settingsOrigin: null,
   openSettings: (section, providerId) => {
     const { currentView } = get()
-    if (currentView === 'settings') return
+    if (currentView === 'settings') {
+      if (get().settingsSection === section && get().settingsProviderId === providerId) return
+      leaveSettings(currentView, () => set({ settingsSection: section, settingsProviderId: providerId }))
+      return
+    }
     const settingsReturnFocus = typeof document === 'undefined' ? undefined : document.activeElement?.getAttribute('data-settings-entry') ?? undefined
     set({ currentView: 'settings', settingsSection: section, settingsProviderId: providerId, settingsOrigin: currentView, settingsReturnFocus })
   },
@@ -161,11 +168,13 @@ export const useUIStore = create<UIState>((set, get) => ({
   },
   setView: (view, reviewSessionId = null) => {
     if (view === 'settings') { get().openSettings('provider'); return }
-    leaveSettings(get().currentView, () => set({ currentView: view, reviewSessionId, reviewVersionId: null, reviewTab: 'transcript', settingsOrigin: null, settingsReturnFocus: undefined }))
+    leaveSettings(get().currentView, () => set({ currentView: view, reviewSessionId, reviewOriginTopicId: null, reviewVersionId: null, reviewTab: 'transcript', settingsOrigin: null, settingsReturnFocus: undefined }))
   },
   openReview: (sessionId, versionId) => leaveSettings(get().currentView, () => set({
     currentView: 'review', reviewSessionId: sessionId, reviewVersionId: versionId ?? null, reviewTab: 'transcript', settingsOrigin: null, settingsReturnFocus: undefined,
   })),
+
+  openTopicReview: (sessionId, topicId) => leaveSettings(get().currentView, () => set({ currentView: 'review', reviewSessionId: sessionId, reviewVersionId: null, reviewTab: 'transcript', reviewOriginTopicId: topicId })),
 
   commandPaletteOpen: false,
   setCommandPaletteOpen: (open) => set({ commandPaletteOpen: open }),

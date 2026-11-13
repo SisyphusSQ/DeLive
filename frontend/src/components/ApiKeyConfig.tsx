@@ -8,6 +8,7 @@ import { setSettingsLeaveGuard, useUIStore } from '../stores/uiStore'
 import { useSettingsStore } from '../stores/settingsStore'
 import { useSessionStore } from '../stores/sessionStore'
 import { useTagStore } from '../stores/tagStore'
+import { useTopicStore } from '../stores/topicStore'
 import {
   exportAllData,
   getBackupValidationErrors,
@@ -47,8 +48,8 @@ interface ApiKeyConfigProps {
 const NAV_ITEMS: { id: SettingsGroup; icon: typeof Settings; labelKey: string }[] = [
   { id: 'provider', icon: Volume2, labelKey: 'groupProvider' },
   { id: 'fileStorage', icon: Cloud, labelKey: '火山文件存储' },
-  { id: 'appearance', icon: Palette, labelKey: 'groupAppearance' },
   { id: 'aiPostProcess', icon: Bot, labelKey: 'groupAi' },
+  { id: 'appearance', icon: Palette, labelKey: 'groupAppearance' },
   { id: 'openApi', icon: Globe, labelKey: 'groupOpenApi' },
   { id: 'cloudBackup', icon: Cloud, labelKey: 'groupCloudBackup' },
   { id: 'dataManagement', icon: HardDrive, labelKey: 'groupDataManagement' },
@@ -69,12 +70,14 @@ export function ApiKeyConfig({ isOpen, onClose, mode = 'modal', onViewChangelog 
   } = useSettingsStore()
   const { loadSessions } = useSessionStore()
   const { loadTags } = useTagStore()
+  const loadTopics = useTopicStore(state => state.loadTopics)
 
   const [storageDirty, setStorageDirty] = useState(false)
   const [storageSaving, setStorageSaving] = useState(false)
   const [saving, setSaving] = useState(false)
   const { confirm, dialog } = useConfirmation()
   const [activeGroup, setActiveGroup] = useState<SettingsGroup>(settingsSection)
+
 
   const savedVendor = settingsProviderId || settings.currentVendor || DEFAULT_ASR_VENDOR
   const makeCurrent = !settingsProviderId || settingsOrigin === 'live'
@@ -119,6 +122,15 @@ export function ApiKeyConfig({ isOpen, onClose, mode = 'modal', onViewChangelog 
     snapshotRef.current = { formState: newFormState, languageHints: newLanguageHints, aiPostProcessConfig: newAiConfig }
   }, [currentProvider, currentStoredConfig, settings])
 
+  useEffect(() => {
+    setActiveGroup(settingsSection)
+    selectVendor(savedVendor)
+    const saved = snapshotRef.current
+    setFormState(saved.formState)
+    setLanguageHints(saved.languageHints)
+    setAiPostProcessConfig(saved.aiPostProcessConfig)
+  }, [settingsSection, savedVendor])
+
   const snap = snapshotRef.current
   const fieldsDirty = JSON.stringify(formState) !== JSON.stringify(snap.formState) ||
     languageHints !== snap.languageHints ||
@@ -148,22 +160,25 @@ export function ApiKeyConfig({ isOpen, onClose, mode = 'modal', onViewChangelog 
     }
   }
 
+  useEffect(() => {
+    const api = window.electronAPI
+    if (!supportsAutoUpdate || !api) return
+    const cleanups = [
+      api.onUpdateAvailable(() => setUpdateStatus('available')),
+      api.onUpdateNotAvailable(() => setUpdateStatus('not-available')),
+      api.onUpdateError(() => setUpdateStatus('error')),
+    ]
+    return () => cleanups.forEach(cleanup => cleanup())
+  }, [supportsAutoUpdate])
+
   const handleCheckUpdate = useCallback(async () => {
     if (!window.electronAPI?.checkForUpdates) return
     setUpdateStatus('checking')
-    const result = await window.electronAPI.checkForUpdates()
-    if (result.error) {
-      setUpdateStatus('error')
-      setTimeout(() => setUpdateStatus('idle'), 3000)
-    } else if (result.success) {
-      setTimeout(() => {
-        if (updateStatus === 'checking') {
-          setUpdateStatus('not-available')
-          setTimeout(() => setUpdateStatus('idle'), 3000)
-        }
-      }, 5000)
-    }
-  }, [updateStatus])
+    try {
+      const result = await window.electronAPI.checkForUpdates()
+      if (result.error) setUpdateStatus('error')
+    } catch { setUpdateStatus('error') }
+  }, [])
 
   const updateFormField = (fieldKey: string, value: string | boolean) => {
     setFormState(prev => ({ ...prev, [fieldKey]: value }))
@@ -310,12 +325,13 @@ export function ApiKeyConfig({ isOpen, onClose, mode = 'modal', onViewChangelog 
       }
       await loadSessions()
       loadTags()
+      loadTopics()
     } catch (error) {
       setImportMessage({ type: 'error', text: error instanceof Error ? error.message : t.settings.importFailed })
     } finally {
       setPendingImportData(null)
     }
-  }, [loadSessions, loadTags, pendingImportData, t.settings])
+  }, [loadSessions, loadTags, loadTopics, pendingImportData, t.settings])
 
   const askLeave = () => saving || storageSaving ? Promise.resolve(false) : isDirty || storageDirty
     ? confirm('放弃尚未保存的设置修改？') : Promise.resolve(true)
@@ -340,13 +356,13 @@ export function ApiKeyConfig({ isOpen, onClose, mode = 'modal', onViewChangelog 
   const settingsContent = (
     <div className="settings-workspace flex h-full min-h-0 flex-col">
       {dialog}
-      <header className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-b border-border/60 px-4 py-2">
-        <h1 id={isViewMode ? undefined : "settings-dialog-title"} className="text-xl font-semibold tracking-tight">{t.common.settings}</h1>
+      <header className="settings-page-heading app-page-heading">
+        <div><h1 id={isViewMode ? undefined : "settings-dialog-title"}>{t.common.settings}</h1><p>{t.workspace.settingsHint}</p></div>
         {settingsOrigin && <Button variant="ghost" size="sm" onClick={() => onClose()}>{({ live: "返回录制", file: "返回文件转写", review: "返回会议继续", topics: "返回主题" })[settingsOrigin]}</Button>}
       </header>
       <div className="settings-workspace-layout flex min-h-0 flex-1">
       {/* Left navigation */}
-      <nav className="settings-workspace-nav w-40 shrink-0 space-y-1 overflow-y-auto border-r border-border/40 p-2">
+      <nav aria-label={t.common.settings} className="settings-workspace-nav w-40 shrink-0 space-y-1 overflow-y-auto border-r border-border/40 p-2">
         {NAV_ITEMS.map(item => {
           const Icon = item.icon
           const label = (t.settings as unknown as Record<string, string>)?.[item.labelKey] ?? item.labelKey
@@ -354,6 +370,7 @@ export function ApiKeyConfig({ isOpen, onClose, mode = 'modal', onViewChangelog 
           return (
             <button
               key={item.id}
+              aria-current={active ? 'page' : undefined}
               onClick={() => {
                 if (activeGroup === item.id) return
                 void askLeave().then(confirmed => {
@@ -364,6 +381,7 @@ export function ApiKeyConfig({ isOpen, onClose, mode = 'modal', onViewChangelog 
                     setLanguageHints(snapshotRef.current.languageHints)
                     setAiPostProcessConfig(snapshotRef.current.aiPostProcessConfig)
                   }
+                  useUIStore.setState({ settingsSection: item.id })
                   setActiveGroup(item.id)
                 })
               }}
@@ -384,8 +402,8 @@ export function ApiKeyConfig({ isOpen, onClose, mode = 'modal', onViewChangelog 
 
       {/* Right content */}
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-        <div key={activeGroup} className="flex-1 overflow-y-auto p-3 sm:p-6">
-          <div className="mx-auto max-w-2xl space-y-6">
+        <div key={activeGroup} className="settings-page-scroll flex-1 overflow-y-auto p-3 sm:p-6">
+          <div className="settings-page-fields mx-auto space-y-6">
             {activeGroup === 'fileStorage' && <FileStorageSettings onDirty={setStorageDirty} onSaving={setStorageSaving} />}
             {activeGroup === 'provider' && (
               <ServiceSettingsPanel
@@ -496,7 +514,7 @@ export function ApiKeyConfig({ isOpen, onClose, mode = 'modal', onViewChangelog 
 
         {/* Save bar — only shown for groups that need manual save */}
         {(activeGroup === 'provider' || activeGroup === 'aiPostProcess') && (
-          <div className="flex shrink-0 flex-wrap items-center justify-end gap-2 border-t border-border bg-muted/30 px-3 py-2 sm:px-6">
+          <div className="settings-save-bar flex shrink-0 flex-wrap items-center justify-end gap-2 border-t border-border bg-muted/30 px-3 py-2 sm:px-6">
             {testStatus === 'error' && <p role="alert" className="mr-auto text-sm text-destructive">{testMessage}</p>}
             {isDirty && (
               <span className="mr-auto text-xs text-warning font-medium">

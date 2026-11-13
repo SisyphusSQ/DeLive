@@ -1,4 +1,4 @@
-import { useEffect, useCallback } from 'react'
+import { useEffect, useCallback, useRef } from 'react'
 import { Sparkles, Wrench, X } from 'lucide-react'
 import { useUIStore } from '../stores/uiStore'
 import type { WhatsNewEntry } from '../utils/whatsNew'
@@ -14,11 +14,18 @@ interface WhatsNewDialogProps {
 }
 
 export function WhatsNewDialog({ open, onClose, entry, allEntries, showAll }: WhatsNewDialogProps) {
-  const { language } = useUIStore()
+  const { language, t } = useUIStore()
+  const panel = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    if (!open) return
+    const previous = document.activeElement as HTMLElement | null
+    panel.current?.querySelector<HTMLButtonElement>('button')?.focus()
+    return () => { if (previous?.isConnected) previous.focus() }
+  }, [open])
 
   const handleKeyDown = useCallback(
     (event: KeyboardEvent) => {
-      if (event.key === 'Escape') onClose()
+      if (event.key === 'Escape') { event.preventDefault(); onClose() }
     },
     [onClose],
   )
@@ -43,9 +50,18 @@ export function WhatsNewDialog({ open, onClose, entry, allEntries, showAll }: Wh
       onClick={(e) => { if (e.target === e.currentTarget) onClose() }}
     >
       <div
+        ref={panel}
+        aria-labelledby="whats-new-title"
+        onKeyDown={event => {
+          if (event.key !== 'Tab') return
+          const items = [...event.currentTarget.querySelectorAll<HTMLElement>('button, a[href]')]
+          const first = items[0], last = items[items.length - 1]
+          if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last?.focus() }
+          else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus() }
+        }}
         role="dialog"
         aria-modal="true"
-        className="w-full max-w-lg rounded-2xl border border-border bg-card text-card-foreground shadow-2xl animate-in zoom-in-95 duration-200 flex flex-col max-h-[80vh]"
+        className="w-full max-w-[640px] rounded-xl border border-border bg-card text-card-foreground shadow-2xl animate-in zoom-in-95 duration-200 flex flex-col max-h-[80vh]"
       >
         <div className="flex items-center justify-between border-b border-border px-6 py-4">
           <div className="flex items-center gap-3">
@@ -53,7 +69,7 @@ export function WhatsNewDialog({ open, onClose, entry, allEntries, showAll }: Wh
               <Sparkles className="h-5 w-5 text-primary" />
             </div>
             <div>
-              <h2 className="text-lg font-semibold tracking-tight">{title}</h2>
+              <h2 id="whats-new-title" className="text-lg font-semibold tracking-tight">{title}</h2>
               {!showAll && entry && (
                 <p className="text-xs text-muted-foreground">v{entry.version} · {entry.date}</p>
               )}
@@ -61,6 +77,7 @@ export function WhatsNewDialog({ open, onClose, entry, allEntries, showAll }: Wh
           </div>
           <button
             onClick={onClose}
+            aria-label={t.common.close}
             className="rounded-lg p-2 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
           >
             <X className="h-5 w-5" />

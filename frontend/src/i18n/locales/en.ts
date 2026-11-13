@@ -80,7 +80,7 @@ export const en: Translations = {
     dataExported: 'Data exported',
     invalidBackupFile: 'Invalid backup file format',
     importConfirm: (sessions: number, tags: number) => 
-      `Backup file contains ${sessions} sessions and ${tags} tags.\n\nClick "OK" to overwrite existing data\nClick "Cancel" to merge data (keep existing, add new)`,
+      `Backup file contains ${sessions} sessions and ${tags} tags. Merge keeps existing records and adds new data. Overwrite replaces existing text data. Cancel makes no changes.`,
     importedOverwrite: (sessions: number, tags: number) => 
       `Imported ${sessions} sessions and ${tags} tags`,
     importedMerge: (sessions: number, tags: number) => 
@@ -547,6 +547,28 @@ export const en: Translations = {
   },
 
   // Command Palette
+  workspace: {
+    clearSearch: "Clear search",
+    title: "Workspace",
+    commands: "Commands",
+    recordingHint: "Choose your audio sources, then start the meeting.",
+    topicsHint: "Keep related conversations together as your work grows.",
+    settingsHint: "Manage transcription, AI and desktop preferences.",
+    allTopics: "All topics",
+    backToTopic: "Back to topic",
+    topicMeetings: "Meetings",
+    noTopicMeetings: "No meetings in this topic yet",
+    topicMeetingsHint: "Start a recording here to add it to this topic.",
+    loading: "Loading meeting materials",
+    loadFailed: "Unable to load materials",
+    retry: "Reload",
+    restoring: "Restoring backup",
+    restoreHint: "Keep the app open. Reload to continue an unfinished restore.",
+    resumeRestore: "Reload and continue restore",
+    noCommands: "No matching commands",
+    tokenConfirm: "Generating a new token will disconnect clients using the old token. Continue?",
+  },
+
   command: {
     searchPlaceholder: 'Type a command or search...',
     exportData: 'Export Data',

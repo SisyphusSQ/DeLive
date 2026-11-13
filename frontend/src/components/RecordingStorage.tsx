@@ -1,3 +1,4 @@
+import { useConfirmation } from '../hooks/useConfirmation'
 import { Select } from './ui/Select'
 import { useEffect, useState } from 'react'
 import { useRecordingStore } from '../stores/recordingStore'
@@ -5,6 +6,7 @@ import { useSessionStore } from '../stores/sessionStore'
 import type { RecordingManifest, RecordingSettings } from '../../../shared/recording'
 
 export function RecordingStorage() {
+  const { confirm, dialog } = useConfirmation()
   const capture = useRecordingStore()
   const idle = useSessionStore(s => s.recordingState === 'idle')
   const [devices, setDevices] = useState<MediaDeviceInfo[]>([])
@@ -34,16 +36,17 @@ export function RecordingStorage() {
     } catch (e) { setError((e as Error).message) }
   }
   async function remove(id: string) {
-    if (!window.confirm('永久删除这条录音的本地原音？文字会话保留，此操作无法撤销。')) return
+    if (!await confirm('永久删除这条录音的本地原音？文字会话保留，此操作无法撤销。')) return
     try { await window.electronAPI!.recording.remove(id); await refresh() }
     catch (e) { setError((e as Error).message) }
   }
-  return <section className="rounded-xl border border-border p-3 space-y-2 text-sm" aria-label="录音来源与原音存储">
-    <div className="flex flex-wrap gap-4">
+  return <section className="recording-sources rounded-xl border border-border p-4 space-y-3 text-sm" aria-label="录音来源与原音存储">
+    {dialog}
+    <div className="flex flex-wrap items-center gap-3">
       <label><input type="checkbox" checked={capture.system} disabled={!idle} onChange={e => capture.update({ system: e.target.checked })} /> 系统声音</label>
       <label><input type="checkbox" checked={capture.microphone} disabled={!idle} onChange={e => capture.update({ microphone: e.target.checked })} /> 麦克风</label>
       <label><input type="checkbox" checked={capture.localOnly} disabled={!idle} onChange={e => capture.update({ localOnly: e.target.checked })} /> 仅录音（无需密钥）</label>
-      <Select aria-label="麦克风设备" value={capture.microphoneId} disabled={!idle || !capture.microphone} onChange={e => capture.update({ microphoneId: e.target.value })} className="bg-background border rounded">
+      <Select aria-label="麦克风设备" value={capture.microphoneId} disabled={!idle || !capture.microphone} onChange={e => capture.update({ microphoneId: e.target.value })} className="bg-background border border-input rounded-md px-3 py-2">
         <option value="">系统默认麦克风</option>
         {devices.map((d, i) => <option key={d.deviceId || i} value={d.deviceId}>{d.label || '麦克风 ' + (i + 1)}</option>)}
       </Select>
@@ -55,7 +58,7 @@ export function RecordingStorage() {
     </div>)}
     {capture.asrStatus && <p role="status">{capture.asrStatus}</p>}
     {(error || capture.error) && <p role="alert" className="text-destructive">{error || capture.error}</p>}
-    <button className="underline" onClick={() => { setExpanded(!expanded); void refresh() }}>原音存储与恢复</button>
+    <button className="app-text-button" aria-expanded={expanded} onClick={() => { setExpanded(!expanded); void refresh() }}>原音存储与恢复</button>
     {expanded && <div className="space-y-2">
       <p className="break-all">保存位置：{storage?.directory || '仅桌面应用支持'}</p>
       <p>当前目录占用：{((storage?.bytes || 0) / 1024 ** 2).toFixed(1)} MiB；保留策略：不自动删除。删除文字会话不会删除原音。</p>

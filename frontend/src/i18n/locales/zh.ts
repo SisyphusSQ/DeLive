@@ -79,7 +79,7 @@ export const zh = {
     dataExported: '数据已导出',
     invalidBackupFile: '无效的备份文件格式',
     importConfirm: (sessions: number, tags: number) => 
-      `检测到备份文件包含 ${sessions} 条会话和 ${tags} 个标签。\n\n点击"确定"将覆盖现有数据\n点击"取消"将合并数据（保留现有，添加新数据）`,
+      `检测到备份文件包含 ${sessions} 条会话和 ${tags} 个标签。选择“合并导入”保留现有资料并添加新数据；选择“覆盖导入”替换现有文字数据。取消不会修改任何数据。`,
     importedOverwrite: (sessions: number, tags: number) => 
       `已导入 ${sessions} 条会话和 ${tags} 个标签`,
     importedMerge: (sessions: number, tags: number) => 
@@ -543,6 +543,28 @@ export const zh = {
     weeksAgo: (n: number) => `${n}周前`,
     hoursShort: 'h',
     minutesShort: 'min',
+  },
+
+  workspace: {
+    clearSearch: "清除搜索",
+    title: "工作台",
+    commands: "命令面板",
+    recordingHint: "选择音源，再开始记录这场会议。",
+    topicsHint: "让相关的讨论，汇成一份持续生长的记录。",
+    settingsHint: "管理转写、AI 和本机偏好。",
+    allTopics: "所有主题",
+    backToTopic: "返回主题",
+    topicMeetings: "会议记录",
+    noTopicMeetings: "这个主题还没有会议",
+    topicMeetingsHint: "从这里开始录制，保存后会归入当前主题。",
+    loading: "正在读取会议资料",
+    loadFailed: "暂时无法读取资料",
+    retry: "重新读取",
+    restoring: "正在恢复备份",
+    restoreHint: "请保持应用打开。恢复尚未完成时，重新加载可继续恢复。",
+    resumeRestore: "重新加载并继续恢复",
+    noCommands: "没有匹配的命令",
+    tokenConfirm: "重新生成令牌后，原有客户端将无法继续连接。确认重新生成？",
   },
 
   command: {

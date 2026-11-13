@@ -4,7 +4,8 @@ import { startAutoBackup } from './services/autoBackup'
 import { flushImageRemovals } from './services/imageCleanup'
 import { refreshFileTasks } from './stores/fileTaskStore'
 import { useState, useEffect, useCallback } from 'react'
-import { AlertTriangle } from 'lucide-react'
+import { AlertTriangle, ArrowLeft, Search } from 'lucide-react'
+import './workspace.css'
 import { useUIStore } from './stores/uiStore'
 import { useSettingsStore } from './stores/settingsStore'
 import { useSessionStore } from './stores/sessionStore'
@@ -207,15 +208,14 @@ function App() {
 
   const isElectron = !!window.electronAPI?.isElectron
 
-  if (storageError) return <div role="alert" className="p-8 space-y-4"><p>{storageError}</p><button onClick={() => window.location.reload()}>重新读取</button></div>
-  if (!isInitialized) return <p role="status" className="p-8">正在读取会话…</p>
+  if (storageError || !isInitialized) return <main className="app-startup" role={storageError ? 'alert' : 'status'}><div><span className="app-startup-logo">D</span><h1>{storageError ? t.workspace.loadFailed : t.workspace.loading}</h1>{storageError && <><p>{storageError}</p><button className="app-primary" onClick={() => window.location.reload()}>{t.workspace.retry}</button></>}</div></main>
 
   const sidebarWidth = sidebarCollapsed ? 56 : 224
 
-  if(restoreBusy)return <div role="alert" className="fixed inset-0 grid place-items-center bg-background"><div>正在恢复资料，请保持应用打开。若收尾失败，请重启应用继续。<button className="block text-primary" onClick={()=>window.location.reload()}>重新加载并恢复事务</button></div></div>
+  if (restoreBusy) return <main className="app-startup" role="status"><div><span className="app-startup-logo">D</span><h1>{t.workspace.restoring}</h1><p>{t.workspace.restoreHint}</p><button className="app-primary" onClick={() => window.location.reload()}>{t.workspace.resumeRestore}</button></div></main>
 
   return (
-    <div className="flex h-screen bg-background text-foreground transition-colors duration-300">
+    <div className="app-workspace flex h-screen bg-background text-foreground transition-colors duration-300" style={{ '--app-sidebar': `${sidebarWidth}px` } as React.CSSProperties}>
       <a
         href="#app-main"
         className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-[110] focus:rounded-md focus:bg-background focus:px-3 focus:py-2 focus:text-sm focus:font-medium focus:text-foreground focus:shadow-lg"
@@ -242,6 +242,10 @@ function App() {
           marginTop: isElectron ? 32 : 0,
         }}
       >
+        <header className="app-workspace-bar">
+          <div className="app-workspace-path">{currentView === 'review' && useUIStore.getState().reviewOriginTopicId ? <button className="app-text-button" onClick={() => { const id = useUIStore.getState().reviewOriginTopicId; useTopicStore.getState().setSelectedTopic(id); setView('topics') }}><ArrowLeft size={14} />{t.workspace.backToTopic}</button> : <span>{t.workspace.title}</span>}<span>/</span><span>{t.nav[currentView]}</span></div>
+          {!isElectron && <button className="app-text-button" onClick={() => useUIStore.getState().setCommandPaletteOpen(true)}><Search size={14} />{t.workspace.commands}<kbd>⌘ K</kbd></button>}
+        </header>
         {/* Settings */}
         {currentView === 'settings' && (
           <div className="flex-1 overflow-hidden animate-view-enter">
@@ -280,8 +284,8 @@ function App() {
           id="app-main"
           className={`flex-1 overflow-y-auto ${currentView === 'live' ? '' : 'hidden'}`}
         >
-          <div className="mx-auto max-w-4xl px-4 py-4 sm:px-6 sm:py-6">
-            <h1 className="mb-4 text-2xl font-semibold tracking-tight">{t.nav.live}</h1>
+          <div className="app-page-content">
+            <header className="app-page-heading"><div><h1>{t.nav.live}</h1><p>{t.workspace.recordingHint}</p></div></header>
             <div className="space-y-6">
               {isInitialized && recordingState === 'idle' && recoverySession && (
                 <div className="flex flex-col gap-3 rounded-xl border border-info/30 bg-info/5 p-4 sm:flex-row sm:items-center sm:justify-between">

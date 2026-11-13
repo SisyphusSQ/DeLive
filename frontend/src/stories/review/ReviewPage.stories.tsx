@@ -1,6 +1,6 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, type CSSProperties } from 'react'
 import type { Meta, StoryObj } from '@storybook/react-vite'
-import { expect, fireEvent, userEvent, within } from 'storybook/test'
+import { expect, fireEvent, userEvent, waitFor, within } from 'storybook/test'
 import { Moon, Sun, RotateCcw } from 'lucide-react'
 import { Sidebar } from '../../components/Sidebar'
 import { ReviewDeskView } from '../../components/ReviewDeskView'
@@ -40,9 +40,9 @@ function ReviewPreview({ initial = 'proposal', scenario = 'normal', initialTab =
       <button className="design-icon" aria-label={ui.resolvedTheme === 'light' ? '切换深色' : '切换浅色'} onClick={() => ui.setTheme(ui.resolvedTheme === 'light' ? 'dark' : 'light')}>{ui.resolvedTheme === 'light' ? <Moon size={15} /> : <Sun size={15} />}</button>
       <button className="design-icon" aria-label="重置合成预览" onClick={() => { setReady(false); setState(initialState); setReset(n => n + 1) }}><RotateCcw size={14} /></button>
     </div>
-    {error ? <p role="alert">{error}</p> : !ready ? <p className="p-8">正在准备合成会议…</p> : <div className="review-stage" key={reset}>
+    {error ? <p role="alert">{error}</p> : !ready ? <p className="p-8">正在准备合成会议…</p> : <div className="review-stage" key={reset} style={{ '--review-sidebar': `${collapsed ? 56 : 224}px` } as CSSProperties}>
       <Sidebar collapsed={collapsed} onToggle={() => setCollapsed(v => !v)} currentView="review" onNavigate={() => setNotice('本次只预览回顾页，其他页面保留现有设计。')} recordingState="idle" />
-      <div className="review-stage-content" style={{ marginLeft: collapsed ? 56 : 224 }}>
+      <div className="review-stage-content" style={{ marginLeft: 'var(--review-sidebar)' }}>
         {view === 'current' ? <ReviewDeskView /> : <NotebookReview scenario={scenario} initialTab={initialTab} state={state} onState={setState} />}
       </div>
     </div>}
@@ -147,7 +147,17 @@ export const CoverageInteractions: Story = {
     await fireEvent.change(question, { target: { value: '本地新问题' } })
     await fireEvent.keyDown(question, { key: 'Enter' })
     await expect(canvas.getByText(/暂时不能回答新的问题/)).toBeVisible()
-    await userEvent.click(canvas.getByRole('combobox', { name: '历史对话' }))
+    const history = canvas.getByRole('combobox', { name: '历史对话' })
+    // 等发送后的平滑滚动结束，再打开会随外层滚动关闭的菜单。
+    let previousTop = NaN
+    await waitFor(() => {
+      const top = history.getBoundingClientRect().top, previous = previousTop
+      previousTop = top
+      expect(top).toBe(previous)
+    })
+    history.scrollIntoView({ block: 'center', behavior: 'instant' })
+    await new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve())))
+    await userEvent.click(history)
     await userEvent.click(body.getByRole('option', { name: '回顾页设计决策' }))
     await expect(canvas.getByRole('button', { name: '复制第 1 个问题' })).toBeVisible()
     await userEvent.click(canvas.getByRole('button', { name: '思维导图' }))

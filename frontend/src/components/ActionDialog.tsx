@@ -64,11 +64,11 @@ export function ActionDialog({
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
-        className="w-full max-w-md rounded-2xl border border-border bg-card text-card-foreground shadow-2xl dark:ring-1 dark:ring-white/[0.08]"
+        className="w-full max-w-[640px] max-h-[calc(100dvh-40px)] overflow-auto rounded-xl border border-border bg-card text-card-foreground shadow-2xl dark:ring-1 dark:ring-white/[0.08]"
         onClick={(event) => event.stopPropagation()}
       >
         <div className="flex items-start justify-between gap-4 border-b border-border px-5 py-4">
-          <div className="space-y-1">
+          <div className="min-w-0 space-y-1 [overflow-wrap:anywhere]">
             <h3 id={titleId} className="text-base font-semibold tracking-tight text-foreground">
               {title}
             </h3>
@@ -92,7 +92,7 @@ export function ActionDialog({
               key={`${action.label}-${index}`}
               type="button"
               onClick={action.onClick}
-              className={`inline-flex h-10 items-center justify-center rounded-lg px-4 text-sm font-medium transition-colors ${
+              className={`inline-flex h-10 items-center justify-center rounded-md px-4 text-sm font-medium transition-colors ${
                 actionClassMap[action.variant || 'secondary']
               }`}
             >

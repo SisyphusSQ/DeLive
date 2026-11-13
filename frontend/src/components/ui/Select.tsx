@@ -20,14 +20,15 @@ function optionsFrom(children: ReactNode): Option[] {
 export function Select({ children, value, onChange, disabled, className = '', id, 'aria-label': label, 'aria-labelledby': labelledBy, title, name }: Props) {
   const options = optionsFrom(children), selected = options.findIndex(option => option.value === String(value ?? ''))
   const [open, setOpen] = useState(false), [active, setActive] = useState(0)
-  const [position, setPosition] = useState({ left: 0, top: 0, width: 0, height: 280 })
+  const [position, setPosition] = useState({ left: 0, top: 0, width: 0, height: 280, above: false, fontSize: '14px' })
   const button = useRef<HTMLButtonElement>(null), menu = useRef<HTMLDivElement>(null)
   const search = useRef({ text: '', at: 0 }), menuId = useId()
   const show = () => {
     if (disabled) return
     const rect = button.current!.getBoundingClientRect(), below = window.innerHeight - rect.bottom - 12
     const height = Math.min(280, Math.max(below, rect.top - 12)), width = Math.min(Math.max(rect.width, 220), window.innerWidth - 24)
-    setPosition({ left: Math.max(12, Math.min(rect.left, window.innerWidth - width - 12)), top: below >= height ? rect.bottom + 4 : Math.max(8, rect.top - height - 4), width, height })
+    const above = below < height
+    setPosition({ left: Math.max(12, Math.min(rect.left, window.innerWidth - width - 12)), top: above ? rect.top - 4 : rect.bottom + 4, width, height, above, fontSize: getComputedStyle(button.current!).fontSize })
     setActive(selected >= 0 && !options[selected].disabled ? selected : Math.max(0, options.findIndex(option => !option.disabled)))
     setOpen(true)
   }
@@ -42,8 +43,9 @@ export function Select({ children, value, onChange, disabled, className = '', id
     menu.current?.focus()
     const outside = (event: PointerEvent) => { if (!menu.current?.contains(event.target as Node) && !button.current?.contains(event.target as Node)) setOpen(false) }
     const layout = () => setOpen(false)
-    document.addEventListener('pointerdown', outside); window.addEventListener('resize', layout)
-    return () => { document.removeEventListener('pointerdown', outside); window.removeEventListener('resize', layout) }
+    const scroll = (event: Event) => { if (!menu.current?.contains(event.target as Node)) setOpen(false) }
+    document.addEventListener('pointerdown', outside); window.addEventListener('resize', layout); document.addEventListener('scroll', scroll, true)
+    return () => { document.removeEventListener('pointerdown', outside); window.removeEventListener('resize', layout); document.removeEventListener('scroll', scroll, true) }
   }, [open])
   useEffect(() => { if (open) document.getElementById(`${menuId}-${active}`)?.scrollIntoView({ block: 'nearest' }) }, [active, open, menuId])
   return <>
@@ -56,7 +58,7 @@ export function Select({ children, value, onChange, disabled, className = '', id
     {open && createPortal(<div ref={menu} id={menuId} role="listbox" tabIndex={-1} aria-label={label} aria-labelledby={labelledBy}
       aria-activedescendant={options[active] ? `${menuId}-${active}` : undefined}
       className="fixed z-[200] overflow-y-auto rounded-lg border border-border bg-popover p-1 text-popover-foreground shadow-lg outline-none"
-      style={{ left: position.left, top: position.top, width: position.width, maxHeight: position.height }} onKeyDown={event => {
+      style={{ left: position.left, top: position.top, width: position.width, maxHeight: position.height, transform: position.above ? 'translateY(-100%)' : undefined, fontSize: position.fontSize }} onKeyDown={event => {
         if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); close(); return }
         if (event.key === 'Tab') { close(); return }
         if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); choose(active); return }
@@ -73,9 +75,9 @@ export function Select({ children, value, onChange, disabled, className = '', id
         }
       }}>
       {options.map((option, i) => <div key={option.value} id={`${menuId}-${i}`} role="option" aria-selected={i === selected} aria-disabled={option.disabled}
-        className={`flex cursor-pointer items-center gap-2 rounded-md px-3 py-2 text-sm ${i === active ? 'bg-accent text-accent-foreground' : ''} ${option.disabled ? 'cursor-not-allowed opacity-40' : ''}`}
+        className={`flex cursor-pointer items-center gap-2 rounded-md px-3 py-2 ${i === active ? 'bg-accent text-accent-foreground' : ''} ${option.disabled ? 'cursor-not-allowed opacity-40' : ''}`}
         onPointerMove={() => { if (!option.disabled) setActive(i) }} onClick={() => choose(i)}>
-        <Check className={`h-3.5 w-3.5 shrink-0 ${i === selected ? '' : 'invisible'}`} /><span className="break-words">{option.label}</span>
+        <Check className={`h-3.5 w-3.5 shrink-0 ${i === selected ? '' : 'invisible'}`} /><span className="min-w-0 break-words">{option.label}</span>
       </div>)}
       {!options.length && <p className="px-3 py-2 text-sm text-muted-foreground">暂无选项</p>}
     </div>, document.body)}
