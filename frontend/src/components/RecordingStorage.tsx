@@ -45,7 +45,6 @@ export function RecordingStorage() {
     <div className="flex flex-wrap items-center gap-3">
       <label><input type="checkbox" checked={capture.system} disabled={!idle} onChange={e => capture.update({ system: e.target.checked })} /> 系统声音</label>
       <label><input type="checkbox" checked={capture.microphone} disabled={!idle} onChange={e => capture.update({ microphone: e.target.checked })} /> 麦克风</label>
-      <label><input type="checkbox" checked={capture.localOnly} disabled={!idle} onChange={e => capture.update({ localOnly: e.target.checked })} /> 仅录音（无需密钥）</label>
       <Select aria-label="麦克风设备" value={capture.microphoneId} disabled={!idle || !capture.microphone} onChange={e => capture.update({ microphoneId: e.target.value })} className="bg-background border border-input rounded-md px-3 py-2">
         <option value="">系统默认麦克风</option>
         {devices.map((d, i) => <option key={d.deviceId || i} value={d.deviceId}>{d.label || '麦克风 ' + (i + 1)}</option>)}

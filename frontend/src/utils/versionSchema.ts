@@ -15,12 +15,12 @@ function merge(raw: unknown): TranscriptMerge | undefined {
     seen.add(String(g.id))
     const comparisonOnly = v.strategy === 2 && g.comparisonOnly === true ? true : undefined
     if (comparisonOnly && ((g.postIds as string[]).length || (g.outputIds as string[]).length ||
-      (g.status !== 'pending' && !(g.status === 'confirmed' && g.decision === 'reviewed')))) return undefined
+      (g.status !== 'pending' && !(g.status === 'confirmed' && ['reviewed', 'keep-current'].includes(String(g.decision)))))) return undefined
     groups.push({ id: String(g.id), status: g.status as TranscriptMerge['groups'][number]['status'],
       baseIds: [...g.baseIds as string[]], postIds: [...g.postIds as string[]], currentIds: [...g.currentIds as string[]], outputIds: [...g.outputIds as string[]],
       reason: str(g.reason), ...(comparisonOnly && { comparisonOnly }),
       decision: comparisonOnly && g.decision === 'reviewed' ? 'reviewed'
-        : ['original','incoming','edited'].includes(String(g.decision)) ? g.decision as 'original'|'incoming'|'edited' : undefined })
+        : ['original','incoming','edited','keep-current'].includes(String(g.decision)) ? g.decision as 'original'|'incoming'|'edited'|'keep-current' : undefined })
   }
   if (v.strategy === 2 && (groups.length !== 1 || !groups[0].comparisonOnly)) return undefined
   return { key: String(v.key), strategy: v.strategy, baseVersionId: String(v.baseVersionId), postVersionId: String(v.postVersionId), currentVersionId: String(v.currentVersionId), groups }

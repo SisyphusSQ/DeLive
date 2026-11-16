@@ -15,7 +15,7 @@ import type { TranscriptSession } from '../../types'
 import type { TranscriptVersion } from '../../../../shared/fileTranscription'
 import { useSessionStore } from '../../stores/sessionStore'
 import { sessionRepository } from '../../utils/sessionRepository'
-import { appendRevision, editedVersion, mapSpeakers, reviewVersions, selectedReviewVersion, timestamp, versionLabel } from '../../utils/reviewVersions'
+import { appendRevision, editedVersion, mapSpeakers, reviewVersions, selectedReviewVersion, timestamp, versionLabel, readingParagraphs, reviewStatus } from '../../utils/reviewVersions'
 import type { useRecordingPlayback } from '../../hooks/useRecordingPlayback'
 import { SessionImages } from '../SessionImages'
 
@@ -64,6 +64,20 @@ function ReviewTranscript({ session, playback, citation, onCitationHandled }: Tr
   const [error,setError]=useState(''),[notice,setNotice]=useState(''),[busy,setBusy]=useState(false)
   const compare = versions.find(value => value.id === compareId && value.id !== version.id)
   const [reviewOpen, setReviewOpen] = useState(false)
+  const [search, setSearch] = useState('')
+  const [searchCursor, setSearchCursor] = useState(0)
+  const query = search.trim().toLocaleLowerCase()
+  const matches = query ? (version.segments.length ? version.segments : [{ text: version.text }]).flatMap((segment, index) => segment.text.toLocaleLowerCase().includes(query) ? [index] : []) : []
+  const locateMatch = (cursor: number) => {
+    if (!matches.length) return
+    const next = (cursor + matches.length) % matches.length
+    setSearchCursor(next)
+    setFilter('')
+    const index = matches[next]
+    setCitationTarget({ index, startMs: version.segments[index]?.startMs })
+  }
+  useEffect(() => { setSearchCursor(0) }, [search, version.id])
+
   const pendingCount = version.merge?.groups.filter(group => group.status === 'pending').length ?? 0
   const [citationTarget, setCitationTarget] = useState<{ index: number; startMs?: number }>()
   const readingRef = useRef<HTMLDivElement>(null)
@@ -107,7 +121,11 @@ function ReviewTranscript({ session, playback, citation, onCitationHandled }: Tr
     await action(async()=>{setViewedId(id);setDraft(undefined);setFilter('');setPairs({});setMappingSource('');playback.pause()})
   }
   const saveRevision=async(revision:TranscriptVersion,parent:TranscriptVersion)=>{
-    await persist(current=>{const next=appendRevision(current,revision,parent);return {versions:next.versions}})
+    await persist(current=>{
+      const latest = reviewVersions(current).find(value => value.id === parent.id)
+      if (!latest || JSON.stringify(latest) !== JSON.stringify(parent)) throw new Error('来源稿件已变化，请重新打开后确认；原稿与草稿保留')
+      const next=appendRevision(current,revision,parent);return {versions:next.versions}
+    })
     if(edit)useReviewDraftStore.getState().clear(session.id,edit)
     const ui=useUIStore.getState()
     if(ui.reviewSessionId===session.id && ui.reviewVersionId===viewedId && !useReviewDraftStore.getState().drafts[session.id]) {
@@ -123,65 +141,41 @@ function ReviewTranscript({ session, playback, citation, onCitationHandled }: Tr
   const updateSegment=(index:number,patch:Partial<TranscriptVersion['segments'][number]>)=>setDraft(old=>old?{...old,segments:old.segments.map((s,i)=>i===index?{...s,...patch}:s)}:old)
   const renderVersion = (value: TranscriptVersion, secondary = false) => {
     const names = new Map(value.speakers.map(speaker => [speaker.id, speaker.displayName || speaker.label]))
-    const segments = value.segments.map((segment, index) => ({ segment, index })).filter(({ segment }) => segment.text.trim() && (
-      secondary || !filter || (filter === 'unknown' ? !names.has(segment.speakerId ?? '') : segment.speakerId === filter)
-    ))
-    return (
-      <div className="min-w-0" aria-label={secondary ? '对照稿内容' : '当前稿内容'}>
-        {compare && <h3 className="mb-4 text-xs font-semibold text-muted-foreground">{versionLabel(value)}</h3>}
-        {value.kind === 'post-meeting' && value.segments.length > 0 && !value.segments.some(segment => names.has(segment.speakerId ?? '')) && (
-          <p className="mb-4 text-xs text-muted-foreground">这份会后结果没有说话人归属。文字和有效时间仍可使用。</p>
-        )}
-        {segments.map(({ segment, index }) => {
-          const { startMs, endMs } = segment
-          const active = (playback.state.playing || playback.state.positionMs > 0) && startMs !== undefined && endMs !== undefined &&
-            playback.state.positionMs >= startMs && playback.state.positionMs < endMs
-          const time = startMs === undefined ? '无时间戳' : timestamp(startMs)
-          const canSeek = startMs !== undefined && !!playback.manifest
-          const seek = () => { if (canSeek) void playback.seek(startMs, true) }
-          return (
-            <article
-              key={segment.id ?? index}
-              data-segment-id={segment.id ?? index}
-              data-passage-index={secondary ? undefined : index}
-              tabIndex={-1}
-              data-playback-active={active || undefined}
-              className={'review-passage mb-5 min-w-0 border-l-2 pl-3 ' + (active ? 'border-primary' : 'border-transparent')}
-            >
-              <div className="review-passage-meta mb-1.5 flex flex-wrap items-center gap-x-2.5 gap-y-1 text-xs text-muted-foreground">
-                <span className="break-words font-semibold text-foreground">{names.get(segment.speakerId ?? '') || '未知说话人'}</span>
-                {canSeek ? (
-                  <button
-                    type="button"
-                    title={endMs === undefined ? time : time + ' – ' + timestamp(endMs)}
-                    aria-label={'定位原音 ' + time}
-                    className="rounded px-1 tabular-nums hover:bg-primary/10 hover:text-primary"
-                    onClick={seek}
-                  >
-                    {time}
-                  </button>
-                ) : <span className="tabular-nums">{time}</span>}
-                {segment.isFinal === false && <span>临时片段</span>}
-              </div>
-              {canSeek ? (
-                <button
-                  type="button"
-                  className="block w-full select-text whitespace-pre-wrap break-words text-left text-[15px] leading-[1.9]"
-                  onClick={() => { if (!window.getSelection()?.toString()) seek() }}
-                >{segment.text}</button>
-              ) : <p className="whitespace-pre-wrap break-words text-[15px] leading-[1.9]">{segment.text}</p>}
-            </article>
-          )
-        })}
-        {!value.segments.length && <p className="whitespace-pre-wrap break-words text-[15px] leading-[1.9]">{value.text || '此版本没有文字'}</p>}
-        {!!value.segments.length && !segments.length && <p className="text-sm text-muted-foreground">此筛选下没有片段</p>}
-      </div>
-    )
+    const paragraphs = (compare ? value.segments.map((segment, index) => [{ segment, index }]) : readingParagraphs(value))
+      .filter(group => group.some(({ segment }) => segment.text.trim()) && (secondary || !filter || (filter === 'unknown' ? !names.has(group[0].segment.speakerId ?? '') : group[0].segment.speakerId === filter)))
+    return <div className="min-w-0" aria-label={secondary ? '对照稿内容' : '当前稿内容'}>
+      {compare && <h3 className="mb-4 text-xs font-semibold text-muted-foreground">{versionLabel(value)}</h3>}
+      {paragraphs.map(group => {
+        const first = group[0].segment
+        const label = names.get(first.speakerId ?? '') || '未知说话人'
+        return <article key={first.id ?? group[0].index} className="review-passage mb-4 min-w-0">
+          <div className="review-passage-meta mb-1 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+            <span className="font-semibold text-foreground">{!compare && value.kind === 'post-meeting' ? label.replace(/ · 会后稿$/, '') : label}</span>
+            <span>{first.startMs === undefined ? '无时间戳' : compare ? timestamp(first.startMs) : timestamp(first.startMs).slice(0, -4)}</span>
+          </div>
+          <p className="whitespace-pre-wrap break-words text-[15px] leading-[1.9]">
+            {group.map(({ segment, index }) => {
+              const active = (playback.state.playing || playback.state.positionMs > 0) && segment.startMs !== undefined && segment.endMs !== undefined && playback.state.positionMs >= segment.startMs && playback.state.positionMs < segment.endMs
+              const canSeek = segment.startMs !== undefined && !!playback.manifest
+              const matched = !secondary && matches.includes(index)
+              const content = <>{segment.isFinal === false && <span className="text-xs text-warning">[临时片段] </span>}{segment.text}</>
+              return <span key={segment.id ?? index} data-segment-id={segment.id ?? index} data-passage-index={secondary ? undefined : index} tabIndex={-1} data-playback-active={active || undefined} className={(active ? 'bg-primary/10 ' : '') + (matched ? 'bg-warning/15 underline decoration-warning ' : '')}>
+                {canSeek ? <button type="button" className="inline select-text text-left hover:text-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary" title={'播放原音 ' + timestamp(segment.startMs!)} onClick={() => { if (!window.getSelection()?.toString()) void playback.seek(segment.startMs!, true) }}>{content}</button> : content}{' '}
+              </span>
+            })}
+          </p>
+        </article>
+      })}
+      {!value.segments.length && <p tabIndex={-1} data-passage-index={secondary ? undefined : 0} className={'whitespace-pre-wrap break-words text-[15px] leading-[1.9] ' + (query && value.text.toLocaleLowerCase().includes(query) ? 'bg-warning/15' : '')}>{value.text || '此版本没有文字'}</p>}
+      {!!value.segments.length && !paragraphs.length && <p className="text-sm text-muted-foreground">此筛选下没有片段</p>}
+    </div>
   }
+
   return <div ref={readingRef} className="review-reading min-h-0 min-w-0 flex-1 overflow-y-auto" aria-label="稿件阅读区">{dialog}
     <div className={'review-reading-content mx-auto space-y-3 px-3 py-3 sm:px-6 sm:py-4 ' + (compare ? 'max-w-6xl' : 'max-w-[52rem]')}>
     {draftError&&<p role="alert" className="text-sm text-destructive">{draftError}</p>}
     <section aria-label="稿件版本" className="review-version-toolbar space-y-2 border-b border-border/60 pb-3">
+      <details><summary className="cursor-pointer text-sm text-muted-foreground">稿件版本、对照与校对</summary>
       <div className="review-version-controls flex flex-wrap items-end gap-x-3 gap-y-2">
         <label className="min-w-0 space-y-1 text-xs text-muted-foreground">
           <span className="review-control-label block">查看稿件</span>
@@ -207,15 +201,17 @@ function ReviewTranscript({ session, playback, citation, onCitationHandled }: Tr
           <Pencil className="h-3.5 w-3.5" />校对当前稿件
         </Button>}
       </div>
+      </details>
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
         <span className="break-words" aria-live="polite">已采用 · {versionLabel(adopted)}</span>
         {version.id !== adopted.id && <>
-          <span className="rounded bg-primary/10 px-1.5 py-0.5 text-primary">查看中 · 尚未采用</span>
+          <span className="rounded bg-primary/10 px-1.5 py-0.5 text-primary">查看中 · {versionLabel(version)} · 尚未采用</span>
           <Button size="sm" disabled={busy || !!edit} onClick={() => void action(async () => {
             if (pendingCount && !await confirm('此稿还有 ' + pendingCount + ' 处待确认，尚未全部校对。仍采用为当前稿，用于导出和 AI？')) return
             await persist(current => ({ versions: reviewVersions(current), selectedVersionId: version.id }))
           })}>采用为当前稿</Button>
         </>}
+        <span>{reviewStatus(version)}</span>
         {edit && <span className="text-warning">校对草稿未保存</span>}
         {session.status === 'recording' && <span>停止录音后可校对</span>}
         <details className="min-w-0 open:basis-full open:space-y-2">
@@ -242,7 +238,11 @@ function ReviewTranscript({ session, playback, citation, onCitationHandled }: Tr
           })}>另存恢复修订</button>
         </div>}
       </section>}
-      {session.realtime?.some(r=>r.status==='incomplete')&&<p className="text-xs text-amber-600">此会议包含未完成的实时识别段；已保存原音与结果仍可校对。</p>}
+      {version.segments.some(segment => segment.isFinal === false) && <p className="text-xs text-warning">当前稿仍含临时识别片段，请结合原音核对。</p>}
+      {playback.manifest?.status === 'interrupted' && <p className="text-xs text-warning">原音曾中断，已保存部分可回放；请检查来源与中断记录。</p>}
+      {session.realtime?.some(r => r.status === 'incomplete') && <details className="text-xs text-muted-foreground"><summary className="cursor-pointer">历史实时识别未完成</summary><p>不代表会后稿转写失败。已保存原音与结果仍可校对。</p></details>}
+      {versions.some(value => value.kind === 'post-meeting' && value.id !== version.id) && <button className="text-sm text-primary underline" disabled={busy || !!edit} onClick={() => void select(versions.filter(value => value.kind === 'post-meeting').slice(-1)[0].id)}>查看会后稿</button>}
+
     </section>
 
     {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
@@ -271,12 +271,13 @@ function ReviewTranscript({ session, playback, citation, onCitationHandled }: Tr
             }}
             onCompare={setCompareId}
             onEdit={startEdit}
-            onSeek={playback.manifest ? ms => void playback.seek(ms, true) : undefined}
+            onSeek={playback.manifest ? (ms, endMs) => void playback.seek(ms, true, endMs) : undefined}
             onSave={async next => {
               setBusy(true)
               setError('')
               try {
-                const note = next.merge?.strategy === 2 ? '已核对历史稿件，保留当前正文' : '人工确认自动校正区段，保留审阅进度'
+                const batch = next.merge?.groups.some(group => group.decision === 'keep-current' && version.merge?.groups.find(old => old.id === group.id)?.status === 'pending')
+                const note = batch ? '批量确认剩余待审项，保留当前正文；未标记为逐句核听' : next.merge?.strategy === 2 ? '已核对历史稿件，保留当前正文' : '人工确认自动校正区段，保留审阅进度'
                 await saveRevision(editedVersion(version, next, note), version)
               } finally {
                 setBusy(false)
@@ -314,6 +315,13 @@ function ReviewTranscript({ session, playback, citation, onCitationHandled }: Tr
       </div>)}
       {!draft.segments.length&&<textarea aria-label="纯文字校对" className={input+' w-full min-h-40'} value={draft.text} onChange={e=>setDraft({...draft,text:e.target.value})}/>}
     </fieldset>}
+    {!draft && <div className="flex flex-wrap items-center gap-2" role="search" aria-label="稿件正文搜索">
+      <input aria-label="搜索当前稿件正文" type="search" className={input + ' min-w-0 flex-1'} value={search} placeholder="搜索当前稿件正文" onChange={event => setSearch(event.target.value)} onKeyDown={event => { if (event.key === 'Enter') { event.preventDefault(); locateMatch(event.shiftKey ? searchCursor - 1 : searchCursor) } }} />
+      <span className="text-xs text-muted-foreground" aria-live="polite">{query ? `${matches.length ? Math.min(searchCursor + 1, matches.length) : 0} / ${matches.length} 段` : ''}</span>
+      <button className={input} disabled={!matches.length} onClick={() => locateMatch(searchCursor - 1)}>上一处</button>
+      <button className={input} disabled={!matches.length} onClick={() => locateMatch(searchCursor + 1)}>下一处</button>
+      <button className={input} disabled={!matches.length} onClick={() => locateMatch(searchCursor)}>定位</button>
+    </div>}
     {!draft && <div className={compare ? 'review-comparison grid grid-cols-1 gap-5 lg:grid-cols-2' : ''}>
       {renderVersion(version)}{compare && renderVersion(compare, true)}
     </div>}

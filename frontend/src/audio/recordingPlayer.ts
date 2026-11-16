@@ -31,10 +31,12 @@ export class RecordingPlayer {
   pause(){this.position=this.current();this.playing=false;this.generation++;if(this.timer)clearInterval(this.timer);this.timer=undefined
     for(const node of this.nodes){node.onended=null;try{node.stop()}catch{/* already ended */}node.disconnect()}this.nodes.clear();this.emit()}
   changeTrack(track:AudioTrack){this.pause();this.track=track;this.emit()}
-  async seek(ms:number,play=this.playing){this.pause();this.position=Math.max(0,Math.min(ms,this.manifest.durationMs));this.emit();if(play)await this.play()}
-  async play(at=this.position){
+  async seek(ms:number,play=this.playing,endMs?:number){this.pause();this.position=Math.max(0,Math.min(ms,this.manifest.durationMs));this.emit();if(play)await this.play(this.position,endMs)}
+  async play(at=this.position,endMs=this.manifest.durationMs){
     this.pause();this.position=Math.max(0,Math.min(at,this.manifest.durationMs));const token=this.generation
     const range=playbackRange(this.manifest,this.track,this.position)
+    range.endMs=Math.min(range.endMs,endMs)
+    range.blocks=range.blocks.filter(block=>block.startMs<range.endMs)
     if(!range.blocks.length){this.emit(this.position>=this.manifest.durationMs?'已到录音末尾':'此位置没有所选来源的音频，可能是来源结束或录音缺口',range.nextMs);return}
     const ctx=this.context??=this.createContext()
     try{
@@ -55,7 +57,7 @@ export class RecordingPlayer {
         const offset=Math.max(0,(this.origin-block.startMs)/1000),when=this.anchor+Math.max(0,(block.startMs-this.origin)/1000)
         if(when<ctx.currentTime-0.02)throw new Error('原音读取未跟上播放，已暂停；请重新定位播放')
         const source=ctx.createBufferSource();source.buffer=buffer;source.connect(ctx.destination);this.nodes.add(source)
-        source.onended=()=>{this.nodes.delete(source);source.disconnect()};source.start(Math.max(when,ctx.currentTime),offset)
+        source.onended=()=>{this.nodes.delete(source);source.disconnect()};source.start(Math.max(when,ctx.currentTime),offset,(Math.min(endOf(block),range.endMs)-Math.max(block.startMs,this.origin))/1000)
       }
       schedule(range.blocks[cursor++],first)
       const fail=(error:unknown)=>{if(token!==this.generation)return;this.pause();this.emit((error as Error).message || '原音读取失败')}
@@ -66,7 +68,7 @@ export class RecordingPlayer {
         }}catch(error){fail(error)}finally{pumping=false}
       }
       this.timer=setInterval(()=>{
-        if(this.current()>=range.endMs){this.pause();this.position=range.endMs;this.emit(range.endMs<this.manifest.durationMs?'后续存在音频缺口，已在缺口前暂停':'播放结束',range.nextMs);return}
+        if(this.current()>=range.endMs){this.pause();this.position=range.endMs;this.emit(range.endMs>=endMs?'片段播放结束':range.endMs<this.manifest.durationMs?'后续存在音频缺口，已在缺口前暂停':'播放结束',range.nextMs);return}
         this.emit();void pump()
       },50)
       this.emit();await pump()

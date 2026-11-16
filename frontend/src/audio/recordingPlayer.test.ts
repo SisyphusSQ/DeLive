@@ -4,10 +4,10 @@ import type {RecordingManifest,AudioBlock} from '../../../shared/recording'
 const block=(index:number,startMs:number,tracks:AudioBlock['tracks']=['mix','system']):AudioBlock=>({index,startMs,frames:16000,sampleRate:16000,tracks,bytes:32044})
 const manifest=(blocks=[block(0,0),block(1,1000),block(2,3000,['mix'])]):RecordingManifest=>({schemaVersion:1,sessionId:'m',createdAt:1,status:'completed',durationMs:Math.max(...blocks.map(b=>b.startMs+1000)),bytes:100000,blocks,sources:[],events:[]})
 function fixture(){
- const starts:Array<{when:number;offset:number}>=[]
+ const starts:Array<{when:number;offset:number;duration:number}>=[]
  const ctx={currentTime:0,destination:{},resume:vi.fn(async()=>{}),close:vi.fn(async()=>{}),
  createBuffer:(_channels:number,frames:number)=>({getChannelData:()=>new Float32Array(frames)}),
- createBufferSource:()=>({buffer:null,onended:null,connect:vi.fn(),disconnect:vi.fn(),stop:vi.fn(),start:(when:number,offset:number)=>starts.push({when,offset})})}
+ createBufferSource:()=>({buffer:null,onended:null,connect:vi.fn(),disconnect:vi.fn(),stop:vi.fn(),start:(when:number,offset:number,duration:number)=>starts.push({when,offset,duration})})}
  return {ctx,starts}
 }
 afterEach(()=>vi.useRealTimers())
@@ -21,11 +21,19 @@ describe('recording playback',()=>{
   vi.useFakeTimers();const {ctx,starts}=fixture(),states:PlaybackState[]=[]
   const player=new RecordingPlayer(manifest(),async()=>new Uint8Array(32044),s=>states.push(s),()=>ctx as unknown as AudioContext)
   await player.play(1250)
-  expect(starts).toEqual([{when:0.08,offset:0.25}])
+  expect(starts).toEqual([{when:0.08,offset:0.25,duration:0.75}])
   ctx.currentTime=0.4;vi.advanceTimersByTime(50);expect(states[states.length-1]?.positionMs).toBeCloseTo(1570,5)
   ctx.currentTime=0.9;vi.advanceTimersByTime(50)
   expect(states[states.length-1]).toMatchObject({playing:false,positionMs:2000,nextMs:3000});expect(states[states.length-1]?.message).toContain('缺口')
   player.dispose()
+ })
+ it('clips review playback at its requested end and does not read following blocks',async()=>{
+  vi.useFakeTimers();const {ctx,starts}=fixture(),states:PlaybackState[]=[],read=vi.fn(async()=>new Uint8Array(32044))
+  const player=new RecordingPlayer(manifest(),read,s=>states.push(s),()=>ctx as unknown as AudioContext)
+  await player.seek(250,true,1250)
+  expect(starts.map(s=>s.duration)).toEqual([0.75,0.25]);expect(read).toHaveBeenCalledTimes(2)
+  ctx.currentTime=1.1;vi.advanceTimersByTime(50)
+  expect(states[states.length-1]).toMatchObject({playing:false,positionMs:1250,message:'片段播放结束'});player.dispose()
  })
  it('bounds lookahead memory and schedules contiguous blocks without accumulating IPC delay',async()=>{
   const {ctx,starts}=fixture(),read=vi.fn(async()=>new Uint8Array(32044))

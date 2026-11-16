@@ -33,6 +33,8 @@ export interface CompleteBackupAPI {
 export function portableSettings(value: unknown): Record<string, unknown> {
   const input = value && typeof value === 'object' ? value as Record<string, unknown> : {}
   const output: Record<string, unknown> = {}
+  if (input.recordingMode === 'audio-only' || input.recordingMode === 'realtime') output.recordingMode = input.recordingMode
+  // Upload consent belongs to this installation; restoring a backup must not enable it.
   for (const key of ['currentVendor','colorTheme']) if (typeof input[key] === 'string') output[key] = input[key]
   if (typeof input.autoCheckUpdate === 'boolean') output.autoCheckUpdate=input.autoCheckUpdate
   if (Array.isArray(input.languageHints)) output.languageHints=input.languageHints.filter(v=>typeof v==='string')

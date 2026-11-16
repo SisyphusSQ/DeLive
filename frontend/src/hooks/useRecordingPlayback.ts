@@ -19,7 +19,7 @@ export function useRecordingPlayback(recordingId?:string) {
     }).catch(()=>{if(mounted)setState({positionMs:0,playing:false,message:'原音缺失、已删除或无法读取；文字和版本仍保留'})}).finally(()=>{if(mounted)setLoading(false)})
     return ()=>{mounted=false;player.current?.dispose();player.current=undefined}
   },[recordingId])
-  return {manifest,track,state,loading,seek:(ms:number,play=false)=>player.current?.seek(ms,play),
+  return {manifest,track,state,loading,seek:(ms:number,play=false,endMs?:number)=>player.current?.seek(ms,play,endMs),
     play:()=>player.current?.play(),pause:()=>player.current?.pause(),
     changeTrack:(value:AudioTrack)=>{setTrack(value);player.current?.changeTrack(value)}}
 }

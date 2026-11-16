@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { TranscriptVersion as V } from '../../../shared/fileTranscription'
-import { addReconciledVersion, editMergeGroup, reconcileTranscript, recoverTranscript, resolveMergeGroup, transcriptRecoverySources } from './transcriptMerge'
+import { addReconciledVersion, confirmRemainingGroups, editMergeGroup, reconcileTranscript, recoverTranscript, resolveMergeGroup, transcriptRecoverySources } from './transcriptMerge'
 import { editedVersion, reviewExport, selectedReviewVersion, versionLabel } from './reviewVersions'
 import { normalizeTranscriptSession } from './sessionSchema'
 import { contextChunks } from '../services/aiSessionContext'
@@ -66,4 +66,37 @@ it('旧校正版和纯文字人工稿可恢复真实分句，旧全文单独核�
   expect(recoverTranscript(restoredSession, broken.id, p.id).versionId).toBe(reviewed.id)
   expect(reviewExport(restoredSession, 'srt')).toContain('00:00:00,010 --> 00:00:01,010')
   expect(contextChunks(restoredSession, 'auto')[0].text).toContain('[转录 00:00:00.010 匿名1 · 会后稿] 补回人工修改')
+})
+
+
+it('批量确认只保留当前正文并可恢复，单项决定不变', () => {
+  const b = v('batch-base', Array.from({ length: 11 }, (_, i) => seg('b' + i, '原句' + i, i * 2000, i * 2000 + 1000)))
+  const p = v('batch-post', [seg('p', '额外会后句', 24000, 25000)], 'post-meeting')
+  const m = run(b, p)
+  expect(m.merge!.groups.filter(g => g.status === 'pending')).toHaveLength(11)
+  const before = structuredClone(m)
+  const confirmed = confirmRemainingGroups(m)
+  expect(confirmed.segments).toEqual(before.segments)
+  expect(confirmed.text).toBe(before.text)
+  expect(confirmed.speakers).toEqual(before.speakers)
+  expect(confirmed.merge!.groups.filter(g => g.decision === 'keep-current')).toHaveLength(11)
+  expect(confirmed.merge!.groups.filter(g => g.status !== 'confirmed')).toEqual(before.merge!.groups.filter(g => g.status !== 'pending'))
+  expect(m).toEqual(before)
+  expect(confirmRemainingGroups(confirmed)).toBe(confirmed)
+  const revision = editedVersion(m, confirmed, '批量确认')
+  const restored = normalizeTranscriptSession(JSON.parse(JSON.stringify({ id: 's', transcript: b.text, versions: [b, p, m, revision], selectedVersionId: revision.id })))
+  expect(restored.versions!.find(v => v.id === revision.id)!.merge).toEqual(revision.merge)
+  expect(reviewExport(restored, 'txt')).toContain('11 处批量确认，保留当前正文')
+  expect(reviewExport(restored, 'md', 'reading')).not.toContain('11 处待确认')
+  expect(() => confirmRemainingGroups(b)).toThrow('来源记录')
+})
+
+it('批量确认历史恢复稿不冒充已核对全文，备份正规化保留决定', () => {
+  const b = base(), p = post(), legacy = { ...b, id: 'legacy', segments: [], kind: 'edited' as const }
+  const restored = recoverTranscript(normalizeTranscriptSession({ id:'s', versions:[b,p,legacy] }), legacy.id, p.id)
+  const version = restored.session.versions!.find(v => v.id === restored.versionId)!
+  const confirmed = confirmRemainingGroups(version)
+  const normalized = normalizeTranscriptSession({ id:'s', versions:[confirmed] }).versions![0]
+  expect(normalized.merge!.groups[0]).toMatchObject({ status:'confirmed', decision:'keep-current', comparisonOnly:true })
+  expect(normalized.text).toBe(version.text)
 })

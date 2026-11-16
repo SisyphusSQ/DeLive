@@ -78,7 +78,7 @@ export function canExportTimed(version: TranscriptVersion): boolean {
   return version.segments.length>0 && version.segments.every(s=>s.startMs!==undefined && s.endMs!==undefined &&
     Number.isFinite(s.startMs)&&Number.isFinite(s.endMs)&&s.startMs>=0&&s.endMs>s.startMs)
 }
-export function reviewExport(session: TranscriptSession, format:'txt'|'md'|'srt'|'vtt'): string {
+export function reviewExport(session: TranscriptSession, format:'txt'|'md'|'srt'|'vtt', purpose: 'reading' | 'proofreading' = 'proofreading'): string {
   const version=selectedReviewVersion(session),names=new Map(version.speakers.map(s=>[s.id,s.displayName || s.label]))
   const label=(id?:string)=>id?names.get(id)||'未知说话人':'未知说话人'
   if(format==='srt'||format==='vtt'){
@@ -89,16 +89,48 @@ export function reviewExport(session: TranscriptSession, format:'txt'|'md'|'srt'
     }).join('\n')
     return (format==='vtt'?'WEBVTT\n\n':'')+cues
   }
-  const content=version.segments.length?version.segments.map(s=>{
-    const time=s.startMs===undefined?'无时间':timestamp(s.startMs)
-    return '['+time+'] ['+label(s.speakerId)+']'+(s.isFinal===false?' [临时片段]':'')+' '+s.text
-  }).join('\n\n'):version.text
-  const pending = version.merge?.groups.filter(group=>group.status==='pending').length ?? 0
-  const title=session.title+' · '+versionLabel(version)+(pending ? ` · ${pending} 处待确认（尚未全部校对）` : '')
-  return (format==='md'?'# ':'')+title+'\n\n'+content+'\n'
+  const namesForReading = (id?: string) => version.kind === 'post-meeting' ? label(id).replace(/ · 会后稿$/, '') : label(id)
+  const content = purpose === 'reading' && version.segments.length
+    ? readingParagraphs(version).map(group => {
+      const first = group[0].segment
+      return '[' + (first.startMs === undefined ? '无时间' : timestamp(first.startMs).slice(0, -4)) + '] [' + namesForReading(first.speakerId) + '] ' + group.map(({ segment }) => segment.text).join(' ')
+    }).join('\n\n')
+    : version.segments.length ? version.segments.map(s => {
+      const time = s.startMs === undefined ? '无时间' : timestamp(s.startMs)
+      const groups = version.merge?.groups.filter(group => group.outputIds.includes(s.id ?? '')) ?? []
+      const review = groups.some(group => group.status === 'pending') ? ' [待确认]' : groups.some(group => group.decision === 'keep-current') ? ' [批量确认]' : ''
+      return '[' + time + '] [' + label(s.speakerId) + ']' + (s.isFinal === false ? ' [临时片段]' : '') + review + ' ' + s.text
+    }).join('\n\n') : version.text
+  const title = session.title + ' · ' + versionLabel(version)
+  const source = purpose === 'proofreading' ? '\n版本 ID：' + version.id + (version.merge ? '\n校正来源：' + [version.merge.baseVersionId, version.merge.postVersionId, version.merge.currentVersionId].join(' / ') : '') : ''
+  return (format === 'md' ? '# ' : '') + title + '\n' + session.date + ' ' + session.time + '\n' + reviewStatus(version) + source + '\n\n' + content + '\n'
 }
-export function downloadReview(session: TranscriptSession, format:'txt'|'md'|'srt'|'vtt') {
-  const content=reviewExport(session,format),url=URL.createObjectURL(new Blob([content],{type:'text/plain;charset=utf-8'}))
+
+export function downloadReview(session: TranscriptSession, format:'txt'|'md'|'srt'|'vtt', purpose: 'reading' | 'proofreading' = 'proofreading') {
+  const content=reviewExport(session,format,purpose),url=URL.createObjectURL(new Blob([content],{type:'text/plain;charset=utf-8'}))
   const a=document.createElement('a');a.href=url;a.download=(session.title || 'transcript')+'-'+selectedReviewVersion(session).kind+'.'+format
   document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1000)
+}
+
+/** Reading layout only: retain every sentence and its original index for audio/citations. */
+export function readingParagraphs(version: TranscriptVersion) {
+  const paragraphs: Array<Array<{ segment: TranscriptVersion['segments'][number]; index: number }>> = []
+  const known = new Set(version.speakers.map(speaker => speaker.id))
+  version.segments.forEach((segment, index) => {
+    const last = paragraphs[paragraphs.length - 1]
+    const previous = last?.[last.length - 1].segment
+    const continuous = previous && segment.speakerId && known.has(segment.speakerId) && previous.speakerId === segment.speakerId &&
+      previous.isFinal !== false && segment.isFinal !== false && previous.endMs !== undefined && segment.startMs !== undefined &&
+      segment.startMs >= previous.endMs && segment.startMs - previous.endMs <= 1000
+    if (continuous) last.push({ segment, index })
+    else paragraphs.push([{ segment, index }])
+  })
+  return paragraphs
+}
+
+export function reviewStatus(version: TranscriptVersion): string {
+  const pending = version.merge?.groups.filter(group => group.status === 'pending').length ?? 0
+  const batch = version.merge?.groups.filter(group => group.decision === 'keep-current').length ?? 0
+  return [pending ? `${pending} 处待确认（尚未全部校对）` : '无待确认项（不代表逐句核听）',
+    batch ? `${batch} 处批量确认，保留当前正文` : ''].filter(Boolean).join('；')
 }
