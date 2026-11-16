@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### 修复
+- 回顾首页与详情侧栏展示全部录音，已归主题的会话不再默认隐藏，列表显示所属主题。
+- 录音详情标题下可直接加入、更换或移出主题；保存失败时提示并保留原归属。
+
 ---
 
 ## [2.3.0-sq.3] - 2026-11-16

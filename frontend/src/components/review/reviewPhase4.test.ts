@@ -14,15 +14,6 @@ describe('Phase 4 – AiTab extraction', () => {
     expect(reviewI18nKeys).toContain('tabAi')
   })
 
-  it('OverviewTab should not contain AI-related content after extraction', () => {
-    const overviewResponsibilities = ['speakers', 'topic']
-    const aiResponsibilities = ['summary', 'keywords', 'actionItems', 'chapters', 'titleSuggestion']
-
-    for (const item of aiResponsibilities) {
-      expect(overviewResponsibilities).not.toContain(item)
-    }
-  })
-
   it('tab config order should be transcript > overview > ai > chat > mindmap', () => {
     const tabOrder = ['transcript', 'overview', 'ai', 'chat', 'mindmap']
     expect(tabOrder[0]).toBe('transcript')

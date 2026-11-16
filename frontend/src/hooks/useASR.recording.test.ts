@@ -3,13 +3,14 @@ const f = vi.hoisted(() => ({
   settings: { currentVendor:'volc', recordingMode:'audio-only', autoTranscribeAfterRecording:true },
   state: { recordingState:'idle', currentSessionId:null as string|null, sessions:[] as {id:string}[] },
   order: [] as string[], stop:vi.fn(), connect:vi.fn(), startTask:vi.fn(), wait:vi.fn(), error:vi.fn(),
+  topicId: null as string | null, updateTopic: vi.fn(),
   captureCallbacks: {} as {onTrackEnded?:()=>void;onDeviceChange?:()=>void},
 }))
 vi.mock('react', () => ({ useCallback:(fn:unknown)=>fn, useRef:(current:unknown)=>({current}), useEffect:vi.fn() }))
 vi.mock('../stores/settingsStore', () => ({ useSettingsStore:{getState:()=>({settings:f.settings})}, getVolcCredentialIssue:()=> '未配置实时密钥' }))
 vi.mock('../stores/recordingStore', () => ({ useRecordingStore:{getState:()=>({system:true,microphone:true,update:vi.fn()})} }))
-vi.mock('../stores/topicStore', () => ({ useTopicStore:{getState:()=>({})} }))
-const state = () => ({ ...f.state, setRecordingState:(value:string)=>{f.state.recordingState=value},
+vi.mock('../stores/topicStore', () => ({ useTopicStore:{getState:()=>({activeTopicId:f.topicId})} }))
+const state = () => ({ ...f.state, updateSessionTopic:f.updateTopic, setRecordingState:(value:string)=>{f.state.recordingState=value},
   startNewSession:()=>{f.state.currentSessionId='saved';f.state.sessions=[{id:'saved'}];return 'saved'}, endCurrentSession:()=>{}, applyTranscriptEvent:()=>{} })
 vi.mock('../stores/sessionStore', () => ({ useSessionStore:Object.assign(()=>state(),{getState:()=>state(),setState:vi.fn()}) }))
 vi.mock('../utils/sessionRepository', () => ({ sessionRepository:{updateMetadata:()=>f.state.sessions,waitForSessionWrite:f.wait} }))
@@ -19,6 +20,7 @@ vi.mock('../utils/volcFileApi', () => ({startRecordingFileTask:f.startTask}))
 vi.mock('../stores/fileTaskStore', () => ({refreshFileTasks:async()=>{}}))
 import { useASR } from './useASR'
 beforeEach(() => {
+  f.topicId=null;f.updateTopic.mockReset();
   vi.clearAllMocks(); f.settings.autoTranscribeAfterRecording=true;f.state.recordingState='idle';f.state.currentSessionId=null;f.state.sessions=[];f.order=[]
   Object.assign(globalThis,{window:{electronAPI:{platform:'darwin'}}})
   f.stop.mockImplementation(async()=>{f.order.push('audio');return {status:'completed',sessionId:'saved',durationMs:2000}})
@@ -51,4 +53,18 @@ it.each(['onTrackEnded','onDeviceChange'] as const)('设备异常不自动上传
   const hook=useASR();await hook.startRecording();f.captureCallbacks[callback]?.()
   await vi.waitFor(()=>expect(f.state.recordingState).toBe('idle'))
   expect(f.stop).toHaveBeenCalledOnce();expect(f.startTask).not.toHaveBeenCalled()
+})
+
+it('主题录音等待归属落盘后进入录制；归属保存失败不启动会后上传', async () => {
+  f.topicId='topic-a'
+  const hook=useASR({onError:f.error})
+  f.updateTopic.mockRejectedValueOnce(new Error('主题保存失败'))
+  await hook.startRecording()
+  expect(f.updateTopic).toHaveBeenCalledWith('saved','topic-a')
+  expect(f.error).toHaveBeenCalledWith('主题保存失败')
+  expect(f.state.recordingState).toBe('idle')
+  expect(f.startTask).not.toHaveBeenCalled()
+  await hook.startRecording()
+  expect(f.state.recordingState).toBe('recording')
+  await hook.stopRecording()
 })

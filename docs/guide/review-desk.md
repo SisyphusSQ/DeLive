@@ -101,3 +101,9 @@ The mind map prompt leverages the AI summary, action items, and keywords when av
 | `←` / `→` | Switch tabs |
 | `Ctrl/Cmd + 1–6` | Jump to specific tab |
 | `Escape` | Close the review desk |
+
+## All sessions and topics
+
+Review and its detail sidebar include sessions with and without topics. Use the selector beneath the session title to assign, change, or remove a topic. Both entry points open the same session.
+
+Without filters, list totals and date groups include all sessions. Search and tag filters show matching/total counts; the activity heatmap always summarizes all recordings. Topic changes persist across reopening, and deleting a topic preserves its sessions.

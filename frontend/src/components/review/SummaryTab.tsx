@@ -47,6 +47,7 @@ export function SummaryTab({ session }: SummaryTabProps) {
     <div className="flex-1 overflow-y-auto">
       <div className="mx-auto max-w-[52rem] divide-y divide-border px-3 sm:px-6">
         {[SECTION_CONFIG[1], SECTION_CONFIG[2], SECTION_CONFIG[0]].map(({ id, icon: Icon, labelKey }) => {
+          if (id === 'overview' && !session.speakers?.length) return null
           const isExpanded = expandedSections.has(id)
           const label = (p[labelKey] as string) || labelKey
 

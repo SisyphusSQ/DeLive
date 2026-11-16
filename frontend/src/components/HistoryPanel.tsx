@@ -3,6 +3,7 @@ import { History, Calendar, Pencil, Trash2, Check, X, ChevronDown, ChevronRight,
 import { useUIStore } from '../stores/uiStore'
 import { useSessionStore } from '../stores/sessionStore'
 import { useTagStore } from '../stores/tagStore'
+import { useTopicStore } from '../stores/topicStore'
 import { exportToTxt } from '../utils/storage'
 import { ActionDialog } from './ActionDialog'
 import { TagSelector, TagFilter } from './TagSelector'
@@ -22,6 +23,7 @@ export function HistoryPanel({
   const { t, openReview, reviewSessionId } = useUIStore()
   const isRail = variant === 'rail'
   const { sessions, updateSessionTitle, deleteSession } = useSessionStore()
+  const topics = useTopicStore(state => state.topics)
   const { tags, selectedTagIds, searchQuery, setSearchQuery } = useTagStore()
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editingTitle, setEditingTitle] = useState('')
@@ -65,11 +67,6 @@ export function HistoryPanel({
   const filteredSessions = useMemo(() => {
     let result = sessions
 
-    // 搜索时包含所有 session（含主题内的），否则隐藏有 topicId 的 session
-    if (!searchQuery.trim()) {
-      result = result.filter((session) => !session.topicId || (isRail && session.id === reviewSessionId))
-    }
-    
     // 标签筛选
     if (selectedTagIds.length > 0) {
       result = result.filter(session => 
@@ -121,7 +118,7 @@ export function HistoryPanel({
     }
     
     return result
-  }, [sessions, selectedTagIds, searchQuery, tags, isRail, reviewSessionId])
+  }, [sessions, selectedTagIds, searchQuery, tags])
 
   // 按日期分组
   const groupedSessions = useMemo(() => {
@@ -341,6 +338,9 @@ export function HistoryPanel({
                                 </span>
                                 <span className="review-history-preview mt-1 line-clamp-2 break-words text-xs leading-relaxed text-muted-foreground">
                                   {getSessionPreviewText(session).slice(0, 180)}
+                                </span>
+                                <span className="mt-1 block truncate text-[11px] text-muted-foreground">
+                                  {t.topics.title} · {topics.find(topic => topic.id === session.topicId)?.name || t.topics.uncategorized}
                                 </span>
                               </button>
                               <div className="hidden flex-wrap items-center gap-1 px-2 pb-1 group-focus-within:flex group-hover:flex group-has-[[aria-expanded=true]]:flex">
