@@ -6,11 +6,26 @@ import { canExportTimed, downloadReview, selectedReviewVersion, versionLabel, re
 import { useSessionStore } from '../../stores/sessionStore'
 import { cancelAiTasks } from '../../services/aiTransport'
 import { Button } from '../ui'
+import { Select } from '../ui/Select'
+import { useTopicStore } from '../../stores/topicStore'
+import { useUIStore } from '../../stores/uiStore'
 
 interface SessionHeaderProps { session:TranscriptSession;onClose:()=>void;sidebarCollapsed?:boolean;onToggleSidebar?:()=>void }
 export const SessionHeader = memo(function SessionHeader({session,onClose,sidebarCollapsed,onToggleSidebar}:SessionHeaderProps) {
   const current=useSessionStore(s=>s.sessions.find(item=>item.id===session.id))??session
   const version=selectedReviewVersion(current),[open,setOpen]=useState(false),[error,setError]=useState('')
+  const { t } = useUIStore()
+  const topics = useTopicStore(state => state.topics)
+  const [topicError, setTopicError] = useState('')
+  const changeTopic = async (value: string) => {
+    setTopicError('')
+    try {
+      await useSessionStore.getState().updateSessionTopic(current.id, value || undefined)
+      setTopicError('')
+    } catch (cause) {
+      setTopicError(String(cause))
+    }
+  }
   const {confirm,dialog}=useConfirmation()
   const [purpose, setPurpose] = useState<'reading' | 'proofreading'>('reading')
   const pending=version.merge?.groups.filter(g=>g.status==='pending').length??0
@@ -25,7 +40,21 @@ export const SessionHeader = memo(function SessionHeader({session,onClose,sideba
     {dialog}<div className="mx-auto flex max-w-[52rem] items-start justify-between gap-2 sm:gap-4">
       <div className="flex min-w-0 flex-1 items-start gap-2">
         {onToggleSidebar&&<button aria-label={sidebarCollapsed?'显示会话列表':'隐藏会话列表'} className="rounded border p-2" onClick={onToggleSidebar}>{sidebarCollapsed?<PanelLeftOpen className="h-4 w-4"/>:<PanelLeftClose className="h-4 w-4"/>}</button>}
-        <div className="min-w-0"><h2 id="session-review-title" title={current.title} className="review-session-title line-clamp-2 break-words text-lg font-semibold leading-snug tracking-tight sm:text-2xl">{current.title}</h2><p className="review-session-meta mt-1 break-words text-xs text-muted-foreground">{current.date} {current.time} · {version.text.length} 字</p></div>
+        <div className="min-w-0"><h2 id="session-review-title" title={current.title} className="review-session-title line-clamp-2 break-words text-lg font-semibold leading-snug tracking-tight sm:text-2xl">{current.title}</h2><p className="review-session-meta mt-1 break-words text-xs text-muted-foreground">{current.date} {current.time} · {version.text.length} 字</p>
+          <div className="mt-2 flex min-w-0 flex-wrap items-center gap-2 text-xs">
+            <span className="text-muted-foreground">{t.topics.title}</span>
+            <Select aria-label={t.topics.selectTopic} value={current.topicId ?? ''}
+              disabled={!topics.length && !current.topicId}
+              onChange={event => void changeTopic(event.target.value)}
+              className="max-w-full rounded-md border border-border bg-background px-2.5 py-1.5 sm:max-w-[260px]">
+              <option value="">{t.topics.uncategorized}</option>
+              {topics.map(topic => <option key={topic.id} value={topic.id}>{topic.emoji} {topic.name}</option>)}
+            </Select>
+            {current.topicId && <button onClick={() => void changeTopic('')} className="rounded px-2 py-1.5 text-muted-foreground hover:bg-muted">{t.topics.removeFromTopic}</button>}
+            {!topics.length && <span className="text-muted-foreground">{t.topics.noTopicsHint}</span>}
+          </div>
+          {topicError && <p role="alert" className="mt-1 text-xs text-destructive">{topicError}</p>}
+        </div>
       </div>
       <div className="flex shrink-0 items-center gap-1">
         {aiRunning && <button className="rounded border px-3 py-2 text-sm" onClick={() => cancelAiTasks(current.id)}>停止 AI</button>}

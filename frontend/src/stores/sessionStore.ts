@@ -120,7 +120,7 @@ export interface SessionState {
   deleteSession: (id: string) => Promise<void>
   deleteSessionConversation: (sessionId: string, conversationId: string) => void
   updateSessionTags: (sessionId: string, tagIds: string[]) => void
-  updateSessionTopic: (sessionId: string, topicId: string | undefined) => void
+  updateSessionTopic: (sessionId: string, topicId: string | undefined) => Promise<void>
   replaceAllSessions: (sessions: TranscriptSession[]) => TranscriptSession[]
 
   updateSessionCorrection: (sessionId: string, patch: Partial<TranscriptCorrection>) => void
@@ -726,7 +726,8 @@ export const useSessionStore = create<SessionState>((set, get) => {
         recoverySession: nextState.recoverySession,
       })
     },
-    updateSessionTopic: (sessionId, topicId) => {
+    updateSessionTopic: async (sessionId, topicId) => {
+      const nextSessions = await sessionRepository.updateMetadataDurable(sessionId, { topicId })
       const { sessions, recoverySession, currentSessionId, currentSpeakers, currentPostProcess } = get()
       const nextState = applySessionMetadataUpdate(
         sessions,
@@ -739,7 +740,6 @@ export const useSessionStore = create<SessionState>((set, get) => {
           currentPostProcess,
         },
       )
-      const nextSessions = sessionRepository.updateMetadata(sessionId, { topicId })
       set({
         sessions: nextSessions,
         recoverySession: nextState.recoverySession,

@@ -23,8 +23,9 @@ The selected topic appears as a badge above the record button, and recordings ar
 
 ### Managing Sessions in Topics
 
-- Sessions inside a topic are hidden from the default History list, but global search still finds them
-- Move existing sessions into or out of a topic from the **Overview** tab in the Review Desk
+- Review includes all sessions, with their topic shown in both the main list and detail sidebar. Topics are filtered views of the same records.
+- Use the topic selector beneath the session title to assign or directly change a topic. Choose **Uncategorized** or **Remove from Topic** to remove its association. Failed saves show an error and retain the previous topic.
+- If no topics exist, create one in Topics first. Grouping does not copy or migrate recordings, text, or transcript versions.
 - Deleting a topic removes the association but does not delete the sessions
 
 ## Tags

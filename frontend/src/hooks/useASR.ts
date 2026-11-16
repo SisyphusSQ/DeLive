@@ -209,7 +209,7 @@ export function useASR(options: UseASROptions = {}) {
       await capture.startArchive(id)
       useSessionStore.setState({ sessions: sessionRepository.updateMetadata(id, { audioRecordingId: id, sourceMeta: { captureMode: 'mixed', platform: window.electronAPI?.platform ?? 'unknown', providerMode: 'unknown' } }) })
       const topicId = useTopicStore.getState().activeTopicId
-      if (topicId) useSessionStore.getState().updateSessionTopic(id, topicId)
+      if (topicId) await useSessionStore.getState().updateSessionTopic(id, topicId)
       const callbacks = {
         onAudioData: (data: Blob | ArrayBuffer) => psm.sendAudio(data),
         onTrackEnded: () => { autoTranscribeRef.current = false; void stopRecordingRef.current() },
