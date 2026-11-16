@@ -111,7 +111,7 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
   },
   updateSettings: (newSettings) => {
     const settings = { ...get().settings, ...newSettings }
-    saveSettings(settings)
+    saveSettings(settings, newSettings.recordingMode !== undefined || newSettings.autoTranscribeAfterRecording !== undefined)
     set({ settings })
   },
   updateAiPostProcessConfig: async (config) => {

@@ -1,0 +1,96 @@
+{
+  "recordings": [
+    {
+      "sessionId": "1794798637418-05df6zg6z",
+      "status": "completed",
+      "durationMs": 60848,
+      "blocks": 61,
+      "maxGapMs": 0.0,
+      "tracks": {
+        "mix": {
+          "frames": 2920704,
+          "peak": 11025,
+          "rms": 1297.11,
+          "rms5to10s": 6.77,
+          "rms15to20s": 2101.54
+        },
+        "system": {
+          "frames": 2920704,
+          "peak": 22108,
+          "rms": 2593.7,
+          "rms5to10s": 0.0,
+          "rms15to20s": 4202.95
+        },
+        "microphone": {
+          "frames": 2920704,
+          "peak": 4148,
+          "rms": 53.69,
+          "rms5to10s": 13.53,
+          "rms15to20s": 43.71
+        }
+      }
+    },
+    {
+      "sessionId": "1794798875416-4auon97u9",
+      "status": "completed",
+      "durationMs": 69936,
+      "blocks": 70,
+      "maxGapMs": 0.0,
+      "tracks": {
+        "mix": {
+          "frames": 3356928,
+          "peak": 11074,
+          "rms": 1207.75,
+          "rms5to10s": 2091.08,
+          "rms15to20s": 1941.76
+        },
+        "system": {
+          "frames": 3356928,
+          "peak": 22147,
+          "rms": 2415.41,
+          "rms5to10s": 4182.05,
+          "rms15to20s": 3883.59
+        },
+        "microphone": {
+          "frames": 3356928,
+          "peak": 2530,
+          "rms": 22.99,
+          "rms5to10s": 10.64,
+          "rms15to20s": 11.12
+        }
+      }
+    }
+  ],
+  "jobs": [
+    {
+      "id": "a3309eb8-76b8-4e03-9a5c-4cc1685da1f2",
+      "sessionId": "1794798637418-05df6zg6z",
+      "status": "completed",
+      "cleanup": "done",
+      "reconcileBaseId": null
+    }
+  ],
+  "submissions": [
+    {
+      "at": "2026-11-16T03:11:38.337Z",
+      "sessionId": "1794798637418-05df6zg6z",
+      "recordingId": "1794798637418-05df6zg6z",
+      "reconcile": false
+    }
+  ],
+  "connections": [
+    {
+      "at": 1794798875449,
+      "event": "connected"
+    },
+    {
+      "at": 1794798886520,
+      "event": "fault",
+      "count": 1
+    },
+    {
+      "at": 1794798900272,
+      "event": "connected"
+    }
+  ]
+}

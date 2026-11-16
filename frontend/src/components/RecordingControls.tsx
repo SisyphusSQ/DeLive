@@ -1,7 +1,12 @@
 import { DEFAULT_ASR_VENDOR } from '../types/asr/common'
 import { Select } from './ui/Select'
 import { RecordingStorage } from './RecordingStorage'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
+import { useConfirmation } from '../hooks/useConfirmation'
+import { fileTaskApi } from '../utils/volcFileApi'
+import { getVolcCredentialIssue } from '../stores/settingsStore'
+import { FileTaskRow } from './FileTaskRow'
+import { useFileTaskStore } from '../stores/fileTaskStore'
 import { Mic, Square, Loader2, Settings2, RefreshCw } from 'lucide-react'
 import { useRecordingStore } from '../stores/recordingStore'
 import { useUIStore } from '../stores/uiStore'
@@ -21,9 +26,20 @@ interface RecordingControlsProps {
 
 export function RecordingControls({ startRecording, stopRecording, switchProvider, reconnectTranscription }: RecordingControlsProps) {
   const { t, openSettings } = useUIStore()
-  const localOnly = useRecordingStore(state => state.localOnly)
   const hasSource = useRecordingStore(state => state.system || state.microphone)
-  const { settings, availableProviders } = useSettingsStore()
+  const settingsState = useSettingsStore()
+  const { settings, availableProviders, updateSettings } = settingsState
+  const localOnly = settings.recordingMode === 'audio-only'
+  const { confirm, dialog } = useConfirmation()
+  const [fileReady, setFileReady] = useState(false)
+  const [preferenceError, setPreferenceError] = useState('')
+  const jobs = useFileTaskStore(state => state.jobs)
+  const lastSession = useSessionStore(state => state.sessions[0])
+  useEffect(() => {
+    let active = true
+    void Promise.resolve().then(() => fileTaskApi().settings()).then(value => { if (active) setFileReady(value.configured) }).catch(() => { if (active) setFileReady(false) })
+    return () => { active = false }
+  }, [settings])
   const { recordingState, currentTranscript } = useSessionStore()
   const [showQuickSettings, setShowQuickSettings] = useState(false)
 
@@ -59,6 +75,27 @@ export function RecordingControls({ startRecording, stopRecording, switchProvide
 
   return (
     <div className="space-y-3">
+      {dialog}
+      <fieldset disabled={!isIdle} className="space-y-3">
+        <legend className="mb-2 text-sm font-medium">录制模式</legend>
+        <div className="flex flex-wrap gap-3">
+          {(['audio-only', 'realtime'] as const).map(mode => <label key={mode} className="flex cursor-pointer items-center gap-2 rounded-lg border border-border px-3 py-2 text-sm has-[:checked]:border-primary has-[:checked]:bg-primary/5">
+            <input type="radio" name="recording-mode" checked={localOnly === (mode === 'audio-only')} onChange={() => {
+              try { updateSettings({ recordingMode: mode }); setPreferenceError('') } catch (error) { setPreferenceError((error as Error).message) }
+            }} />{mode === 'audio-only' ? '只录音' : '录音并实时转录'}
+          </label>)}
+        </div>
+        <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={settings.autoTranscribeAfterRecording === true} onChange={event => {
+          const enabled = event.target.checked
+          void (async () => {
+            if (enabled && !await confirm('启用结束后自动转写？今后正常停止并保存录音后，会将同步混音的临时副本上传至火山标准文件转写，可能计费；完成后清理临时副本，本地原音保留。')) return
+            try { updateSettings({ autoTranscribeAfterRecording: enabled }); setPreferenceError('') } catch (error) { setPreferenceError((error as Error).message) }
+          })()
+        }} />录音结束后自动转写</label>
+      </fieldset>
+      <p className="text-xs text-muted-foreground">{localOnly ? '只保存原音，不连接实时识别。' : '实时识别失败时，仍继续保存本地原音。'} 会后服务：火山标准文件转写 · {fileReady && !getVolcCredentialIssue(settingsState) ? '已就绪' : '待配置（不影响只录音）'}。</p>
+      {settings.autoTranscribeAfterRecording && (!fileReady || getVolcCredentialIssue(settingsState)) && <p className="text-xs text-warning">结束后若配置仍未就绪，将保留原音；可在回顾页补配置后手动转写。</p>}
+      {preferenceError && <p role="alert" className="text-sm text-destructive">{preferenceError}</p>}
       {isRecording && !localOnly && reconnectTranscription && <button type="button" className="text-sm underline" onClick={() => void reconnectTranscription()}>重新连接转写（原音继续保存）</button>}
       <RecordingStorage />
       <div className={`flex ${isIdle ? 'flex-col items-center gap-3' : 'items-center gap-5'}`}>
@@ -108,7 +145,7 @@ export function RecordingControls({ startRecording, stopRecording, switchProvide
             )}
           </button>
 
-          {(isRecording || isSwitching) && canSwitchProvider && (
+          {!localOnly && (isRecording || isSwitching) && canSwitchProvider && (
             <button
               onClick={() => setShowQuickSettings(prev => !prev)}
               disabled={isSwitching}
@@ -144,7 +181,7 @@ export function RecordingControls({ startRecording, stopRecording, switchProvide
             <div className="flex items-center gap-2 text-success">
               <StatusIndicator status="recording" />
               <span className="font-medium">{t.recording.capturingAudio}</span>
-              {!currentTranscript && (
+              {!localOnly && !currentTranscript && (
                 <span className="text-xs text-muted-foreground">{t.recording.waitingForAudio}</span>
               )}
             </div>
@@ -157,14 +194,14 @@ export function RecordingControls({ startRecording, stopRecording, switchProvide
       </div>
 
       {/* Config summary tags (idle state) */}
-      {isIdle && hasApiKey && canSwitchProvider && (
+      {!localOnly && isIdle && hasApiKey && canSwitchProvider && (
         <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground">
           <span>{currentProvider ? getProviderName(currentProvider, t) : currentVendor}</span>
         </div>
       )}
 
       {/* Quick settings panel (recording state) */}
-      {showQuickSettings && (isRecording || isSwitching) && (
+      {!localOnly && showQuickSettings && (isRecording || isSwitching) && (
         <div className="rounded-xl border border-border/70 bg-muted/20 p-4 space-y-4 animate-in slide-in-from-top-2 duration-200">
           <div className="flex items-center justify-between">
             <h4 className="text-sm font-semibold text-foreground">
@@ -195,6 +232,7 @@ export function RecordingControls({ startRecording, stopRecording, switchProvide
 
         </div>
       )}
+      {isIdle && jobs.filter(job => job.sessionId === lastSession?.id).map(job => <FileTaskRow key={job.id} job={job} compact />)}
     </div>
   )
 }

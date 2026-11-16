@@ -2,7 +2,7 @@ import { useConfirmation } from '../../hooks/useConfirmation'
 import { memo, useState } from 'react'
 import { X, Download, PanelLeftClose, PanelLeftOpen } from 'lucide-react'
 import type { TranscriptSession } from '../../types'
-import { canExportTimed, downloadReview, selectedReviewVersion, versionLabel } from '../../utils/reviewVersions'
+import { canExportTimed, downloadReview, selectedReviewVersion, versionLabel, reviewStatus } from '../../utils/reviewVersions'
 import { useSessionStore } from '../../stores/sessionStore'
 import { cancelAiTasks } from '../../services/aiTransport'
 import { Button } from '../ui'
@@ -12,13 +12,14 @@ export const SessionHeader = memo(function SessionHeader({session,onClose,sideba
   const current=useSessionStore(s=>s.sessions.find(item=>item.id===session.id))??session
   const version=selectedReviewVersion(current),[open,setOpen]=useState(false),[error,setError]=useState('')
   const {confirm,dialog}=useConfirmation()
+  const [purpose, setPurpose] = useState<'reading' | 'proofreading'>('reading')
   const pending=version.merge?.groups.filter(g=>g.status==='pending').length??0
   const timed=canExportTimed(version)
   const aiRunning = current.postProcess?.status === 'pending' || current.mindMap?.status === 'pending'
     || current.askHistory?.some(turn => turn.status === 'pending') || ['detecting', 'correcting'].includes(current.correction?.status || '')
   const download=async(format:'txt'|'md'|'srt'|'vtt')=>{
     if(pending&&!await confirm(`当前稿还有 ${pending} 处待确认，尚未全部校对。仍导出？`))return
-    try{downloadReview(current,format);setError('');setOpen(false)}catch(e){setError((e as Error).message)}
+    try{downloadReview(current,format,purpose);setError('');setOpen(false)}catch(e){setError((e as Error).message)}
   }
   return <div className="review-session-header shrink-0 px-3 pb-1 pt-3 sm:px-6 sm:pt-4">
     {dialog}<div className="mx-auto flex max-w-[52rem] items-start justify-between gap-2 sm:gap-4">
@@ -39,6 +40,8 @@ export const SessionHeader = memo(function SessionHeader({session,onClose,sideba
           </Button>
           {open&&<><div className="fixed inset-0 z-40" onClick={()=>setOpen(false)}/><div className="absolute right-0 z-50 mt-1 w-64 rounded-lg border border-border bg-card p-2 shadow-lg" aria-label="当前版本导出选项">
             <p className="break-words px-3 py-1 text-xs text-muted-foreground">采用稿 · {versionLabel(version)}</p>
+            <p className="px-3 py-1 text-xs text-muted-foreground">{reviewStatus(version)}</p>
+            <fieldset className="flex flex-wrap gap-3 px-3 py-2 text-sm"><legend className="sr-only">导出用途</legend>{(['reading', 'proofreading'] as const).map(value => <label key={value}><input type="radio" name="export-purpose" checked={purpose === value} onChange={() => setPurpose(value)} /> {value === 'reading' ? '阅读稿' : '校对稿'}</label>)}</fieldset>
             {(['txt','md','srt','vtt'] as const).map(format=><button key={format} className="block w-full rounded px-3 py-2 text-left text-sm hover:bg-muted disabled:opacity-40" disabled={(format==='srt'||format==='vtt')&&!timed} onClick={()=>void download(format)}>{format==='md'?'Markdown':format.toUpperCase()}</button>)}
             {!timed&&<p className="p-2 text-xs text-muted-foreground">缺少有效逐句时间，字幕导出不可用；可在校对中填写时间，或导出 TXT / Markdown。</p>}
           </div></>}

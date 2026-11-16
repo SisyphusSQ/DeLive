@@ -66,3 +66,20 @@ describe('review versions',()=>{
   draft.segments[0].speakerId='missing';expect(()=>editedVersion(source,draft,'x')).toThrow('说话人')
  })
 })
+
+
+it('阅读分段不跨身份、未知归属、重叠或长间隔，导出不删文字', async () => {
+  const { readingParagraphs } = await import('./reviewVersions')
+  const version = { id:'read',kind:'post-meeting' as const,createdAt:1,text:'',speakers:[{id:'a',label:'说话人 1 · 会后稿'},{id:'b',label:'说话人 1 · 实时稿'}],segments:[
+    {text:'第一句',speakerId:'a',startMs:0,endMs:1000}, {text:'第二句',speakerId:'a',startMs:1000,endMs:2000},
+    {text:'重叠',speakerId:'a',startMs:1500,endMs:2500}, {text:'另一身份',speakerId:'b',startMs:2500,endMs:3000},
+    {text:'未知一',startMs:3000,endMs:4000}, {text:'未知二',startMs:4000,endMs:5000},
+    {text:'稍后',speakerId:'b',startMs:9000,endMs:10000},
+  ] }
+  expect(readingParagraphs(version).map(p => p.length)).toEqual([2,1,1,1,1,1])
+  const session = normalizeTranscriptSession({ id:'s',versions:[version],selectedVersionId:'read' })
+  const output = reviewExport(session, 'md', 'reading')
+  for (const segment of version.segments) expect(output).toContain(segment.text)
+  expect(output).toContain('[00:00:00]')
+  expect(reviewExport(session, 'srt')).toContain('00:00:01,000')
+})

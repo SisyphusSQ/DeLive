@@ -1,8 +1,9 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import type { TranscriptVersion } from '../../../../shared/fileTranscription'
 import type { MergeGroupDraft } from '../../stores/reviewDraftStore'
-import { editMergeGroup, resolveMergeGroup, versionSegments } from '../../utils/transcriptMerge'
-import { timestamp } from '../../utils/reviewVersions'
+import { confirmRemainingGroups, editMergeGroup, resolveMergeGroup, versionSegments } from '../../utils/transcriptMerge'
+import { timestamp, versionLabel } from '../../utils/reviewVersions'
+import { useConfirmation } from '../../hooks/useConfirmation'
 
 export function MergeReview({ version, versions, busy, draft, onDraft, onSave, onSeek, onCompare, onEdit }: {
   version: TranscriptVersion
@@ -11,13 +12,15 @@ export function MergeReview({ version, versions, busy, draft, onDraft, onSave, o
   draft?: MergeGroupDraft
   onDraft: (draft: MergeGroupDraft | undefined) => void
   onSave: (next: TranscriptVersion) => Promise<void>
-  onSeek?: (ms: number) => void
+  onSeek?: (ms: number, endMs?: number) => void
   onCompare: (id: string) => void
   onEdit: () => void
 }) {
   const [selected, setSelected] = useState('')
   const [onlyPending, setOnlyPending] = useState(true)
   const [error, setError] = useState('')
+  const { confirm, dialog } = useConfirmation()
+  const saving = useRef(false)
   const merge=version.merge
   if(!merge)return version.kind==='reconciled'?<p role="alert" className="text-sm text-destructive">校正来源记录不完整，请保留此稿并重新生成校正版。</p>:null
   const pending=merge.groups.filter(g=>g.status==='pending')
@@ -29,9 +32,13 @@ export function MergeReview({ version, versions, busy, draft, onDraft, onSave, o
   const incoming=group&&post?versionSegments(post).filter(s=>group.postIds.includes(s.id!)):[]
   const output=group?version.segments.filter(s=>group.outputIds.includes(s.id!)):[]
   const at=output[0]?.startMs??current[0]?.startMs??incoming[0]?.startMs
+  const ends = [...output, ...current, ...incoming].flatMap(segment => segment.endMs === undefined ? [] : [segment.endMs])
+  const end = ends.length ? Math.max(...ends) : undefined
+  const batchCount = merge.groups.filter(group => group.decision === 'keep-current').length
   const button='rounded-md border border-input bg-background px-3 py-1.5 text-xs hover:bg-muted disabled:opacity-40'
   const save = async (choice: 'original' | 'incoming' | 'edited' | 'reviewed') => {
-    if (!group) return
+    if (!group || saving.current) return
+    saving.current = true
     setError('')
     try {
       if (choice === 'edited' && draft?.id !== group.id) return
@@ -41,14 +48,27 @@ export function MergeReview({ version, versions, busy, draft, onDraft, onSave, o
       setSelected('')
     } catch (e) {
       setError((e as Error).message)
-    }
+    } finally { saving.current = false }
   }
   return <section aria-label="逐句校正审阅" className="rounded-lg border border-primary/20 bg-primary/[0.03] p-4 space-y-3">
-    <div className="flex flex-wrap items-center justify-between gap-2"><h3 className="text-sm font-medium">{pending.length?`${pending.length} 处待确认`:merge.strategy===2?'历史稿核对已完成':'校正审阅已完成'} <span className="font-normal text-muted-foreground">· 原稿保留</span></h3>
+    {dialog}
+    <div className="flex flex-wrap items-center justify-between gap-2"><h3 className="text-sm font-medium">{pending.length?`${pending.length} 处待确认`:batchCount?'待确认项已处理':'校正审阅已完成'} <span className="font-normal text-muted-foreground">· 原稿保留</span></h3>
       {merge.strategy===1&&<label className="flex items-center gap-2 text-xs"><input type="checkbox" checked={onlyPending} disabled={!!draft || busy} onChange={e=>setOnlyPending(e.target.checked)}/>只看待确认</label>}</div>
+    <button className={button} disabled={!pending.length || !!draft || busy} onClick={() => void (async () => {
+      if (saving.current) return
+      saving.current = true
+      setError('')
+      try {
+        if (!await confirm(`${versionLabel(version)}：将剩余 ${pending.length} 处全部确认，保留当前正文并另存一份修订。不会替换为会后候选，也不代表逐句回听。`)) return
+        await onSave(confirmRemainingGroups(version))
+      } catch (error) { setError((error as Error).message) }
+      finally { saving.current = false }
+    })()}>全部确认（剩余 {pending.length} 处）</button>
+    {!!batchCount && <p className="text-xs text-muted-foreground">{batchCount} 处批量确认，保留当前正文；未标记为逐句核听。</p>}
     {group&&<>
       {!group.comparisonOnly&&<div className="flex flex-wrap items-center gap-2"><button className={button} disabled={index<=0||busy||!!draft} onClick={()=>setSelected(groups[index-1].id)}>上一处</button><span className="text-xs text-muted-foreground">{index+1} / {groups.length}</span><button className={button} disabled={index>=groups.length-1||busy||!!draft} onClick={()=>setSelected(groups[index+1].id)}>下一处</button>
-        {at!==undefined&&<button className={button} disabled={!onSeek} onClick={()=>onSeek?.(at)}>听原音 {timestamp(at)}</button>}
+        {at!==undefined&&<button className={button} disabled={!onSeek} onClick={()=>onSeek?.(Math.max(0, at - 3000), end === undefined ? undefined : end + 3000)}>听原音（含前后文）{timestamp(at)}</button>}
+        {(at === undefined || !onSeek) && <span className="text-xs text-muted-foreground">缺少有效时间或原音，无法定位播放</span>}
         <span className="text-xs text-muted-foreground">{group.reason??'时间对应明确，已采用会后稿文字；可对照修改'}</span>
       </div>}
       {group.comparisonOnly ? <div className="space-y-2 text-sm">
@@ -69,6 +89,7 @@ export function MergeReview({ version, versions, busy, draft, onDraft, onSave, o
             <button className={button} disabled={busy||!incoming.length} onClick={()=>void save('incoming')}>采用会后稿</button>
             <button className={button} disabled={busy||!original} onClick={()=>void save('original')}>保留原文</button>
             <button className={button} disabled={busy} onClick={()=>onDraft({id:group.id,text:output.map(s=>s.text).join('\n')})}>手动修改</button>
+            <button className={button} disabled={busy || groups.length < 2} onClick={() => setSelected(groups[(index + 1) % groups.length].id)}>暂不处理</button>
           </>}
         </div>
       </>}

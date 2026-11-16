@@ -22,7 +22,7 @@ export function FileTaskRow({job,compact=false}:{job:FileTask;compact?:boolean})
   const action=async(run:()=>Promise<unknown>)=>{setBusy(true);setError('');try{await run();await refreshFileTasks()}catch(e){setError((e as Error).message)}finally{setBusy(false)}}
   const open=async()=>{
     if(useReviewDraftStore.getState().drafts[job.sessionId]){useUIStore.getState().openReview(job.sessionId);return}
-    useUIStore.getState().openReview(job.sessionId,merged?.id??job.version?.id)
+    useUIStore.getState().openReview(job.sessionId,job.version?.id)
   }
   return <article className={'space-y-2 py-3 '+(compact?'':'border-t border-border/60')} aria-label="会后转写任务">
     <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
@@ -37,7 +37,8 @@ export function FileTaskRow({job,compact=false}:{job:FileTask;compact?:boolean})
       {taskActive(job.status)&&<button disabled={busy} className="text-muted-foreground underline" onClick={()=>setConfirm(true)}>停止并清理</button>}
       {!taskActive(job.status)&&['pending','failed'].includes(job.cleanup)&&<button disabled={busy} className="text-primary underline" onClick={()=>void action(()=>fileTaskApi().cleanup(job.id))}>重试清理</button>}
       {session && (ingestionError || (job.status === 'completed' && !saved)) && <button disabled={busy} className="text-primary underline" onClick={()=>void action(()=>refreshFileTasks(true))}>重试保存 / 本地合并</button>}
-      {saved&&<button disabled={busy} className="text-primary underline" onClick={()=>void action(open)}>{merged?'打开校正版':'打开会后稿'}</button>}
+      {saved&&<button disabled={busy} className="text-primary underline" onClick={()=>void action(open)}>打开会后稿</button>}
+      {saved && merged && <button disabled={busy} className="text-primary underline" onClick={() => useUIStore.getState().openReview(job.sessionId, merged.id)}>打开校正版</button>}
       <details className="min-w-0 text-muted-foreground"><summary className="cursor-pointer">任务详情</summary><div className="mt-2 space-y-1 break-all">
         <p>任务 ID：{job.taskId} · {job.durationMs?Math.ceil(job.durationMs/60000)+' 分钟':''}</p>
         <p>临时副本：{({none:'尚未上传',pending:'保留中',done:'已清理确认',failed:'清理未确认'})[job.cleanup]}</p>

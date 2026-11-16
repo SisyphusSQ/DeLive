@@ -8,6 +8,8 @@ const fixture = vi.hoisted(() => ({
   credentialIssue: vi.fn(), acquireStream: vi.fn(),
   stop: vi.fn(), disconnect: vi.fn(), update: vi.fn(),
 }))
+vi.mock('../utils/volcFileApi', () => ({ startRecordingFileTask: vi.fn() }))
+vi.mock('../stores/fileTaskStore', () => ({ refreshFileTasks: vi.fn() }))
 vi.mock('react', () => ({ useCallback: (fn: unknown) => fn, useRef: (current: unknown) => ({ current }), useEffect: vi.fn() }))
 vi.mock('../stores/settingsStore', () => ({
   useSettingsStore: { getState: () => ({ settings: { currentVendor: 'volc' } }) },

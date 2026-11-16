@@ -99,6 +99,16 @@ export function TranscriptDisplay({
   const isEmpty = !finalTranscript && !nonFinalTranscript
   const isRecording = recordingState === 'recording'
   const isStarting = recordingState === 'starting'
+  const [recordedMs, setRecordedMs] = useState(0)
+  useEffect(() => {
+    const timer = setInterval(() => setRecordedMs(getRecordingTime()), 500)
+    return () => clearInterval(timer)
+  }, [getRecordingTime])
+  if (settings.recordingMode === 'audio-only') return <section className={'workspace-panel space-y-3 p-5 ' + className} aria-label="仅录音状态">
+    <p className="text-sm font-medium">{isStarting ? '准备采集原音' : recordingState === 'stopping' ? '正在完成原音保存' : isRecording ? '原音持续保存中' : '原音已停止采集'} · {new Date(recordedMs).toISOString().slice(11, 19)}</p>
+    <p className="text-sm text-muted-foreground">{settings.autoTranscribeAfterRecording ? '停止并保存后自动提交会后转写。' : '停止后可在回顾页手动转写。'}</p>
+    {currentSession && <><SessionImages session={currentSession} getTime={getRecordingTime} live /><SessionImageViewer session={currentSession} /></>}
+  </section>
   return (
     <div className={`workspace-panel overflow-hidden relative ${className}`}>
       {/* Header — minimal: provider badge on right, scroll indicator */}

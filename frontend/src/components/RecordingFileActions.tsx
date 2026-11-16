@@ -42,7 +42,7 @@ export function RecordingFileActions({ session, onSelect }: { session: Transcrip
           else if (!configured) useUIStore.getState().openSettings('fileStorage')
           else setConfirm(true)
         }}
-      >{credentialIssue ? '配置火山凭据' : !configured ? '配置私有存储' : posts.length ? '重新转写原音' : canMerge ? '转写并校正' : '会后转写'}</button>}
+      >{credentialIssue ? '配置火山凭据' : !configured ? '配置私有存储' : posts.length ? '重新转写原音' : '会后转写'}</button>}
       {awaitingRecovery && <span className="text-xs text-muted-foreground">请先处理现有任务的保存或清理状态</span>}
       {active&&<span className="text-xs text-muted-foreground">已有转写任务，下方可查看进度</span>}
       {!session.audioRecordingId&&<span className="text-xs text-muted-foreground">此会议没有本地原音</span>}
@@ -50,8 +50,8 @@ export function RecordingFileActions({ session, onSelect }: { session: Transcrip
     </div>
     {!active&&session.audioRecordingId&&credentialIssue&&<p className="text-xs text-amber-700 dark:text-amber-400">{credentialIssue}</p>}
     {notice&&<p role="status" className="text-xs text-success">{notice}</p>}{error&&<p role="alert" className="text-xs text-destructive">{error}</p>}
-    <ActionDialog open={confirm} title={canMerge?'转写原音并生成校正版':'提交会后转写'}
-      description={`${session.title} · ${Math.ceil((session.duration??0)/60000)} 分钟。将同步混音的临时副本上传至火山标准文件转写，可能计费；${posts.length?'已有会后稿可直接本地校正，无需再次识别。':''}完成后另存${canMerge?'会后稿和自动校正版':'会后稿'}，保留原稿与人工修改。`}
-      onClose={()=>setConfirm(false)} actions={[{label:'取消',onClick:()=>setConfirm(false)},{label:'确认提交（可能计费）',variant:'primary',onClick:()=>{setConfirm(false);void action(async()=>{await startRecordingFileTask(session.id,session.audioRecordingId!,canMerge);setNotice('任务已提交，可以继续阅读和回放')})}}]} />
+    <ActionDialog open={confirm} title="提交会后转写"
+      description={`${session.title} · ${Math.ceil((session.duration??0)/60000)} 分钟。将同步混音的临时副本上传至火山标准文件转写，可能计费；${posts.length?'已有会后稿可直接本地校正，无需再次识别。':''}完成后另存会后稿，保留原稿与人工修改；需要时再对照生成校正版。`}
+      onClose={()=>setConfirm(false)} actions={[{label:'取消',onClick:()=>setConfirm(false)},{label:'确认提交（可能计费）',variant:'primary',onClick:()=>{setConfirm(false);void action(async()=>{await startRecordingFileTask(session.id,session.audioRecordingId!);setNotice('')})}}]} />
   </div>
 }

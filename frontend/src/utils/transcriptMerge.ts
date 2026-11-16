@@ -192,6 +192,13 @@ export function editMergeGroup(version: TranscriptVersion, groupId: string, text
   return { ...version, segments, text: segments.map(s=>s.text).join('\n'), merge: { ...merge, groups: merge.groups.map(g=>g.id===groupId ? {...g, outputIds:ids(chosen), status:'confirmed', decision:'edited'} : g) } }
 }
 
+export function confirmRemainingGroups(version: TranscriptVersion): TranscriptVersion {
+  if (!version.merge) throw new Error('校正来源记录不完整，无法批量确认')
+  if (!version.merge.groups.some(group => group.status === 'pending')) return version
+  return { ...version, merge: { ...version.merge, groups: version.merge.groups.map(group =>
+    group.status === 'pending' ? { ...group, status: 'confirmed', decision: 'keep-current' } : group) } }
+}
+
 export function resolveMergeGroup(version: TranscriptVersion, groupId: string, decision: 'original' | 'incoming' | 'reviewed', versions: TranscriptVersion[]): TranscriptVersion {
   const merge = version.merge, group = merge?.groups.find(g => g.id === groupId)
   if (!merge || !group) throw new Error('校对区段不存在')

@@ -6,7 +6,7 @@
 
 Live 页可分别启用系统声音和麦克风，选择麦克风设备；至少启用一项。系统声音沿用 Electron display-media / loopback，麦克风使用 getUserMedia；两者各自需要 macOS 授权，首次系统来源使用现有来源选择器。来源和设备名、音量、权限拒绝、静音或结束状态分别显示，来源不等同于说话人。
 
-“仅录音（无需密钥）”保存原音而不连接 ASR。未勾选但转写配置缺失或连接失败时，明确显示转写失败且本地原音继续保存。Provider 热切换只重建转写编码器，不中止原音归档。设备变化会重新获取来源并保留采集间隔，全部来源结束会停止录音。单路结束仍保存另一来源，可停止后重新录制。
+录制主入口的“只录音”保存原音而不连接 ASR；模式在设置中持久保存。选择“录音并实时转录”且连接失败时，明确显示转写失败且本地原音继续保存。Provider 热切换只重建转写编码器，不中止原音归档。设备变化会重新获取来源并保留采集间隔，全部来源结束会停止录音。单路结束仍保存另一来源，可停止后重新录制。
 
 默认保留全部原音，不定期删除（用户已确认）。在“原音存储与恢复”查看保存目录、占用、录音列表，设置 GiB 配额；0 表示不限制应用配额，但仍受真实磁盘可用空间限制。超过配额、磁盘错误或写入积压会停止录音并保留已提交分片，不自动清理旧录音。配额按每个保存目录独立计算。
 
@@ -81,3 +81,7 @@ node_modules/.bin/electron scripts/test-recording-electron.cjs
 TOO-686 需使用正式应用权限和实际设备验证：双来源双方音频、原音/混音回放、耳机和外放回声、三人插话、长会内存/磁盘/漂移、静音与拔插、拒绝权限、磁盘满、断网和异常退出恢复。真实测试须记录 macOS、Electron、设备、持续时间和指标。当前开发环境 macOS 27.0.1 / Electron 40.0.0，不能推广为其他版本兼容承诺；未引入额外原生适配。
 
 平台依据：[Electron 40 desktopCapturer](https://github.com/electron/electron/blob/v40.0.0/docs/api/desktop-capturer.md)、[session display media handler](https://www.electronjs.org/docs/latest/api/session#sessetdisplaymediarequesthandlerhandler-opts)。现有 Electron 路径已用合成流验证管线，正式平台采集兼容性仍待实测。
+
+## TOO-712 自动会后转写
+
+正常停止时先完成原音尾块和会话索引持久化，再按录音开始时固定的 `autoTranscribeAfterRecording` 提交一次既有文件任务。设备结束、采集错误、启动失败和中断恢复不触发自动提交。重复停止由录音生命周期挡住，已有活动任务仍由主进程拒绝重复提交；重启沿用任务查询，不扫描历史录音上传。任务、落库和清理失败沿用既有状态及重试入口。`recordingMode` 可随备份迁移，自动上传授权不迁移。实际验证见 [TOO-712 验收](./evidence-too-712.md)。

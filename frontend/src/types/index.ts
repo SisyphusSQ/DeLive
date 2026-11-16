@@ -255,6 +255,8 @@ export interface CloudBackupFileInfo {
 // 应用设置（支持多提供商）
 export interface AppSettings {
   languageHints: string[]
+  recordingMode?: 'audio-only' | 'realtime'
+  autoTranscribeAfterRecording?: boolean
   // 新增：当前选择的提供商
   currentVendor?: string
   // 新增：各提供商的配置

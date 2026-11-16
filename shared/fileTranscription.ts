@@ -18,7 +18,7 @@ export interface TranscriptMergeGroup {
   status: 'automatic' | 'added' | 'manual' | 'pending' | 'confirmed'
   reason?: string
   comparisonOnly?: true
-  decision?: 'original' | 'incoming' | 'edited' | 'reviewed'
+  decision?: 'original' | 'incoming' | 'edited' | 'reviewed' | 'keep-current'
 }
 export interface TranscriptMerge {
   key: string

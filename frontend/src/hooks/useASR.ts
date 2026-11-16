@@ -14,6 +14,8 @@ import { sessionRepository } from '../utils/sessionRepository'
 import { useTopicStore } from '../stores/topicStore'
 import { CaptureManager } from '../services/captureManager'
 import { ProviderSessionManager } from '../services/providerSession'
+import { startRecordingFileTask } from '../utils/volcFileApi'
+import { refreshFileTasks } from '../stores/fileTaskStore'
 import type { ASRVendor } from '../types/asr'
 
 interface UseASROptions {
@@ -30,6 +32,7 @@ export function useASR(options: UseASROptions = {}) {
   const lastRestartTimeRef = useRef(0)
   const selectedVendorRef = useRef<ASRVendor | null>(null)
   const stopRecordingRef = useRef<() => Promise<void>>(async () => {})
+  const autoTranscribeRef = useRef(false)
 
   const {
     applyTranscriptEvent,
@@ -41,11 +44,13 @@ export function useASR(options: UseASROptions = {}) {
   // ── 停止录制 ──────────────────────────────────────
 
   const stopRecording = useCallback(async () => {
-    if (useSessionStore.getState().recordingState === 'stopping') return
+    if (['idle', 'stopping'].includes(useSessionStore.getState().recordingState)) return
     console.log('[useASR] 停止录制...')
     setRecordingState('stopping')
 
     const sessionId = useSessionStore.getState().currentSessionId
+    const autoTranscribe = autoTranscribeRef.current
+    autoTranscribeRef.current = false
     let audioSaved = false
     try {
       const audio = await captureRef.current.stop()
@@ -66,6 +71,16 @@ export function useASR(options: UseASROptions = {}) {
       try {
         await sessionRepository.waitForSessionWrite(sessionId)
         options.onSaved?.(sessionId)
+        if (autoTranscribe) {
+          try {
+            await startRecordingFileTask(sessionId, sessionId)
+            await refreshFileTasks()
+          } catch (error) {
+            const message = '原音已保存，会后转写未启动：' + (error as Error).message + '；可在回顾页手动转写'
+            useRecordingStore.getState().update({ error: message })
+            options.onError?.(message)
+          }
+        }
       } catch (error) {
         options.onError?.('会议保存失败，已保存原音仍可恢复：' + (error as Error).message)
       }
@@ -152,6 +167,7 @@ export function useASR(options: UseASROptions = {}) {
       setRecordingState('recording')
     } catch (error) {
       options.onError?.('设备重新采集失败：' + (error as Error).message)
+      autoTranscribeRef.current = false
       await stopRecordingRef.current()
     } finally { captureRef.current.finishRestart(); isRestartingRef.current = false }
   }, [buildProviderCallbacks, options, setRecordingState])
@@ -162,18 +178,20 @@ export function useASR(options: UseASROptions = {}) {
     if (useSessionStore.getState().recordingState !== 'idle') return
     const settingsState = useSettingsStore.getState()
     const { settings } = settingsState
+    const localOnly = settings.recordingMode === 'audio-only'
     const vendorId = (settings.currentVendor || DEFAULT_ASR_VENDOR) as ASRVendor
     const psm = providerSessionRef.current
     const capture = captureRef.current
     const config = useRecordingStore.getState()
     try {
-      const credentialIssue = !config.localOnly && vendorId === DEFAULT_ASR_VENDOR
+      const credentialIssue = !localOnly && vendorId === DEFAULT_ASR_VENDOR
         ? getVolcCredentialIssue(settingsState)
         : undefined
       if (credentialIssue) throw new Error(credentialIssue)
-      const setup = config.localOnly ? undefined : psm.resolveSetup(vendorId, settings)
+      const setup = localOnly ? undefined : psm.resolveSetup(vendorId, settings)
 
-      config.update({ error: '', sources: [], asrStatus: config.localOnly ? '仅录音' : '准备连接转写' })
+      autoTranscribeRef.current = settings.autoTranscribeAfterRecording === true
+      config.update({ error: '', sources: [], asrStatus: localOnly ? '仅录音' : '准备连接转写' })
       setRecordingState('starting')
       await capture.acquireStream({
         system: config.system, microphone: config.microphone, microphoneId: config.microphoneId,
@@ -184,7 +202,7 @@ export function useASR(options: UseASROptions = {}) {
         onError: error => {
           useRecordingStore.getState().update({ error: error.message })
           options.onError?.(error.message)
-          if (!error.message.startsWith('ASR')) void stopRecordingRef.current()
+          if (!error.message.startsWith('ASR')) { autoTranscribeRef.current = false; void stopRecordingRef.current() }
         },
       })
       const id = startNewSession()
@@ -194,7 +212,7 @@ export function useASR(options: UseASROptions = {}) {
       if (topicId) useSessionStore.getState().updateSessionTopic(id, topicId)
       const callbacks = {
         onAudioData: (data: Blob | ArrayBuffer) => psm.sendAudio(data),
-        onTrackEnded: () => { void stopRecordingRef.current() },
+        onTrackEnded: () => { autoTranscribeRef.current = false; void stopRecordingRef.current() },
         onDeviceChange: () => { void restartCapture() },
       }
       // Bind capture lifecycle even when transcription is disabled.
@@ -218,6 +236,7 @@ export function useASR(options: UseASROptions = {}) {
       const message = (error as Error).message
       options.onError?.(message)
       if (useSessionStore.getState().recordingState !== 'idle') {
+        autoTranscribeRef.current = false
         console.error('[useASR] 启动录音失败:', error)
         useRecordingStore.getState().update({ error: message })
         await stopRecordingRef.current()
