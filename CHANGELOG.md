@@ -11,9 +11,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+---
+
+## [2.3.0-sq.4] - 2026-11-16
+
 ### 修复
 - 回顾首页与详情侧栏展示全部录音，已归主题的会话不再默认隐藏，列表显示所属主题。
 - 录音详情标题下可直接加入、更换或移出主题；保存失败时提示并保留原归属。
+
+### 发行范围
+- macOS arm64 本机发行，Developer ID 签名，未公证；使用手动安装方式，不创建 GitHub Release。
+- 复用开发阶段的 28 项定向测试和实际界面验收；发版收尾不重复执行测试。
 
 ---
 
