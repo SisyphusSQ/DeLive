@@ -1,4 +1,4 @@
-> [DeLive SQ 2.3.0-sq.6 預發佈版](https://github.com/SisyphusSQ/DeLive/releases/tag/v2.3.0-sq.6) 提供 macOS Apple Silicon（arm64）DMG/ZIP：Developer ID 正式簽章、未公證、手動更新，資料與原版分開且不自動遷移。下文官網、徽章及其他下載連結屬於上游專案；本 fork 的安裝、權限恢復及發佈流程見 [建置說明](docs/zh/development/build.md)。
+> [DeLive SQ 2.3.0-sq.6 預發佈版](https://github.com/SisyphusSQ/DeLive/releases/tag/v2.3.0-sq.6) 提供版本說明與對應原始碼。macOS Apple Silicon 安裝包僅在本機保留。建置及手動安裝方式見 [SQ 建置說明](docs/zh/development/build.md)。下方官網與徽章屬於上游專案。
 
 <div align="center">
 

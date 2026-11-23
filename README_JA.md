@@ -1,4 +1,4 @@
-> [DeLive SQ 2.3.0-sq.6 プレリリース](https://github.com/SisyphusSQ/DeLive/releases/tag/v2.3.0-sq.6) は macOS Apple Silicon（arm64）向けの DMG/ZIP です。Developer ID 署名済み、Apple 公証なし、手動更新です。データは上流版と分離され、自動移行されません。以下の公式サイト、バッジ、その他のダウンロードリンクは上流版のものです。インストール、権限の復旧、リリース手順は [SQ ビルド手順](docs/zh/development/build.md) を参照してください。
+> [DeLive SQ 2.3.0-sq.6 プレリリース](https://github.com/SisyphusSQ/DeLive/releases/tag/v2.3.0-sq.6) ではリリースノートとソースコードを公開しています。macOS Apple Silicon 用のインストーラーはローカルで保管しています。ビルドと手動インストールの手順は [SQ ビルドガイド](docs/zh/development/build.md) を参照してください。以下の公式サイトとバッジは上流プロジェクトのものです。
 
 <div align="center">
 
