@@ -37,6 +37,7 @@ export const ko: Translations = {
 
   // Common
   common: {
+    minutes: '분',
     save: '저장',
     cancel: '취소',
     close: '닫기',
@@ -317,6 +318,8 @@ export const ko: Translations = {
 
   // History
   history: {
+    recentWeek: '최근 7일',
+    more: '추가 작업',
     title: '기록',
     railDescription: '완료된 세션을 검색하고 다시 열고 정리합니다.',
     searchPlaceholder: '제목이나 내용을 검색하고 Enter를 누르세요...',
@@ -346,6 +349,27 @@ export const ko: Translations = {
 
   // Preview modal
   preview: {
+    meetingInfo: '회의 정보', imageMaterials: '이미지 자료',
+    fullscreenMap: '전체 화면',
+    panMap: '확대 및 이동',
+    deleteConversationConfirm: '현재 대화와 메시지를 삭제할까요?',
+    assistant: '회의 도우미',
+    imageSource: '이미지',
+    imageRemoved: '원본 이미지가 삭제됨',
+    quoteText: '인용 원문',
+    noSummary: '아직 요약이 없습니다',
+    meetingSuggestions: '회의 정보 제안',
+    discussionPoints: '논의 요점',
+    organizeTools: '정리 도구',
+    meetingChat: '회의 대화',
+    discussionMap: '논의 흐름',
+    mapView: '지도',
+    outlineView: '개요',
+    moreTools: '추가 도구',
+    viewPassage: '원문 보기',
+    noMatchingPassage: '일치하는 원문 없음',
+    mapHint: '다시 검색하거나 분기를 펼치세요',
+    itemsDone: '완료',
     noContent: '이 기록에는 전사 내용이 없습니다',
     totalCharacters: '전체',
     exportTxt: 'TXT 내보내기',

@@ -32,7 +32,7 @@ function ReviewPreview({ initial = 'proposal', scenario = 'normal', initialTab =
       <span className="design-caption"><i />回顾页 · 设计工作台</span>
       <div className="design-views" aria-label="页面对照">
         <button aria-pressed={view === 'current'} onClick={() => switchView('current')}>01 现有页面</button>
-        <button aria-pressed={view === 'proposal'} onClick={() => switchView('proposal')}>02 笔记式提案</button>
+        <button aria-pressed={view === 'proposal'} onClick={() => switchView('proposal')}>{scenario === 'grouped' ? '回顾页提案' : '02 笔记式提案'}</button>
       </div>
       <span className="design-disclaimer">合成数据 · 原音为静音 · 不连接服务</span>
       <Select aria-label="状态预览" value={state} onChange={e => setState(e.target.value as PreviewState)} className="design-state">{Object.entries(previewStates).map(([key, label]) => <option key={key} value={key}>{label}</option>)}</Select>
@@ -55,6 +55,10 @@ export default meta
 type Story = StoryObj<typeof meta>
 export const Current: Story = { name: '01 现有页面 · 正式组件', args: { initial: 'current' } }
 export const Proposal: Story = { name: '02 笔记式提案', args: { initial: 'proposal' } }
+export const GroupedTools: Story = {
+  name: '回顾页提案 · 历史记录与四个页签',
+  args: { scenario: 'grouped', initialState: 'completed' },
+}
 export const Untimed: Story = { name: '03 历史稿 · 无逐句时间', args: { initial: 'proposal', scenario: 'untimed' } }
 export const Empty: Story = { name: '04 空稿与缺失原音', args: { initial: 'proposal', scenario: 'empty' } }
 export const LongTitle: Story = { name: '05 长标题与窄窗', args: { initial: 'proposal', scenario: 'long' } }
@@ -83,9 +87,9 @@ export const Interactions: Story = {
   },
 }
 
-export const Summary: Story = { name: '07 摘要 · 会议笔记', args: { initialTab: '摘要' } }
-export const Chat: Story = { name: '08 对话 · 原文引用', args: { initialTab: '对话' } }
-export const MindMap: Story = { name: '09 思维导图 · 主题脉络', args: { initialTab: '思维导图' } }
+export const Summary: Story = { name: '07 摘要 · 会议笔记', args: { scenario: 'grouped', initialTab: '摘要', initialState: 'completed' } }
+export const Chat: Story = { name: '08 对话 · 原文引用', args: { scenario: 'grouped', initialTab: '对话', initialState: 'completed' } }
+export const MindMap: Story = { name: '09 思维导图 · 主题脉络', args: { scenario: 'grouped', initialTab: '思维导图', initialState: 'completed' } }
 export const InsightInteractions: Story = {
   name: '10 页签交互自检', args: { initialTab: '摘要' },
   play: async ({ canvasElement }) => {
@@ -181,7 +185,7 @@ export const RecoveryInteractions: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement), body = within(document.body)
     await userEvent.click(await canvas.findByRole('button', { name: '摘要' }, { timeout: 15000 }))
-    await expect(canvas.getByRole('heading', { name: '让回顾，像读一页笔记' })).toBeVisible()
+    await expect(within(canvas.getByRole('region', { name: '会议摘要' })).getByRole('heading', { name: '把空间交还给正文' })).toBeVisible()
     await userEvent.click(canvas.getByRole('button', { name: '转录文本' }))
     await userEvent.click(canvas.getByRole('button', { name: '恢复说话人与时间轴' }))
     await userEvent.click(body.getByRole('button', { name: '创建恢复修订版' }))

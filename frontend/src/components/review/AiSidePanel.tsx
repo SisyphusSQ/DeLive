@@ -166,7 +166,7 @@ export function AiSidePanel({
     return (
       <button
         onClick={onToggle}
-        className="absolute right-4 top-4 z-10 inline-flex h-8 w-8 items-center justify-center rounded-lg border border-border/40 bg-background/90 text-muted-foreground shadow-sm backdrop-blur transition-colors hover:bg-accent hover:text-foreground"
+        className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
         title={(p.aiSidePanelOpen as string) || 'Open AI Panel'}
       >
         <PanelRightOpen className="h-4 w-4" />

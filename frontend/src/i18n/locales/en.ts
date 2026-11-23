@@ -37,6 +37,7 @@ export const en: Translations = {
 
   // Common
   common: {
+    minutes: 'min',
     save: 'Save',
     cancel: 'Cancel',
     close: 'Close',
@@ -317,6 +318,8 @@ export const en: Translations = {
 
   // History
   history: {
+    recentWeek: 'Last 7 days',
+    more: 'More actions',
     title: 'History',
     railDescription: 'Search, reopen, and organize finished sessions.',
     searchPlaceholder: 'Search title or content, press Enter to confirm...',
@@ -346,6 +349,27 @@ export const en: Translations = {
 
   // Preview modal
   preview: {
+    meetingInfo: 'Meeting details', imageMaterials: 'Images',
+    fullscreenMap: 'Full screen',
+    panMap: 'Pan and zoom',
+    deleteConversationConfirm: 'Delete this conversation and its messages?',
+    assistant: 'Meeting assistant',
+    imageSource: 'Image',
+    imageRemoved: 'Source image removed',
+    quoteText: 'Quoted passages',
+    noSummary: 'No summary yet',
+    meetingSuggestions: 'Meeting suggestions',
+    discussionPoints: 'Discussion points',
+    organizeTools: 'Meeting tools',
+    meetingChat: 'Meeting chat',
+    discussionMap: 'Discussion map',
+    mapView: 'Map',
+    outlineView: 'Outline',
+    moreTools: 'More tools',
+    viewPassage: 'View transcript',
+    noMatchingPassage: 'No matching passage',
+    mapHint: 'Search again or expand a branch',
+    itemsDone: 'Completed',
     noContent: 'This record has no transcription content',
     totalCharacters: 'Total',
     exportTxt: 'Export TXT',

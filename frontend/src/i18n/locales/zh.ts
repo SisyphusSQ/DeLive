@@ -36,6 +36,7 @@ export const zh = {
 
   // 通用
   common: {
+    minutes: '分钟',
     save: '保存',
     cancel: '取消',
     close: '关闭',
@@ -316,6 +317,8 @@ export const zh = {
 
   // 历史记录
   history: {
+    recentWeek: '近 7 天',
+    more: '更多操作',
     title: '历史记录',
     railDescription: '检索、重开并整理已完成会话。',
     searchPlaceholder: '搜索标题或内容，按回车确认...',
@@ -345,6 +348,27 @@ export const zh = {
 
   // 预览弹窗
   preview: {
+    meetingInfo: '会议信息', imageMaterials: '图片资料',
+    fullscreenMap: '全屏',
+    panMap: '缩放与拖动',
+    deleteConversationConfirm: '删除当前对话及其中的问答？',
+    assistant: '会议助手',
+    imageSource: '图片',
+    imageRemoved: '原图片已移除',
+    quoteText: '引用原文',
+    noSummary: '尚未生成摘要',
+    meetingSuggestions: '会议信息建议',
+    discussionPoints: '讨论要点',
+    organizeTools: '整理工具',
+    meetingChat: '会议对话',
+    discussionMap: '讨论脉络',
+    mapView: '导图',
+    outlineView: '大纲',
+    moreTools: '更多工具',
+    viewPassage: '查看原文',
+    noMatchingPassage: '没有匹配的原文',
+    mapHint: '重新查找或展开分支',
+    itemsDone: '已完成',
     noContent: '此记录没有转录内容',
     totalCharacters: '共',
     exportTxt: '导出 TXT',

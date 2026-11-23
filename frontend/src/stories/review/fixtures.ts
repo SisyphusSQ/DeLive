@@ -3,6 +3,8 @@ import type { FileTask, TranscriptVersion } from '../../../../shared/fileTranscr
 import type { RecordingManifest } from '../../../../shared/recording'
 import { normalizeTranscriptSession } from '../../utils/sessionSchema'
 
+export const versionNames: Record<TranscriptVersion['kind'], string> = { realtime: '实时稿', 'post-meeting': '会后稿', reconciled: '自动校正版', edited: '人工修订', legacy: '历史稿' }
+
 const createdAt = new Date('2026-11-12T10:00:00+08:00').getTime()
 export const durationMs = 26 * 60 * 1000
 const lines = [

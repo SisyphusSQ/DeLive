@@ -133,6 +133,7 @@ export interface SessionDetail {
   postProcess?: {
     summary?: string
     actionItems?: string[]
+    completedActionItems?: string[]
     keywords?: string[]
     titleSuggestion?: string
     tagSuggestions?: string[]

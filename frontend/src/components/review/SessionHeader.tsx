@@ -1,18 +1,19 @@
 import { useConfirmation } from '../../hooks/useConfirmation'
 import { memo, useMemo, useState } from 'react'
-import { X, Download, PanelLeftClose, PanelLeftOpen } from 'lucide-react'
+import { Info, Image, X, Download, PanelLeftClose, PanelLeftOpen } from 'lucide-react'
 import type { TranscriptSession } from '../../types'
 import { canExportTimed, downloadReview, reviewVersions, selectedReviewVersion, versionLabel, reviewStatus } from '../../utils/reviewVersions'
 import { useSessionStore } from '../../stores/sessionStore'
 import { cancelAiTasks } from '../../services/aiTransport'
 import { SpeakerRosterButton } from './SpeakerRosterButton'
 import { Button } from '../ui'
+import { TagSelector } from '../TagSelector'
 import { Select } from '../ui/Select'
 import { useTopicStore } from '../../stores/topicStore'
 import { useUIStore } from '../../stores/uiStore'
 
-interface SessionHeaderProps { viewingTranscript?: boolean;session:TranscriptSession;onClose:()=>void;sidebarCollapsed?:boolean;onToggleSidebar?:()=>void }
-export const SessionHeader = memo(function SessionHeader({session,viewingTranscript = true,onClose,sidebarCollapsed,onToggleSidebar}:SessionHeaderProps) {
+interface SessionHeaderProps { onImages?:()=>void;viewingTranscript?: boolean;session:TranscriptSession;onClose:()=>void;sidebarCollapsed?:boolean;onToggleSidebar?:()=>void }
+export const SessionHeader = memo(function SessionHeader({session,onImages,viewingTranscript = true,onClose,sidebarCollapsed,onToggleSidebar}:SessionHeaderProps) {
   const current=useSessionStore(s=>s.sessions.find(item=>item.id===session.id))??session
   const versions = useMemo(() => reviewVersions(current), [current])
   const version = selectedReviewVersion(current, versions)
@@ -20,6 +21,8 @@ export const SessionHeader = memo(function SessionHeader({session,viewingTranscr
   const viewed = versions.find(v => v.id === viewedId) ?? version
   const [open,setOpen]=useState(false),[error,setError]=useState('')
   const { t } = useUIStore()
+  const [infoOpen, setInfoOpen] = useState(false)
+  const [titleDraft, setTitleDraft] = useState(current.title)
   const topics = useTopicStore(state => state.topics)
   const [topicError, setTopicError] = useState('')
   const changeTopic = async (value: string) => {
@@ -45,24 +48,12 @@ export const SessionHeader = memo(function SessionHeader({session,viewingTranscr
     {dialog}<div className="mx-auto flex max-w-[52rem] items-start justify-between gap-2 sm:gap-4">
       <div className="flex min-w-0 flex-1 items-start gap-2">
         {onToggleSidebar&&<button aria-label={sidebarCollapsed?'显示会话列表':'隐藏会话列表'} className="rounded border p-2" onClick={onToggleSidebar}>{sidebarCollapsed?<PanelLeftOpen className="h-4 w-4"/>:<PanelLeftClose className="h-4 w-4"/>}</button>}
-        <div className="min-w-0"><h2 id="session-review-title" title={current.title} className="review-session-title line-clamp-2 break-words text-lg font-semibold leading-snug tracking-tight sm:text-2xl">{current.title}</h2><p className="review-session-meta mt-1 break-words text-xs text-muted-foreground">{current.date} {current.time} · {version.text.length} 字</p>
-          <div className="mt-2 flex min-w-0 flex-wrap items-center gap-2 text-xs">
-            <span className="text-muted-foreground">{t.topics.title}</span>
-            <Select aria-label={t.topics.selectTopic} value={current.topicId ?? ''}
-              disabled={!topics.length && !current.topicId}
-              onChange={event => void changeTopic(event.target.value)}
-              className="max-w-full rounded-md border border-border bg-background px-2.5 py-1.5 sm:max-w-[260px]">
-              <option value="">{t.topics.uncategorized}</option>
-              {topics.map(topic => <option key={topic.id} value={topic.id}>{topic.emoji} {topic.name}</option>)}
-            </Select>
-            {current.topicId && <button onClick={() => void changeTopic('')} className="rounded px-2 py-1.5 text-muted-foreground hover:bg-muted">{t.topics.removeFromTopic}</button>}
-            <SpeakerRosterButton key={current.id} session={current} version={viewed} adopted={viewed.id === version.id} viewingTranscript={viewingTranscript} />
-            {!topics.length && <span className="text-muted-foreground">{t.topics.noTopicsHint}</span>}
-          </div>
-          {topicError && <p role="alert" className="mt-1 text-xs text-destructive">{topicError}</p>}
+        <div className="min-w-0"><h2 id="session-review-title" title={current.title} className="review-session-title line-clamp-2 break-words text-lg font-semibold leading-snug tracking-tight sm:text-2xl">{current.title}</h2><div className="review-session-meta"><span>{current.date} · {current.time}</span>{!!current.duration && <span>{Math.ceil(current.duration / 60000)} {t.common.minutes}</span>}<span>{version.text.length} 字</span><SpeakerRosterButton key={current.id} session={current} version={viewed} adopted={viewed.id === version.id} viewingTranscript={viewingTranscript} /></div>
         </div>
       </div>
-      <div className="flex shrink-0 items-center gap-1">
+      <div className="review-header-tools">
+        <Button size="sm" variant="ghost" aria-label={t.preview.meetingInfo} aria-expanded={infoOpen} title={t.preview.meetingInfo} onClick={() => { setTitleDraft(current.title); setInfoOpen(!infoOpen) }}><Info size={14}/><span>{t.preview.meetingInfo}</span></Button>
+        {onImages && <Button size="sm" variant="ghost" aria-label={t.preview.imageMaterials} title={t.preview.imageMaterials} onClick={onImages}><Image size={14}/><span>{t.preview.imageMaterials}</span></Button>}
         {aiRunning && <button className="rounded border px-3 py-2 text-sm" onClick={() => cancelAiTasks(current.id)}>停止 AI</button>}
         <div className="relative" onKeyDown={event => {
           if (event.key !== 'Escape' || !open) return
@@ -84,6 +75,27 @@ export const SessionHeader = memo(function SessionHeader({session,viewingTranscr
         <Button size="icon" variant="ghost" onClick={onClose} title="关闭会话" aria-label="关闭会话"><X className="h-4 w-4" /></Button>
       </div>
     </div>
+    {infoOpen && <section className="review-info-panel" aria-label={t.preview.meetingInfo}>
+      <form onSubmit={event => { event.preventDefault(); if (titleDraft.trim()) useSessionStore.getState().updateSessionTitle(current.id, titleDraft.trim()) }}>
+        <label>{t.history.editTitle}<input value={titleDraft} onChange={event => setTitleDraft(event.target.value)}/></label>
+        <button className="ins-button" disabled={!titleDraft.trim() || titleDraft.trim() === current.title}>{t.common.save}</button>
+      </form>
+          <div className="mt-2 flex min-w-0 flex-wrap items-center gap-2 text-xs">
+            <span className="text-muted-foreground">{t.topics.title}</span>
+            <Select aria-label={t.topics.selectTopic} value={current.topicId ?? ''}
+              disabled={!topics.length && !current.topicId}
+              onChange={event => void changeTopic(event.target.value)}
+              className="max-w-full rounded-md border border-border bg-background px-2.5 py-1.5 sm:max-w-[260px]">
+              <option value="">{t.topics.uncategorized}</option>
+              {topics.map(topic => <option key={topic.id} value={topic.id}>{topic.emoji} {topic.name}</option>)}
+            </Select>
+            {current.topicId && <button onClick={() => void changeTopic('')} className="rounded px-2 py-1.5 text-muted-foreground hover:bg-muted">{t.topics.removeFromTopic}</button>}
+
+            {!topics.length && <span className="text-muted-foreground">{t.topics.noTopicsHint}</span>}
+          </div>
+          {topicError && <p role="alert" className="mt-1 text-xs text-destructive">{topicError}</p>}
+      <div className="review-info-tags"><span>{t.tag.tags}</span><TagSelector sessionId={current.id} sessionTagIds={current.tagIds ?? []}/></div>
+    </section>}
     {error&&<p role="alert" className="mt-2 text-sm text-red-600">{error}</p>}
   </div>
 })

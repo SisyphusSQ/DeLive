@@ -1,4 +1,4 @@
-import { useMemo, useState, useCallback } from 'react'
+import { Fragment, useMemo, useState, useCallback } from 'react'
 import { Flame, Calendar, Clock, TrendingUp, ChevronDown } from 'lucide-react'
 import type { TranscriptSession } from '../types'
 import { useUIStore } from '../stores/uiStore'
@@ -247,8 +247,8 @@ export function ActivityHeatmap({ sessions, onDateClick, activeDate }: ActivityH
 
           {/* Day rows: label + cells */}
           {Array.from({ length: DAYS_PER_WEEK }).map((_, dayIdx) => (
-            <>
-              <div key={`dl-${dayIdx}`} className="text-[10px] leading-none text-muted-foreground/70 text-right pr-1 flex items-center justify-end">
+            <Fragment key={dayIdx}>
+              <div className="text-[10px] leading-none text-muted-foreground/70 text-right pr-1 flex items-center justify-end">
                 {dayLabels[dayIdx]}
               </div>
               {grid.map((week, weekIdx) => {
@@ -270,7 +270,7 @@ export function ActivityHeatmap({ sessions, onDateClick, activeDate }: ActivityH
                   />
                 )
               })}
-            </>
+            </Fragment>
           ))}
         </div>
 

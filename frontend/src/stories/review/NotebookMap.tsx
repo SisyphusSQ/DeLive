@@ -1,40 +1,146 @@
-import { useEffect, useRef, useState } from 'react'
-import { PreviewDialog } from './NotebookExtras'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { ArrowUpRight, ChevronDown, FileText, List, Maximize2, Network, Pencil, RotateCcw } from 'lucide-react'
+import Markdown from 'react-markdown'
+import type { Markmap } from 'markmap-view'
 import { exportMindMapPng, exportMindMapSvg } from '../../utils/mindMapExport'
+import { post } from './fixtures'
+import { PreviewDialog } from './NotebookExtras'
+import type { meetingTopics } from './insightFixtures'
 
-export const mapMarkdown = '# 更舒适的会议回顾\n\n## 把空间交还给正文\n- 紧凑的会议列表\n- 连续、舒适的正文\n\n## 让原音与文字靠近\n- 随时回听原音\n- 按需展开校正\n\n## 保留熟悉的使用习惯\n- 配色与明暗切换\n- 先评审，再开发'
+async function drawMap(svg: SVGSVGElement, markdown: string) {
+  const [{ Transformer }, { Markmap }] = await Promise.all([import('markmap-lib'), import('markmap-view')])
+  if (!svg.isConnected) return
+  const { root } = new Transformer().transform(markdown)
+  const map = Markmap.create(svg, { duration: 0, fitRatio: .9, maxWidth: 180, color: () => 'hsl(var(--primary))', spacingVertical: 16 })
+  try { await map.setData(root); await map.fit(); return map }
+  catch (error) { map.destroy(); throw error }
+}
 
-function MapCanvas({ markdown, svgRef }: { markdown: string; svgRef: React.RefObject<SVGSVGElement> }) {
+function MapCanvas({ markdown }: { markdown: string }) {
+  const ref = useRef<SVGSVGElement>(null)
   const [error, setError] = useState('')
   useEffect(() => {
     let disposed = false
-    let destroy: (() => void) | undefined
-    void Promise.all([import('markmap-lib'), import('markmap-view')]).then(([{ Transformer }, { Markmap }]) => {
-      if (disposed || !svgRef.current) return
-      svgRef.current.setAttribute('width', String(svgRef.current.clientWidth))
-      svgRef.current.setAttribute('height', String(svgRef.current.clientHeight))
-      const { root } = new Transformer().transform(markdown)
-      const map = Markmap.create(svgRef.current, { autoFit: true, duration: 0, fitRatio: .88, maxWidth: 180, color: () => 'hsl(var(--primary))', spacingVertical: 16 }, root)
-      destroy = () => map.destroy()
-      setError('')
-    }).catch(e => { if (!disposed) setError(`导图渲染失败：${String(e)}`) })
-    return () => { disposed = true; destroy?.() }
-  }, [markdown, svgRef])
-  return <div className="note-map-canvas"><svg ref={svgRef} width="800" height="430" aria-label="可缩放和拖动的思维导图" />{error && <p role="alert">{error}</p>}</div>
+    let rendered: Markmap | undefined
+    const svg = ref.current!
+    const resize = new ResizeObserver(() => { if (rendered) void rendered.fit() })
+    resize.observe(svg)
+    setError('')
+    void drawMap(svg, markdown).then(map => {
+      if (disposed) map?.destroy()
+      else rendered = map
+    }).catch(() => { if (!disposed) setError('导图渲染失败，请重开导图。') })
+    return () => { disposed = true; resize.disconnect(); rendered?.destroy() }
+  }, [markdown])
+  return <div className="note-map-canvas"><svg ref={ref} aria-label="可缩放和拖动的思维导图" />{error && <p role="alert">{error}</p>}</div>
 }
-export function NotebookMapEditor({ saveFailed, children, outline, visible, initialMarkdown = mapMarkdown }: { saveFailed: boolean; children: React.ReactNode; outline: boolean; visible: boolean; initialMarkdown?: string }) {
-  const [markdown, setMarkdown] = useState(initialMarkdown), [saved, setSaved] = useState(initialMarkdown), [editing, setEditing] = useState(false), [fullscreen, setFullscreen] = useState(false), [notice, setNotice] = useState(''), [custom, setCustom] = useState(false)
-  const svg = useRef<SVGSVGElement>(null), fullSvg = useRef<SVGSVGElement>(null)
+
+type MapProps = {
+  visible: boolean
+  imagesOnly: boolean
+  topics: typeof meetingTopics
+  citation: (seconds: number) => ReactNode
+  blocked: boolean
+  saveFailed: boolean
+  onRegenerate: () => void
+}
+
+export function NotebookMapEditor({ visible, topics, imagesOnly, citation, blocked, saveFailed, onRegenerate }: MapProps) {
+  const title = imagesOnly ? '回顾页布局草图' : '更舒适的会议回顾'
+  const initial = ['# ' + title, ...topics.flatMap(topic => ['## ' + topic.title, ...topic.leaves.map(leaf => '- ' + leaf)])].join('\n')
+  const [saved, setSaved] = useState(initial)
+  const [markdown, setMarkdown] = useState(initial)
+  const [editing, setEditing] = useState(false)
+  const [more, setMore] = useState(false)
+  const [fullscreen, setFullscreen] = useState(false)
+  const [outline, setOutline] = useState(false)
+  const [pan, setPan] = useState(false)
+  const [folded, setFolded] = useState<string[]>([])
+  const [source, setSource] = useState<number | null>(null)
+  const [notice, setNotice] = useState('')
+  const [exporting, setExporting] = useState(false)
+  const sourceTopic = topics.find(topic => source !== null && topic.leafTimes.includes(source))
+  const passage = post.segments.find(segment => segment.startMs === (source ?? -1) * 1000)
   const dirty = markdown !== saved
-  const copy = async () => { try { await navigator.clipboard.writeText(markdown); setNotice('已复制导图 Markdown') } catch { setNotice('复制失败，请展开编辑器手动复制。') } }
-  const exportMap = async (format: 'SVG' | 'PNG') => {
-    if (!svg.current) { setCustom(true); setNotice('已打开可缩放导图。渲染完成后，再选择导出格式。'); return }
-    try { if (format === 'SVG') exportMindMapSvg(svg.current, 'DeLive-合成导图'); else await exportMindMapPng(svg.current, 'DeLive-合成导图'); setNotice(`已导出本地合成 ${format}，不含真实会议资料`) } catch { setNotice('导出失败，内容仍保留，请重试。') }
+  const custom = saved !== initial
+  function save() {
+    if (saveFailed) { setNotice('保存失败，编辑草稿仍保留，请重试。'); return }
+    setSaved(markdown)
+    setEditing(false)
+    setSource(null)
+    setNotice('已保存本次预览导图')
   }
-  return <><div className="note-tools note-map-tools"><button className="note-text-button" aria-expanded={editing} onClick={() => setEditing(v => !v)}>编辑 Markdown{dirty ? ' · 未保存' : ''}</button><button className="note-text-button" onClick={() => void copy()}>复制 Markdown</button><button className="note-text-button" disabled={custom} onClick={() => setCustom(true)}>缩放与拖动</button><button className="note-text-button" onClick={() => setFullscreen(true)}>全屏</button><details className="note-more"><summary>导出导图</summary><div><button onClick={() => void exportMap('SVG')}>导出 SVG</button><button onClick={() => void exportMap('PNG')}>导出 PNG</button></div></details></div>
-    {editing && <div className="note-form"><label>导图 Markdown<textarea aria-label="导图 Markdown" rows={10} value={markdown} onChange={e => setMarkdown(e.target.value)} /></label><div className="note-tools"><button className="note-primary" disabled={!dirty || !markdown.trim()} onClick={() => { if (saveFailed) { setNotice('保存失败，编辑草稿仍保留，请重试。'); return } setSaved(markdown); setCustom(true); setNotice('已保存本次预览导图') }}>保存导图</button><button className="note-text-button" disabled={!dirty} onClick={() => { setMarkdown(saved); setNotice('已恢复到上次保存的导图') }}>放弃导图修改</button></div></div>}
-    {custom ? outline ? <pre className="note-map-outline">{saved}</pre> : (visible && <MapCanvas markdown={saved} svgRef={svg} />) : children}
-    {notice && <p role="status" className="insight-footnote">{notice}</p>}
-    <PreviewDialog open={fullscreen} title="全屏思维导图" onClose={() => setFullscreen(false)}>{fullscreen && <MapCanvas markdown={saved} svgRef={fullSvg} />}<p className="insight-footnote">滚轮缩放、拖动画布；点击节点圆点折叠。按 Esc 返回。</p></PreviewDialog>
-  </>
+  async function copy() {
+    try { await navigator.clipboard.writeText(markdown); setNotice('已复制导图 Markdown') }
+    catch { setNotice('复制失败，可在编辑器内选择文字复制。') }
+  }
+  async function exportMap(format: 'SVG' | 'PNG') {
+    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg')
+    svg.setAttribute('aria-hidden', 'true')
+    svg.style.cssText = 'position:fixed;left:-1200px;top:0;width:960px;height:480px;pointer-events:none'
+    document.body.append(svg)
+    setExporting(true)
+    let map: Markmap | undefined
+    try {
+      map = await drawMap(svg, saved)
+      if (format === 'SVG') exportMindMapSvg(svg, title)
+      else await exportMindMapPng(svg, title)
+      setNotice(`已导出 ${format}`)
+    } catch { setNotice('导出失败，可重试或复制 Markdown。') }
+    finally { map?.destroy(); svg.remove(); setExporting(false) }
+  }
+  function toggleBranch(topic: typeof topics[number]) {
+    setFolded(current => current.includes(topic.title) ? current.filter(item => item !== topic.title) : [...current, topic.title])
+    if (sourceTopic === topic) setSource(null)
+  }
+
+  return <div className="ins-panel">
+    <header className="ins-head">
+      <h2><Network size={16} />讨论脉络</h2>
+      <div className="ins-view" role="group" aria-label="导图视图">
+        <button aria-pressed={!outline} onClick={() => setOutline(false)}><Network size={13} />导图</button>
+        <button aria-pressed={outline} onClick={() => setOutline(true)}><List size={14} />大纲</button>
+      </div>
+    </header>
+    {custom && outline ? <div className="ins-custom-outline"><Markdown>{saved}</Markdown></div>
+      : !outline && (custom || pan) ? visible && <MapCanvas markdown={saved} />
+      : <div className={outline ? 'ins-tree ins-outline' : 'ins-tree'}>
+        <strong className="ins-root">{title}</strong>
+        <ul className="ins-branches">{topics.map(topic => <li key={topic.title}>
+          <button className="ins-branch" aria-expanded={!folded.includes(topic.title)} onClick={() => toggleBranch(topic)}>
+            <ChevronDown size={13} />{topic.title}
+          </button>
+          {!folded.includes(topic.title) && <ul className="ins-leaves">{topic.leaves.map((leaf, i) => <li key={leaf}>
+            <button aria-pressed={source === topic.leafTimes[i]} onClick={() => setSource(topic.leafTimes[i])}>{leaf}<ArrowUpRight size={12} /></button>
+          </li>)}</ul>}
+        </li>)}</ul>
+      </div>}
+    {source !== null && sourceTopic && !custom && (!pan || outline) && <aside className="ins-source-detail" aria-label="导图原文引用">
+      <header><strong><FileText size={13} />{sourceTopic.leaves[sourceTopic.leafTimes.indexOf(source)]}</strong>{citation(source)}</header>
+      <p>{imagesOnly ? '引用自回顾页布局草图。' : passage?.text}</p>
+    </aside>}
+    <div className="ins-map-tools">
+      <div className="ins-actions">
+        <button className="ins-button" aria-expanded={editing} onClick={() => setEditing(!editing)}><Pencil size={13} />编辑 Markdown{dirty && ' · 未保存'}</button>
+        <button className="ins-button" onClick={() => setFullscreen(true)}><Maximize2 size={13} />全屏</button>
+      </div>
+      <button className="ins-button ins-more" aria-expanded={more} onClick={() => setMore(!more)}><ChevronDown size={13} />更多工具</button>
+    </div>
+    {more && <div className="ins-actions ins-map-extra">
+          <button className="ins-button" onClick={() => void copy()}>复制 Markdown</button>
+          {!custom && <button className="ins-button" aria-pressed={pan && !outline} onClick={() => { setPan(outline || !pan); setOutline(false) }}>{pan && !outline ? '返回引用导图' : '缩放与拖动'}</button>}
+          <button className="ins-button" disabled={exporting} onClick={() => void exportMap('SVG')}>导出 SVG</button>
+          <button className="ins-button" disabled={exporting} onClick={() => void exportMap('PNG')}>导出 PNG</button>
+          <button className="ins-button" disabled={blocked} onClick={onRegenerate}><RotateCcw size={13} />重新生成思维导图</button>
+    </div>}
+    {editing && <div className="note-form ins-map-editor">
+      <label>导图 Markdown<textarea aria-label="导图 Markdown" rows={8} value={markdown} onChange={event => setMarkdown(event.target.value)} /></label>
+      <div className="ins-actions">
+        <button className="note-primary" disabled={!dirty || !markdown.trim()} onClick={save}>保存导图</button>
+        <button className="ins-button" disabled={!dirty} onClick={() => { setMarkdown(saved); setNotice('已恢复到上次保存的导图') }}>放弃导图修改</button>
+      </div>
+    </div>}
+    {notice && <p role="status" className="ins-map-notice">{notice}</p>}
+    <PreviewDialog open={fullscreen} title="全屏思维导图" onClose={() => setFullscreen(false)}>{fullscreen && <MapCanvas markdown={saved} />}<p className="ins-caption">滚轮缩放，拖动画布。按 Esc 返回。</p></PreviewDialog>
+  </div>
 }

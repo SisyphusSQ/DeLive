@@ -1,9 +1,13 @@
+import { Select } from '../ui/Select'
+import { useConfirmation } from '../../hooks/useConfirmation'
+import { findReviewPassage } from '../../utils/reviewPassage'
+import { selectedReviewVersion, timestamp } from '../../utils/reviewVersions'
 import { resolveInputText } from '../../services/aiSessionContext'
 import { AiStaleNotice } from './AiStaleNotice'
 import { useEffect, useMemo, useRef, useState, useCallback } from 'react'
 import {
   MessageSquareQuote,
-  Send,
+  MessageSquare,
   Loader2,
   Quote,
   ArrowUpRight,
@@ -14,7 +18,7 @@ import {
   RefreshCw,
   ChevronDown,
   Sparkles,
-  User,
+  ArrowUp,
 } from 'lucide-react'
 import type { TranscriptSession } from '../../types'
 import { useUIStore } from '../../stores/uiStore'
@@ -44,31 +48,13 @@ function MessageActionButton({
   icon: Icon,
   label,
   onClick,
-  variant = 'default',
-}: {
-  icon: typeof Copy
-  label: string
-  onClick: () => void
-  variant?: 'default' | 'success'
-}) {
-  return (
-    <button
-      onClick={onClick}
-      className={`inline-flex items-center gap-1 rounded-md px-2 py-1 text-[11px] font-medium transition-colors ${
-        variant === 'success'
-          ? 'text-green-600 dark:text-green-400'
-          : 'text-muted-foreground hover:bg-muted hover:text-foreground'
-      }`}
-      title={label}
-    >
-      <Icon className="h-3 w-3" />
-      <span>{label}</span>
-    </button>
-  )
+}: { icon: typeof Copy; label: string; onClick: () => void }) {
+  return <button className="ins-icon" title={label} aria-label={label} onClick={onClick}><Icon size={13}/></button>
 }
 
 export function ChatTab({ session, onCitation }: ChatTabProps) {
   const { t } = useUIStore()
+  const { confirm, dialog } = useConfirmation()
   const settings = useSettingsStore((state) => state.settings)
   const enableStreaming = settings.aiPostProcess?.enableStreaming !== false
   const askSessionQuestion = useSessionStore((state) => state.askSessionQuestion)
@@ -83,6 +69,8 @@ export function ChatTab({ session, onCitation }: ChatTabProps) {
   const askMessagesEndRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
 
+  const version = useMemo(() => selectedReviewVersion(session), [session])
+  const [copyError, setCopyError] = useState('')
   const askHistory = useMemo(() => session.askHistory || [], [session.askHistory])
   const aiConfigured = isAiPostProcessConfigured(settings, 'chat')
   const askPending = askHistory.some((turn) => turn.status === 'pending')
@@ -140,7 +128,8 @@ export function ChatTab({ session, onCitation }: ChatTabProps) {
 
   // Auto-scroll to bottom
   const scrollToBottom = useCallback((behavior: ScrollBehavior = 'smooth') => {
-    askMessagesEndRef.current?.scrollIntoView({ behavior })
+    const log = messagesContainerRef.current
+    if (log) log.scrollTo({ top: log.scrollHeight, behavior })
   }, [])
 
   useEffect(() => {
@@ -168,9 +157,8 @@ export function ChatTab({ session, onCitation }: ChatTabProps) {
     adjustTextareaHeight()
   }, [questionDraft, adjustTextareaHeight])
 
-  const handleAskQuestion = async () => {
-    if (!canSend) return
-    const question = questionDraft
+  const handleAskQuestion = async (question = questionDraft) => {
+    if (!canAsk || !question.trim()) return
     setQuestionDraft('')
     if (textareaRef.current) textareaRef.current.style.height = 'auto'
     try {
@@ -200,19 +188,24 @@ export function ChatTab({ session, onCitation }: ChatTabProps) {
     setIsNewThread(false)
   }, [])
 
-  const handleDeleteConversation = useCallback((e: React.MouseEvent, conversationId: string) => {
-    e.stopPropagation()
+  const handleDeleteConversation = async (conversationId: string) => {
+    if (!await confirm(t.preview.deleteConversationConfirm)) return
     deleteSessionConversation(session.id, conversationId)
     if (activeConversationId === conversationId) {
       setActiveConversationId('default')
       setIsNewThread(false)
     }
-  }, [session.id, activeConversationId, deleteSessionConversation])
+  }
 
-  const handleCopyMessage = useCallback((messageId: string, text: string) => {
-    void navigator.clipboard.writeText(text)
-    setCopiedMessageId(messageId)
-    setTimeout(() => setCopiedMessageId(null), 2000)
+  const handleCopyMessage = useCallback(async (messageId: string, text: string) => {
+    setCopyError('')
+    try {
+      await navigator.clipboard.writeText(text)
+      setCopiedMessageId(messageId)
+      setTimeout(() => setCopiedMessageId(current => current === messageId ? null : current), 2000)
+    } catch (error) {
+      setCopyError(error instanceof Error ? error.message : String(error))
+    }
   }, [])
 
   const handleRegenerate = useCallback(async (question: string) => {
@@ -250,258 +243,62 @@ export function ChatTab({ session, onCitation }: ChatTabProps) {
   const askSuggestions = t.preview.askSuggestions || []
   const showNewThreadPill = isNewThread && !hasActiveConversation
 
-  return (
-    <div className="flex h-full flex-col overflow-hidden">
-      {/* Thread bar */}
-      <div className="flex flex-wrap items-center gap-2 border-b border-border/60 px-3 py-2 sm:px-6">
-        <TextSourceBanner session={session} />
-        <div className="flex min-w-0 flex-1 items-center gap-1.5 overflow-x-auto scrollbar-none">
-          {askConversations.map((conversation, index) => (
-            <div key={conversation.id} className="group/thread inline-flex shrink-0 items-center">
-              <button
-                onClick={() => handleSelectConversation(conversation.id)}
-                className={`inline-flex max-w-[180px] items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-medium transition-all ${
-                  conversation.id === activeConversationId
-                    ? 'border-foreground/20 bg-accent text-foreground shadow-sm'
-                    : 'border-border/40 bg-background/80 text-muted-foreground hover:border-foreground/15 hover:text-foreground'
-                }`}
-                title={conversation.firstTurn?.question}
-              >
-                <span className="truncate">
-                  {getConversationLabel(conversation.id, conversation.firstTurn?.question, index)}
-                </span>
-              </button>
-              <button
-                onClick={(e) => handleDeleteConversation(e, conversation.id)}
-                className="ml-0.5 hidden h-4 w-4 shrink-0 items-center justify-center rounded-full text-muted-foreground/60 transition-colors hover:bg-destructive/10 hover:text-destructive group-hover/thread:inline-flex"
-                title={t.common.delete}
-              >
-                <Trash2 className="h-2.5 w-2.5" />
-              </button>
-            </div>
-          ))}
-          {showNewThreadPill && (
-            <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-foreground/20 bg-accent px-2.5 py-1 text-[11px] font-medium text-foreground">
-              {t.preview.askNewConversationLabel}
-            </span>
-          )}
-        </div>
-        <button
-          onClick={handleStartNewConversation}
-          disabled={!canAsk}
-          className={`inline-flex shrink-0 items-center gap-1 rounded-md px-2.5 py-1.5 text-[11px] font-medium transition-colors ${
-            !canAsk
-              ? 'cursor-not-allowed text-muted-foreground/50'
-              : 'text-muted-foreground hover:bg-accent hover:text-foreground'
-          }`}
-        >
-          <Plus className="w-3 h-3" />
-          {t.preview.askNewConversation}
-        </button>
-      </div>
-
-      {/* Messages area */}
-      <div
-        ref={messagesContainerRef}
-        onScroll={handleScroll}
-        className="relative flex-1 overflow-y-auto"
-      >
-        <div className="mx-auto max-w-3xl px-5 py-6">
-          {!aiConfigured && (
-            <p className="mb-4 text-xs text-muted-foreground">{t.preview.aiNotConfigured}{' '}
-              <button data-settings-entry="review-ai" type="button" className="text-primary underline" onClick={() => useUIStore.getState().openSettings('aiPostProcess')}>{t.common.settings}</button></p>
-          )}
-          {!hasInput && (
-            <p className="mb-4 text-xs text-muted-foreground">{t.preview.askNoTranscript}</p>
-          )}
-
-          {displayedAskHistory.length > 0 ? (
-            <div className="space-y-6">
-              {displayedAskHistory.map((turn) => (
-                <div key={turn.id} className="space-y-4">
-                  {/* User message */}
-                  <div className="flex items-start gap-3 justify-end">
-                    <div className="max-w-[80%]">
-                      <div className="rounded-2xl rounded-tr-md bg-foreground px-4 py-3 text-sm leading-relaxed text-background shadow-sm">
-                        <p className="whitespace-pre-wrap">{turn.question}</p>
-                      </div>
-                      {/* User message actions */}
-                      <div className="mt-1 flex justify-end opacity-0 transition-opacity [div:hover>&]:opacity-100">
-                        <MessageActionButton
-                          icon={copiedMessageId === `user-${turn.id}` ? Check : Copy}
-                          label={copiedMessageId === `user-${turn.id}` ? t.preview.askCopied : t.preview.askCopy}
-                          variant={copiedMessageId === `user-${turn.id}` ? 'success' : 'default'}
-                          onClick={() => handleCopyMessage(`user-${turn.id}`, turn.question)}
-                        />
-                      </div>
-                    </div>
-                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-foreground/10 text-foreground">
-                      <User className="h-4 w-4" />
-                    </div>
-                  </div>
-
-                  {/* AI message */}
-                  <div className="group/msg flex items-start gap-3">
-                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground">
-                      <Sparkles className="h-4 w-4" />
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      {turn.status === 'pending' ? (
-                        <div className="rounded-2xl rounded-tl-md px-4 py-3 space-y-3">
-                          {turn.answer ? (
-                            <>
-                              <MarkdownRenderer content={turn.answer} />
-                              <span className="inline-block h-3.5 w-1.5 animate-pulse bg-foreground/40 rounded-sm align-middle" />
-                            </>
-                          ) : (
-                            <>
-                              <div className="flex items-center gap-2 text-xs font-medium text-primary">
-                                <Sparkles className="h-3.5 w-3.5" />
-                                {t.preview.askThinking}
-                              </div>
-                              <ThinkingIndicator />
-                            </>
-                          )}
-                        </div>
-                      ) : turn.status === 'error' ? (
-                        <div className="rounded-2xl rounded-tl-md border border-destructive/20 bg-destructive/5 px-4 py-3">
-                          <p className="text-sm leading-relaxed text-destructive whitespace-pre-wrap">
-                            {turn.error || t.preview.askErrorFallback}
-                          </p>
-                        </div>
-                      ) : (
-                        <div className="rounded-2xl rounded-tl-md px-4 py-3">
-                          <AiStaleNotice session={session} result={turn} /><MarkdownRenderer content={turn.answer || ''} />
-                        </div>
-                      )}
-
-                      {/* Citations */}
-                      {turn.citations && turn.citations.length > 0 && (
-                        <div className="mt-4 space-y-2">
-                          <div className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                            {t.preview.askReferences}
-                          </div>
-                          <div className="grid gap-1.5">
-                            {turn.citations.map((citation, cidx) => (
-                              <div
-                                key={`${citation.quote}-${cidx}`}
-                                className="rounded-lg border border-border/30 bg-muted/20 px-3 py-2"
-                              >
-                                <div className="inline-flex items-center gap-1 text-[10px] font-medium text-muted-foreground">
-                                  <Quote className="w-2.5 h-2.5" />
-                                  {citation.source === 'image' ? <a className="text-primary underline" href={`#image-${citation.imageId}`}>图片内容</a> : onCitation ? <button className="text-primary underline" onClick={() => onCitation(citation.quote)}>{citation.speakerLabel || '查看原文'}</button> : citation.speakerLabel || t.preview.askReferenceFallback}
-                                </div>
-                                <MarkdownRenderer content={citation.quote} className="text-xs" />
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-
-                      {/* AI message actions */}
-                      {turn.status !== 'pending' && (
-                        <div className="mt-1.5 flex items-center gap-1 opacity-0 transition-opacity group-focus-within/msg:opacity-100 group-hover/msg:opacity-100">
-                          <MessageActionButton
-                            icon={copiedMessageId === `ai-${turn.id}` ? Check : Copy}
-                            label={copiedMessageId === `ai-${turn.id}` ? t.preview.askCopied : t.preview.askCopy}
-                            variant={copiedMessageId === `ai-${turn.id}` ? 'success' : 'default'}
-                            onClick={() => handleCopyMessage(`ai-${turn.id}`, turn.answer || turn.error || '')}
-                          />
-                          <MessageActionButton
-                            icon={RefreshCw}
-                            label={t.preview.askRegenerate}
-                            onClick={() => void handleRegenerate(turn.question)}
-                          />
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              ))}
-              <div ref={askMessagesEndRef} />
-            </div>
-          ) : (
-            <div className="flex h-full min-h-[300px] flex-col items-center justify-center gap-5 px-4 text-center">
-              <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-primary/20 to-primary/5 text-primary shadow-sm">
-                <MessageSquareQuote className="h-8 w-8" />
-              </div>
-              <div className="space-y-2">
-                <p className="text-base font-semibold text-foreground">{t.preview.askEmpty}</p>
-                <p className="max-w-sm text-sm text-muted-foreground">
-                  {showNewThreadPill ? t.preview.askNewConversationHint : t.preview.askEmptyHint}
-                </p>
-              </div>
-              {askSuggestions.length > 0 && (
-                <div className="flex max-w-lg flex-wrap justify-center gap-2 pt-2">
-                  {askSuggestions.map((suggestion) => (
-                    <button
-                      key={suggestion}
-                      onClick={() => setQuestionDraft(suggestion)}
-                      className="inline-flex items-center gap-1.5 rounded-xl border border-border/40 bg-card px-3.5 py-2 text-xs font-medium text-foreground shadow-sm transition-all hover:border-foreground/20 hover:bg-accent hover:shadow-md active:scale-[0.98]"
-                    >
-                      <ArrowUpRight className="h-3 w-3 text-muted-foreground" />
-                      {suggestion}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-
-        {/* Scroll to bottom button */}
-        {showScrollBtn && (
-          <button
-            onClick={() => scrollToBottom()}
-            className="absolute bottom-3 left-1/2 z-10 -translate-x-1/2 inline-flex items-center gap-1.5 rounded-full border border-border/40 bg-background/95 px-3 py-1.5 text-xs font-medium text-muted-foreground shadow-lg backdrop-blur transition-all hover:bg-accent hover:text-foreground"
-          >
-            <ChevronDown className="h-3.5 w-3.5" />
-            {t.preview.askScrollToBottom}
-          </button>
-        )}
-      </div>
-
-      {/* Input area */}
-      <div className="shrink-0 border-t border-border bg-background/80 backdrop-blur px-5 py-3">
-        <div className="mx-auto max-w-3xl">
-          <div className="flex items-end gap-2 rounded-xl border border-input bg-background p-1.5 shadow-sm transition-colors focus-within:border-primary/40 focus-within:ring-2 focus-within:ring-ring/20">
-            <textarea
-              ref={textareaRef}
-              value={questionDraft}
-              onChange={(event) => setQuestionDraft(event.target.value)}
-              onKeyDown={(event) => {
-                if (event.key === 'Enter' && !event.shiftKey && !event.nativeEvent.isComposing) {
-                  event.preventDefault()
-                  void handleAskQuestion()
-                }
-              }}
-              placeholder={t.preview.askPlaceholder}
-              rows={1}
-              className="flex-1 resize-none bg-transparent px-2.5 py-2 text-sm leading-relaxed placeholder:text-muted-foreground/60 focus:outline-none"
-              style={{ minHeight: '36px', maxHeight: '144px' }}
-            />
-            <button
-              onClick={() => void handleAskQuestion()}
-              disabled={!canSend}
-              className={`inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg transition-all ${
-                !canSend
-                  ? 'text-muted-foreground/40'
-                  : 'bg-primary text-primary-foreground shadow-sm hover:bg-primary/90 active:scale-95'
-              }`}
-              aria-label={t.preview.askSend}
-            >
-              {askPending ? (
-                <Loader2 className="w-3.5 h-3.5 animate-spin" />
-              ) : (
-                <Send className="w-3.5 h-3.5" />
-              )}
-            </button>
+  return <div className="review-pane-scroll"><div className="ins-pages review-pane review-chat-pane">
+    {dialog}<div className="review-source"><TextSourceBanner session={session}/></div>
+    <section className="ins-panel">
+      <header className="ins-head"><h2><MessageSquare size={16}/>{t.preview.meetingChat}</h2><div className="ins-actions">
+        <Select className="ins-select" aria-label={t.preview.askConversation} value={activeConversationId} onChange={e => handleSelectConversation(e.target.value)}>
+          {(!askConversations.length || showNewThreadPill) && <option value={activeConversationId}>{t.preview.askNewConversationLabel}</option>}
+          {askConversations.map((c,i) => <option key={c.id} value={c.id}>{getConversationLabel(c.id,c.firstTurn?.question,i)}</option>)}
+        </Select>
+        <button className="ins-button" disabled={!canAsk} onClick={handleStartNewConversation}><Plus size={14}/>{t.preview.askNewConversation}</button>
+        <button className="ins-icon" disabled={!hasActiveConversation || askPending} aria-label={t.common.delete} title={t.common.delete} onClick={() => void handleDeleteConversation(activeConversationId)}><Trash2 size={14}/></button>
+      </div></header>
+      <div className="ins-chat-log" role="log" aria-label={t.preview.meetingChat} ref={messagesContainerRef} onScroll={handleScroll} tabIndex={0}>
+        {!aiConfigured && <p className="review-hint">{t.preview.aiNotConfigured} <button data-settings-entry="review-ai" type="button" className="text-primary underline" onClick={() => useUIStore.getState().openSettings('aiPostProcess')}>{t.common.settings}</button></p>}
+        {!hasInput && <p className="review-hint">{t.preview.askNoTranscript}</p>}
+        {displayedAskHistory.map(turn => <article className="ins-exchange" key={turn.id}>
+          <div className="ins-question"><p className="whitespace-pre-wrap">{turn.question}</p>
+            <MessageActionButton icon={copiedMessageId === 'user-'+turn.id ? Check : Copy} label={t.preview.askCopy} onClick={() => handleCopyMessage('user-'+turn.id,turn.question)}/>
           </div>
-          <p className="mt-1.5 text-center text-[10px] text-muted-foreground/70">
-            Enter {t.preview.askSend} · Shift+Enter {'\u2191'}
-          </p>
-        </div>
+          <div className="ins-answer"><div className="ins-author"><Sparkles size={14}/>{t.preview.assistant}</div>
+            <AiStaleNotice session={session} result={turn}/>
+            {turn.answer && <MarkdownRenderer content={turn.answer}/>}
+            {turn.status === 'pending' && <div role="status" className="ins-actions"><ThinkingIndicator/>{t.preview.askThinking}</div>}
+            {turn.status === 'error' && <p role="alert" className="text-destructive">{turn.error || t.preview.askErrorFallback}</p>}
+            <div className="ins-answer-footer"><div className="ins-sources">
+              {!!turn.citations?.length && <span>{t.preview.askReferences}</span>}
+              {turn.citations?.map((citation, i) => {
+                if (citation.source === 'image') {
+                  return session.images?.some(image => image.id === citation.imageId)
+                    ? <a key={i} className="ins-cite" href={'#image-' + citation.imageId} title={citation.quote}>{t.preview.imageSource} {i + 1}<ArrowUpRight size={12}/></a>
+                    : <span key={i}>{t.preview.imageRemoved}</span>
+                }
+                const match = findReviewPassage(version, citation)
+                const label = match?.startMs === undefined ? citation.speakerLabel || t.preview.quoteText : timestamp(match.startMs).slice(0, -4)
+                return match && onCitation
+                  ? <button key={i} className="ins-cite" title={citation.quote} onClick={() => onCitation(citation.quote)}>{label}<ArrowUpRight size={12}/></button>
+                  : <span key={i} title={citation.quote}>{label}</span>
+              })}
+            </div><div className="ins-actions">{turn.status !== 'pending' && <>
+              <MessageActionButton icon={copiedMessageId === 'ai-'+turn.id ? Check : Copy} label={t.preview.askCopy} onClick={() => handleCopyMessage('ai-'+turn.id,turn.answer || turn.error || '')}/>
+              <button className="ins-icon" disabled={!canAsk} aria-label={t.preview.askRegenerate} title={t.preview.askRegenerate} onClick={() => void handleRegenerate(turn.question)}><RefreshCw size={13}/></button>
+            </>}</div></div>
+            {!!turn.citations?.length && <details className="review-citation-list"><summary><Quote size={12}/>{t.preview.quoteText}</summary>
+              {turn.citations.map((item,i) => <blockquote key={i}><MarkdownRenderer content={item.quote}/></blockquote>)}</details>}
+          </div>
+        </article>)}
+        {!displayedAskHistory.length && <div className="ins-chat-empty"><MessageSquareQuote size={20}/><p>{showNewThreadPill ? t.preview.askNewConversationHint : t.preview.askEmpty}</p></div>}
+        <div ref={askMessagesEndRef}/>
       </div>
-    </div>
-  )
+      {copyError && <p className="review-map-notice text-destructive" role="alert">{copyError}</p>}
+      {showScrollBtn && <button className="ins-button mx-auto" onClick={() => scrollToBottom()}><ChevronDown size={14}/>{t.preview.askScrollToBottom}</button>}
+      <div className="ins-chat-entry"><div className="ins-prompts">{askSuggestions.filter(q => q !== latestTurn?.question).map(q => <button key={q} disabled={!canAsk} onClick={() => void handleAskQuestion(q)}>{q}<ArrowUpRight size={12}/></button>)}</div>
+      <form className="ins-compose" onSubmit={e => { e.preventDefault(); void handleAskQuestion() }}>
+        <textarea aria-label={t.preview.askQuestion} ref={textareaRef} rows={2} value={questionDraft} placeholder={t.preview.askPlaceholder} onChange={e => setQuestionDraft(e.target.value)}
+          onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) { e.preventDefault(); void handleAskQuestion() } }}/>
+        <div><span>Enter {t.preview.askSend} · Shift+Enter ↵</span><button type="submit" disabled={!canSend} aria-label={t.preview.askSend}>{askPending ? <Loader2 size={15} className="animate-spin"/> : <ArrowUp size={16}/>}</button></div>
+      </form></div>
+    </section>
+  </div></div>
 }

@@ -1,6 +1,9 @@
+import { findReviewPassage, type ReviewCitation } from '../../utils/reviewPassage'
+import { ReviewToolPanel } from './ReviewToolPanel'
+import { HighlightMatch } from './HighlightMatch'
 import { Select } from '../ui/Select'
 import { useEffect, useMemo, useRef, useState, type SetStateAction } from 'react'
-import { Pencil, UserRoundPen } from 'lucide-react'
+import { ChevronDown, ChevronUp, Pencil, Search, UserRoundPen } from 'lucide-react'
 import { Button } from '../ui'
 import { useUIStore } from '../../stores/uiStore'
 import { useReviewDraftStore } from '../../stores/reviewDraftStore'
@@ -24,7 +27,7 @@ const input='min-h-8 rounded-md border border-border bg-background px-2 py-1 tex
 interface TranscriptTabProps {
   session: TranscriptSession
   playback: ReturnType<typeof useRecordingPlayback>
-  citation?: { quote: string }
+  citation?: ReviewCitation
   onCitationHandled?: () => void
 }
 
@@ -68,7 +71,7 @@ function ReviewTranscript({ session, playback, citation, onCitationHandled }: Tr
   const compare = versions.find(value => value.id === compareId && value.id !== version.id)
   const [reviewOpen, setReviewOpen] = useState(false)
   const [search, setSearch] = useState('')
-  const [searchCursor, setSearchCursor] = useState(0)
+  const [searchCursor, setSearchCursor] = useState(-1)
   const query = search.trim().toLocaleLowerCase()
   const matches = query ? (version.segments.length ? version.segments : [{ text: version.text }]).flatMap((segment, index) => segment.text.toLocaleLowerCase().includes(query) ? [index] : []) : []
   const locateMatch = (cursor: number) => {
@@ -79,7 +82,7 @@ function ReviewTranscript({ session, playback, citation, onCitationHandled }: Tr
     const index = matches[next]
     setCitationTarget({ index, startMs: version.segments[index]?.startMs })
   }
-  useEffect(() => { setSearchCursor(0) }, [search, version.id])
+  useEffect(() => { setSearchCursor(-1) }, [search, version.id])
 
   const pendingCount = version.merge?.groups.filter(group => group.status === 'pending').length ?? 0
   const [citationTarget, setCitationTarget] = useState<{ index: number; startMs?: number }>()
@@ -92,16 +95,16 @@ function ReviewTranscript({ session, playback, citation, onCitationHandled }: Tr
     onCitationHandled?.()
     if (edit) { setNotice('请先保存或放弃校对草稿，再定位引用。'); return }
     const quote = citation.quote.trim()
-    const matches = adopted.segments.flatMap((segment, index) => segment.text.includes(quote) ? [index] : [])
+    const match = findReviewPassage(adopted, citation)
     setFilter('')
     setCompareId('')
     if (viewedId !== adopted.id) setViewedId(adopted.id)
-    if (!quote || matches.length !== 1) {
+    if (!match) {
       setNotice('当前采用稿没有唯一匹配的段落。可根据引用文字核对原稿。')
       return
     }
-    const index = matches[0]
-    setCitationTarget({ index, startMs: adopted.segments[index].startMs })
+    if (!adopted.segments.length) setSearch(quote)
+    setCitationTarget({ index: match.index, startMs: match.startMs })
   }, [citation, adopted, edit, onCitationHandled, viewedId])
 
   useEffect(() => {
@@ -169,7 +172,7 @@ function ReviewTranscript({ session, playback, citation, onCitationHandled }: Tr
               const active = (playback.state.playing || playback.state.positionMs > 0) && segment.startMs !== undefined && segment.endMs !== undefined && playback.state.positionMs >= segment.startMs && playback.state.positionMs < segment.endMs
               const canSeek = segment.startMs !== undefined && !!playback.manifest
               const matched = !secondary && matches.includes(index)
-              const content = <>{segment.isFinal === false && <span className="text-xs text-warning">[临时片段] </span>}{segment.text}</>
+              const content = <>{segment.isFinal === false && <span className="text-xs text-warning">[临时片段] </span>}<HighlightMatch text={segment.text} query={query}/></>
               return <span key={segment.id ?? index} data-segment-id={segment.id ?? index} data-passage-index={secondary ? undefined : index} tabIndex={-1} data-playback-active={active || undefined} className={(active ? 'bg-primary/10 ' : '') + (matched ? 'bg-warning/15 underline decoration-warning ' : '')}>
                 {canSeek ? <button type="button" className="inline select-text text-left hover:text-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary" title={'播放原音 ' + timestamp(segment.startMs!)} onClick={() => { if (!window.getSelection()?.toString()) void playback.seek(segment.startMs!, true) }}>{content}</button> : content}{' '}
               </span>
@@ -177,7 +180,7 @@ function ReviewTranscript({ session, playback, citation, onCitationHandled }: Tr
           </p>
         </article>
       })}
-      {!value.segments.length && <p tabIndex={-1} data-passage-index={secondary ? undefined : 0} className={'whitespace-pre-wrap break-words text-[15px] leading-[1.9] ' + (query && value.text.toLocaleLowerCase().includes(query) ? 'bg-warning/15' : '')}>{value.text || '此版本没有文字'}</p>}
+      {!value.segments.length && <p tabIndex={-1} data-passage-index={secondary ? undefined : 0} className={'whitespace-pre-wrap break-words text-[15px] leading-[1.9] ' + (query && value.text.toLocaleLowerCase().includes(query) ? 'bg-warning/15' : '')}>{value.text ? <HighlightMatch text={value.text} query={query}/> : '此版本没有文字'}</p>}
       {!!value.segments.length && !paragraphs.length && <p className="text-sm text-muted-foreground">此筛选下没有片段</p>}
     </div>
   }
@@ -190,11 +193,12 @@ function ReviewTranscript({ session, playback, citation, onCitationHandled }: Tr
       setPairs({})
       setMappingSource('')
     }} />}
-    <div className={'review-reading-content mx-auto space-y-3 px-3 py-3 sm:px-6 sm:py-4 ' + (compare ? 'max-w-6xl' : 'max-w-[52rem]')}>
+    <div className="review-reading-content space-y-3">
     {draftError&&<p role="alert" className="text-sm text-destructive">{draftError}</p>}
-    <section aria-label="稿件版本" className="review-version-toolbar space-y-2 border-b border-border/60 pb-3">
-      <details><summary className="cursor-pointer text-sm text-muted-foreground">稿件版本、对照与校对</summary>
-      <div className="review-version-controls flex flex-wrap items-end gap-x-3 gap-y-2">
+    <ReviewToolPanel title="稿件与校对" collapsedSummary={versionLabel(version)} action={!draft && <Button size="sm" className="tool-edit" disabled={busy || !!groupDraft || session.status === 'recording'} onClick={startEdit}>
+          <Pencil className="h-3.5 w-3.5" />校对当前稿件
+        </Button>}>
+      <div className="tool-fields">
         <label className="min-w-0 space-y-1 text-xs text-muted-foreground">
           <span className="review-control-label block">查看稿件</span>
           <Select aria-label="当前稿件版本" className={input + ' review-version-select w-44 max-w-full text-foreground'} disabled={busy} value={version.id} onChange={e => void select(e.target.value)}>
@@ -215,13 +219,10 @@ function ReviewTranscript({ session, playback, citation, onCitationHandled }: Tr
             {version.speakers.map(speaker => <option key={speaker.id} value={speaker.id}>{speaker.displayName || speaker.label}</option>)}
           </Select>
         </label>}
-        {!draft && <Button size="sm" variant="secondary" className="review-edit-button" disabled={busy || !!groupDraft || session.status === 'recording'} onClick={startEdit}>
-          <Pencil className="h-3.5 w-3.5" />校对当前稿件
-        </Button>}
+
       </div>
-      </details>
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
-        <span className="break-words" aria-live="polite">已采用 · {versionLabel(adopted)}</span>
+      <div className="tool-adoption">
+        <span className="break-words" aria-live="polite"><strong>已采用 · {versionLabel(adopted)}</strong></span><span>用于导出和 AI</span>
         {version.id !== adopted.id && <>
           <span className="rounded bg-primary/10 px-1.5 py-0.5 text-primary">查看中 · {versionLabel(version)} · 尚未采用</span>
           <Button size="sm" disabled={busy || !!edit} onClick={() => void action(async () => {
@@ -232,13 +233,12 @@ function ReviewTranscript({ session, playback, citation, onCitationHandled }: Tr
         <span>{reviewStatus(version)}</span>
         {edit && <span className="text-warning">校对草稿未保存</span>}
         {session.status === 'recording' && <span>停止录音后可校对</span>}
-        <details className="min-w-0 open:basis-full open:space-y-2">
-          <summary className="cursor-pointer rounded px-1 py-1 font-medium text-foreground hover:bg-muted">会后转写与校正</summary>
-          <RecordingFileActions session={session} onSelect={id => void select(id)} />
-          {taskError && <p role="alert" className="text-xs text-destructive">任务读取失败：{taskError}</p>}
-          {jobs.map(job => <FileTaskRow key={job.id} job={job} compact />)}
-        </details>
       </div>
+    </ReviewToolPanel>
+    <RecordingFileActions asPanel session={session} onSelect={id => void select(id)}>
+      {taskError && <p role="alert" className="text-xs text-destructive">任务读取失败：{taskError}</p>}
+      {jobs.map(job => <FileTaskRow key={job.id} job={job} compact />)}
+    </RecordingFileActions>
       {needsRecovery&&<section aria-label="恢复历史稿件" className="space-y-2 rounded-md border border-border p-3">
         <p className="text-sm">{recoverySources.length ? '此稿的历史文字未逐句对齐，可用已有会后稿恢复说话人与时间。' : '此稿的历史文字未逐句对齐，暂时没有可用于恢复的结构化会后稿。'}</p>
         {recoverySources.length>0&&<div className="flex flex-wrap items-center gap-2">
@@ -259,10 +259,6 @@ function ReviewTranscript({ session, playback, citation, onCitationHandled }: Tr
       {version.segments.some(segment => segment.isFinal === false) && <p className="text-xs text-warning">当前稿仍含临时识别片段，请结合原音核对。</p>}
       {playback.manifest?.status === 'interrupted' && <p className="text-xs text-warning">原音曾中断，已保存部分可回放；请检查来源与中断记录。</p>}
       {session.realtime?.some(r => r.status === 'incomplete') && <details className="text-xs text-muted-foreground"><summary className="cursor-pointer">历史实时识别未完成</summary><p>不代表会后稿转写失败。已保存原音与结果仍可校对。</p></details>}
-      {versions.some(value => value.kind === 'post-meeting' && value.id !== version.id) && <button className="text-sm text-primary underline" disabled={busy || !!edit} onClick={() => void select(versions.filter(value => value.kind === 'post-meeting').slice(-1)[0].id)}>查看会后稿</button>}
-
-    </section>
-
     {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
     {notice && <p role="status" className="text-sm text-success">{notice}</p>}
     {!draft && (!needsRecovery || groupDraft) && (version.merge || version.kind === 'reconciled') && (
@@ -333,17 +329,18 @@ function ReviewTranscript({ session, playback, citation, onCitationHandled }: Tr
       </div>)}
       {!draft.segments.length&&<textarea aria-label="纯文字校对" className={input+' w-full min-h-40'} value={draft.text} onChange={e=>setDraft({...draft,text:e.target.value})}/>}
     </fieldset>}
-    {!draft && <div className="flex flex-wrap items-center gap-2" role="search" aria-label="稿件正文搜索">
-      <input aria-label="搜索当前稿件正文" type="search" className={input + ' min-w-0 flex-1'} value={search} placeholder="搜索当前稿件正文" onChange={event => setSearch(event.target.value)} onKeyDown={event => { if (event.key === 'Enter') { event.preventDefault(); locateMatch(event.shiftKey ? searchCursor - 1 : searchCursor) } }} />
-      <span className="text-xs text-muted-foreground" aria-live="polite">{query ? `${matches.length ? Math.min(searchCursor + 1, matches.length) : 0} / ${matches.length} 段` : ''}</span>
-      <button className={input} disabled={!matches.length} onClick={() => locateMatch(searchCursor - 1)}>上一处</button>
-      <button className={input} disabled={!matches.length} onClick={() => locateMatch(searchCursor + 1)}>下一处</button>
-      <button className={input} disabled={!matches.length} onClick={() => locateMatch(searchCursor)}>定位</button>
+    {!draft && <div className="transcript-find" role="search" aria-label="稿件正文搜索">
+      <h2>转录正文</h2><div><label><Search size={14}/><input aria-label="搜索当前稿件正文" type="search" value={search} placeholder="查找当前稿" onChange={event => setSearch(event.target.value)}
+        onKeyDown={event => { if (event.key === 'Enter' && !event.nativeEvent.isComposing) { event.preventDefault(); locateMatch(event.shiftKey ? Math.max(0, searchCursor) - 1 : searchCursor + 1) } }}/></label>
+      {query && <><span role="status">{matches.length ? Math.min(searchCursor + 1, matches.length) : 0} / {matches.length}</span>
+        <button aria-label="上一处" title="上一处" disabled={!matches.length} onClick={() => locateMatch(searchCursor < 0 ? -1 : searchCursor - 1)}><ChevronUp size={15}/></button>
+        <button aria-label="下一处" title="下一处" disabled={!matches.length} onClick={() => locateMatch(searchCursor + 1)}><ChevronDown size={15}/></button></>}
+      </div>
     </div>}
     {!draft && <div className={compare ? 'review-comparison grid grid-cols-1 gap-5 lg:grid-cols-2' : ''}>
       {renderVersion(version)}{compare && renderVersion(compare, true)}
     </div>}
-    <details className="space-y-2">
+    <details data-review-images className="space-y-2">
       <summary className="cursor-pointer text-sm font-medium">图片资料{session.images?.length ? ' · ' + session.images.length : ''}</summary>
       <SessionImages session={session} getTime={() => playback.state.positionMs} onSeek={playback.manifest ? ms => void playback.seek(ms, true) : undefined} />
     </details>

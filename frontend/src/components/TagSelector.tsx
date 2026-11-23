@@ -12,9 +12,11 @@ interface TagSelectorProps {
   sessionId: string
   sessionTagIds: string[]
   compact?: boolean
+  externalAnchor?: HTMLButtonElement
+  onDismiss?: () => void
 }
 
-export function TagSelector({ sessionId, sessionTagIds, compact = false }: TagSelectorProps) {
+export function TagSelector({ sessionId, sessionTagIds, compact = false, externalAnchor, onDismiss }: TagSelectorProps) {
   const { t } = useUIStore()
   const { tags, addTag, deleteTag } = useTagStore()
   const { updateSessionTags } = useSessionStore()
@@ -28,12 +30,28 @@ export function TagSelector({ sessionId, sessionTagIds, compact = false }: TagSe
   const menu = useRef<HTMLDivElement>(null)
   const [anchor, setAnchor] = useState({ left: 0, top: 0, bottom: 0, width: 256, above: false })
 
+  const openAt = (button: HTMLButtonElement) => {
+    const rect = button.getBoundingClientRect()
+    const width = Math.min(256, window.innerWidth - 16)
+    const bottom = window.innerHeight - rect.bottom
+    setAnchor({
+      left: Math.max(8, Math.min(rect.left, window.innerWidth - width - 8)),
+      top: rect.bottom + 4,
+      bottom: window.innerHeight - rect.top + 4,
+      width,
+      above: bottom < 190 && rect.top > bottom,
+    })
+    setIsManaging(false)
+    setIsCreating(false)
+    setIsOpen(true)
+  }
+  useEffect(() => { if (externalAnchor) openAt(externalAnchor) }, [externalAnchor])
   useEffect(() => {
     if (!isOpen) return
     menu.current?.focus({ preventScroll: true })
-    const close = () => setIsOpen(false)
+    const close = () => { setIsOpen(false); onDismiss?.() }
     const closeOnScroll = (event: Event) => {
-      if (event.target instanceof Node && event.target.contains(trigger.current) &&
+      if (event.target instanceof Node && event.target.contains(externalAnchor ?? trigger.current) &&
         !menu.current?.contains(event.target) && !menu.current?.contains(document.activeElement)) close()
     }
     window.addEventListener('resize', close)
@@ -42,11 +60,12 @@ export function TagSelector({ sessionId, sessionTagIds, compact = false }: TagSe
       window.removeEventListener('resize', close)
       window.removeEventListener('scroll', closeOnScroll, true)
     }
-  }, [isOpen])
+  }, [isOpen, externalAnchor, onDismiss])
 
   const close = () => {
     setIsOpen(false)
-    trigger.current?.focus({ preventScroll: true })
+    ;(externalAnchor ?? trigger.current)?.focus({ preventScroll: true })
+    onDismiss?.()
   }
 
   const toggleTag = (tagId: string) => {
@@ -84,7 +103,7 @@ export function TagSelector({ sessionId, sessionTagIds, compact = false }: TagSe
       close()
     }}>
       {/* 显示已有标签 + 添加按钮 */}
-      <div className="flex items-center gap-1.5 flex-wrap">
+      <div hidden={!!externalAnchor} className={externalAnchor ? undefined : "flex items-center gap-1.5 flex-wrap"}>
         {sessionTags.map(tag => {
           const color = getTagColor(tag.color)
           return (
@@ -104,19 +123,7 @@ export function TagSelector({ sessionId, sessionTagIds, compact = false }: TagSe
           onClick={event => {
             event.stopPropagation()
             if (isOpen) { close(); return }
-            const rect = event.currentTarget.getBoundingClientRect()
-            const width = Math.min(256, window.innerWidth - 16)
-            const bottom = window.innerHeight - rect.bottom
-            setAnchor({
-              left: Math.max(8, Math.min(rect.left, window.innerWidth - width - 8)),
-              top: rect.bottom + 4,
-              bottom: window.innerHeight - rect.top + 4,
-              width,
-              above: bottom < 190 && rect.top > bottom,
-            })
-            setIsManaging(false)
-            setIsCreating(false)
-            setIsOpen(true)
+            openAt(event.currentTarget)
           }}
           className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs
                     text-muted-foreground hover:text-foreground hover:bg-muted
