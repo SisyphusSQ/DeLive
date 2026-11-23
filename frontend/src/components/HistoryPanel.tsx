@@ -6,6 +6,7 @@ import { useTagStore } from '../stores/tagStore'
 import { useTopicStore } from '../stores/topicStore'
 import { exportToTxt } from '../utils/storage'
 import { ActionDialog } from './ActionDialog'
+import { HistoryRail } from './review/HistoryRail'
 import { TagSelector, TagFilter } from './TagSelector'
 import type { TranscriptSession } from '../types'
 
@@ -105,6 +106,7 @@ export function HistoryPanel({
           session.time,
           session.transcript,
           session.versions?.find(version => version.id === session.selectedVersionId)?.text || '',
+          topics.find(topic => topic.id === session.topicId)?.name ?? '',
           session.providerId || '',
           ...tagNames,
           ...postProcessSearch,
@@ -118,7 +120,7 @@ export function HistoryPanel({
     }
     
     return result
-  }, [sessions, selectedTagIds, searchQuery, tags])
+  }, [sessions, selectedTagIds, searchQuery, tags, topics])
 
   // 按日期分组
   const groupedSessions = useMemo(() => {
@@ -138,10 +140,7 @@ export function HistoryPanel({
   const today = new Date().toISOString().split('T')[0]
   const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0]
 
-  const defaultExpanded = (date: string) => date === today || date === yesterday ||
-    (isRail && (groupedSessions[0]?.[0] === date || groupedSessions.some(
-      ([groupDate, items]) => groupDate === date && items.some(item => item.id === reviewSessionId)
-    )))
+  const defaultExpanded = (date: string) => date === today || date === yesterday
 
   const isExpanded = (date: string) => dateOverrides[date] ?? defaultExpanded(date)
   const toggleDate = (date: string) => setDateOverrides(previous => ({ ...previous, [date]: !isExpanded(date) }))
@@ -194,24 +193,51 @@ export function HistoryPanel({
     return dateStr
   }
 
-  const resolvedContentHeightClassName = contentHeightClassName || (isRail ? 'min-h-0 flex-1' : 'max-h-[400px]')
+  const resolvedContentHeightClassName = contentHeightClassName || 'max-h-[400px]'
   const railDescription = (t.history as Record<string, unknown>).railDescription as string | undefined
     || 'Search, reopen, and organize finished sessions.'
 
+  const deleteDialog = (
+      <ActionDialog
+        open={pendingDeleteSession !== null}
+        title={t.common.delete}
+        description={t.history.deleteConfirm}
+        onClose={() => setPendingDeleteSession(null)}
+        actions={[
+          {
+            label: t.common.cancel,
+            onClick: () => setPendingDeleteSession(null),
+            variant: 'secondary',
+          },
+          {
+            label: t.common.delete,
+            onClick: () => {
+              if (pendingDeleteSession) {
+                void deleteSession(pendingDeleteSession.id).catch(error => window.alert(`会话删除或素材清理失败：${error.message}。未清理素材将在重启时重试。`))
+              }
+              setPendingDeleteSession(null)
+            },
+            variant: 'danger',
+          },
+        ]}
+      />
+  )
+  if (isRail) return <><HistoryRail sessions={filteredSessions} total={sessions.length} search={inputValue} onSearch={setInputValue} onDelete={setPendingDeleteSession} />{deleteDialog}</>
+
   return (
     <>
-      <div className={`${isRail ? 'flex min-h-0 flex-1 flex-col' : 'workspace-panel overflow-hidden'} ${className}`}>
+      <div className={`workspace-panel overflow-hidden ${className}`}>
         {/* 头部 */}
-        <div className={`shrink-0 border-b border-border/50 ${isRail ? 'review-history-toolbar space-y-2 px-3 py-2 sm:px-4' : 'space-y-3 bg-muted/20 px-6 py-4'}`}>
+        <div className={`shrink-0 border-b border-border/50 space-y-3 bg-muted/20 px-6 py-4`}>
           <div className="review-history-heading flex items-center justify-between gap-2">
             <div className="space-y-1">
-              <div className={isRail ? 'text-sm font-semibold text-foreground' : 'inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.24em] text-primary/80'}>
-                {!isRail && <History className="h-3.5 w-3.5" />}
+              <div className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.24em] text-primary/80">
+                <History className="h-3.5 w-3.5" />
                 {t.history.title}
               </div>
-              {!isRail && <p className="text-xs text-muted-foreground">{railDescription}</p>}
+              <p className="text-xs text-muted-foreground">{railDescription}</p>
             </div>
-            <span className={isRail ? 'shrink-0 text-xs text-muted-foreground' : 'workspace-badge'}>
+            <span className="workspace-badge">
               {(selectedTagIds.length > 0 || searchQuery.trim())
                 ? `${filteredSessions.length}/${sessions.length} ${t.common.items}`
                 : `${sessions.length} ${t.common.items}`
@@ -226,7 +252,7 @@ export function HistoryPanel({
               type="text"
               value={inputValue}
               onChange={(e) => setInputValue(e.target.value)}
-              placeholder={isRail ? t.history.searchCompact : t.history.searchPlaceholder}
+              placeholder={t.history.searchPlaceholder}
               aria-label={t.history.searchCompact}
               className="w-full h-9 pl-9 pr-8 text-sm rounded-md border border-input bg-background
                        placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-1"
@@ -243,11 +269,11 @@ export function HistoryPanel({
           </div>
           
           {/* 标签筛选栏 */}
-          <div className={isRail ? 'max-h-10 overflow-y-auto empty:hidden' : undefined}><TagFilter /></div>
+          <TagFilter />
         </div>
 
         {/* 内容 */}
-        <div className={`${resolvedContentHeightClassName} overflow-y-auto ${isRail ? '' : 'bg-background/40'}`}>
+        <div className={`${resolvedContentHeightClassName} overflow-y-auto bg-background/40`}>
           {groupedSessions.length === 0 ? (
             <div className="py-12 text-center text-muted-foreground">
               <div className="bg-muted w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-3">
@@ -274,14 +300,14 @@ export function HistoryPanel({
                   <button
                     onClick={() => toggleDate(date)}
                     aria-expanded={isExpanded(date)}
-                    className={`group flex w-full items-center gap-2 transition-colors hover:bg-muted/50 ${isRail ? 'review-history-date px-4 py-1.5' : 'px-6 py-3'}`}
+                    className={`group flex w-full items-center gap-2 transition-colors hover:bg-muted/50 px-6 py-3`}
                   >
                     {isExpanded(date) ? (
                       <ChevronDown className="w-4 h-4 text-muted-foreground group-hover:text-foreground transition-colors" />
                     ) : (
                       <ChevronRight className="w-4 h-4 text-muted-foreground group-hover:text-foreground transition-colors" />
                     )}
-                    {!isRail && <Calendar className="w-4 h-4 text-primary/70" />}
+                    <Calendar className="w-4 h-4 text-primary/70" />
                     <span className="text-sm font-medium text-foreground">
                       {formatDateDisplay(date)}
                     </span>
@@ -329,7 +355,7 @@ export function HistoryPanel({
                                 title={session.title}
                                 onClick={() => handlePreview(session)}
                                 aria-current={reviewSessionId === session.id ? 'true' : undefined}
-                                className={`block w-full rounded-lg px-3 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring ${isRail ? 'review-history-row py-1.5' : 'py-3'}`}
+                                className={`block w-full rounded-lg px-3 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring py-3`}
                               >
                                 <span className="flex min-w-0 items-baseline gap-2">
                                   <span className="shrink-0 text-[11px] tabular-nums text-muted-foreground">{session.time}</span>
@@ -370,29 +396,7 @@ export function HistoryPanel({
         </div>
       </div>
 
-      <ActionDialog
-        open={pendingDeleteSession !== null}
-        title={t.common.delete}
-        description={t.history.deleteConfirm}
-        onClose={() => setPendingDeleteSession(null)}
-        actions={[
-          {
-            label: t.common.cancel,
-            onClick: () => setPendingDeleteSession(null),
-            variant: 'secondary',
-          },
-          {
-            label: t.common.delete,
-            onClick: () => {
-              if (pendingDeleteSession) {
-                void deleteSession(pendingDeleteSession.id).catch(error => window.alert(`会话删除或素材清理失败：${error.message}。未清理素材将在重启时重试。`))
-              }
-              setPendingDeleteSession(null)
-            },
-            variant: 'danger',
-          },
-        ]}
-      />
+      {deleteDialog}
     </>
   )
 }

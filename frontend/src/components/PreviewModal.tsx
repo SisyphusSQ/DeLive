@@ -1,3 +1,6 @@
+import type { ReviewCitation } from '../utils/reviewPassage'
+import './review/insight-pages.css'
+import './review/review-workspace.css'
 import { useEffect, useState, useCallback, useRef } from 'react'
 import { SessionImageViewer } from './SessionImages'
 import { Sparkles } from 'lucide-react'
@@ -43,7 +46,18 @@ export function PreviewModal({
   const [aiPanelOpen, setAiPanelOpen] = useState(false)
   const [selectedText, setSelectedText] = useState<string | undefined>()
   const [floatingBtn, setFloatingBtn] = useState<{ x: number; y: number; text: string } | null>(null)
-  const [citation, setCitation] = useState<{ quote: string }>()
+  const [citation, setCitation] = useState<ReviewCitation>()
+  const [imagesRequested, setImagesRequested] = useState(false)
+  useEffect(() => {
+    if (!imagesRequested || activeTab !== 'transcript') return
+    const details = tabPanelRef.current?.querySelector<HTMLDetailsElement>('[data-review-images]')
+    if (details) {
+      details.open = true
+      details.scrollIntoView({ block: 'start' })
+      details.querySelector('summary')?.focus({ preventScroll: true })
+    }
+    setImagesRequested(false)
+  }, [activeTab, imagesRequested])
   const clearCitation = useCallback(() => setCitation(undefined), [])
   const tabPanelRef = useRef<HTMLDivElement>(null)
 
@@ -143,17 +157,18 @@ export function PreviewModal({
     }
   }
 
+  const openPassage = (source: ReviewCitation) => {
+    setCitation(source)
+    setActiveTab('transcript')
+  }
   const tabContent = (() => {
     switch (activeTab) {
       case 'summary':
-        return <SummaryTab key={session.id} session={session} />
+        return <SummaryTab key={session.id} session={session} onCitation={openPassage} />
       case 'chat':
-        return <ChatTab session={session} onCitation={quote => {
-          setCitation({ quote })
-          setActiveTab('transcript')
-        }} />
+        return <ChatTab session={session} onCitation={quote => openPassage({ quote })} />
       case 'mindmap':
-        return <MindMapTab session={session} />
+        return <MindMapTab session={session} onCitation={openPassage} />
       case 'transcript':
       default:
         return <TranscriptTab session={session} playback={playback} citation={citation} onCitationHandled={clearCitation} />
@@ -164,13 +179,19 @@ export function PreviewModal({
     <>
       <SessionImageViewer session={session} />
       <SessionHeader
+        onImages={() => { setActiveTab('transcript'); setImagesRequested(true) }}
         viewingTranscript={activeTab === 'transcript'}
         session={session}
         onClose={onClose}
         sidebarCollapsed={sidebarCollapsed}
         onToggleSidebar={onToggleSidebar}
       />
-      <SessionTabBar activeTab={activeTab} onTabChange={setActiveTab} />
+      <div className="review-tab-tools">
+        <SessionTabBar activeTab={activeTab} onTabChange={setActiveTab} />
+        {activeTab === 'transcript' && !aiPanelOpen && (
+          <AiSidePanel session={session} isOpen={false} onToggle={handleToggleAiPanel} />
+        )}
+      </div>
       <div
         ref={tabPanelRef}
         key={activeTab}
@@ -181,13 +202,7 @@ export function PreviewModal({
       >
         <div className="flex-1 overflow-hidden flex flex-col relative">
           {tabContent}
-          {activeTab === 'transcript' && !aiPanelOpen && session && (
-            <AiSidePanel
-              session={session}
-              isOpen={false}
-              onToggle={handleToggleAiPanel}
-            />
-          )}
+
         </div>
         {activeTab === 'transcript' && aiPanelOpen && session && (
           <AiSidePanel

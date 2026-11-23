@@ -130,6 +130,7 @@ export interface TranscriptMindMap extends AiInputStamp {
 export interface TranscriptPostProcess extends AiInputStamp {
   summary?: string
   actionItems?: string[]
+  completedActionItems?: string[]
   keywords?: string[]
   chapters?: TranscriptChapter[]
   titleSuggestion?: string

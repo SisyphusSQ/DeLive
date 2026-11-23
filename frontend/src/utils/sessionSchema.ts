@@ -299,6 +299,7 @@ function normalizePostProcess(value: unknown): TranscriptPostProcess | undefined
     ...normalizeInputStamp(value),
     summary,
     actionItems: actionItems.length > 0 ? actionItems : undefined,
+    completedActionItems: value.completedActionItems ? normalizeStringArray(value.completedActionItems).filter(item => actionItems.includes(item)) : undefined,
     keywords: keywords.length > 0 ? keywords : undefined,
     titleSuggestion,
     tagSuggestions: tagSuggestions.length > 0 ? tagSuggestions : undefined,

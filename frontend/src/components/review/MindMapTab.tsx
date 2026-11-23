@@ -1,4 +1,7 @@
-import { MarkdownRenderer } from './MarkdownRenderer'
+import { MeetingMapTree, type MapTopic } from './MeetingMapTree'
+import type { IPureNode } from 'markmap-common'
+import { selectedReviewVersion } from '../../utils/reviewVersions'
+import type { ReviewCitation } from '../../utils/reviewPassage'
 import { resolveInputText } from '../../services/aiSessionContext'
 import { sessionRepository } from '../../utils/sessionRepository'
 import { useConfirmation } from '../../hooks/useConfirmation'
@@ -8,7 +11,8 @@ import { createPortal } from 'react-dom'
 import {
   Copy,
   Download,
-  FileText,
+  List,
+  Pencil,
   Loader2,
   Maximize2,
   Minimize2,
@@ -16,8 +20,6 @@ import {
   RefreshCw,
   Save,
   ChevronDown,
-  PanelLeftClose,
-  PanelLeftOpen,
   X,
 } from 'lucide-react'
 import type { TranscriptSession } from '../../types'
@@ -34,16 +36,32 @@ import {
 
 interface MindMapTabProps {
   session: TranscriptSession
+  onCitation: (source: ReviewCitation) => void
+}
+
+function mapTopic(node: IPureNode): MapTopic {
+  const template = document.createElement('template')
+  template.innerHTML = node.content
+  return { label: (template.content.textContent ?? '').trim(), children: node.children.map(mapTopic) }
 }
 
 interface MarkmapTransformerLike {
-  transform: (content: string) => { root: unknown }
+  transform: (content: string) => { root: IPureNode }
 }
 
 interface MarkmapInstanceLike {
+  svg: { interrupt: () => unknown }
+  state: { rect: { x1: number; x2: number; y1: number; y2: number } }
   setData: (data: unknown) => Promise<void>
   fit: () => Promise<void>
   destroy: () => void
+}
+
+function fitMap(svg: SVGSVGElement, map: MarkmapInstanceLike | null) {
+  const bounds = map?.state.rect
+  if (map && bounds && bounds.x2 > bounds.x1 && bounds.y2 > bounds.y1 && svg.isConnected && svg.clientWidth && svg.clientHeight) {
+    void map.fit()
+  }
 }
 
 function useMapSize(
@@ -60,14 +78,14 @@ function useMapSize(
       if (!width || !height) return
       svg.setAttribute('width', String(width))
       svg.setAttribute('height', String(height))
-      void instanceRef.current?.fit()
+      fitMap(svg, instanceRef.current)
     })
     observer.observe(svg)
     return () => observer.disconnect()
   }, [svgRef, instanceRef, visible])
 }
 
-export function MindMapTab({ session }: MindMapTabProps) {
+export function MindMapTab({ session, onCitation }: MindMapTabProps) {
   const { t } = useUIStore()
   const settings = useSettingsStore((state) => state.settings)
   const generateSessionMindMap = useSessionStore((state) => state.generateSessionMindMap)
@@ -87,7 +105,10 @@ export function MindMapTab({ session }: MindMapTabProps) {
   const [actionError, setActionError] = useState<string | null>(null)
   const [renderError, setRenderError] = useState<string | null>(null)
   const [showEditor, setShowEditor] = useState(false)
-  const [showExportMenu, setShowExportMenu] = useState(false)
+  const [more, setMore] = useState(false)
+  const [pan, setPan] = useState(false)
+  const [root, setRoot] = useState<MapTopic>()
+  const version = useMemo(() => selectedReviewVersion(session), [session])
   const [isFullscreen, setIsFullscreen] = useState(false)
   const svgRef = useRef<SVGSVGElement | null>(null)
   const fullscreenSvgRef = useRef<SVGSVGElement | null>(null)
@@ -105,12 +126,14 @@ export function MindMapTab({ session }: MindMapTabProps) {
   useEffect(() => {
     const svg = svgRef.current
     if (!svg) {
+      markmapRef.current?.svg.interrupt()
       markmapRef.current?.destroy()
       markmapRef.current = null
       return
     }
 
     if (!draftMarkdown.trim()) {
+      markmapRef.current?.svg.interrupt()
       markmapRef.current?.destroy()
       markmapRef.current = null
       svg.innerHTML = ''
@@ -135,7 +158,9 @@ export function MindMapTab({ session }: MindMapTabProps) {
           svg.setAttribute('height', String(Math.max(1, Math.round(height))))
           transformerRef.current = new Transformer()
           markmapRef.current = Markmap.create(svg, {
-            autoFit: true,
+            color: () => 'hsl(var(--primary))',
+            autoFit: false,
+            duration: 0,
             fitRatio: 0.92,
             maxWidth: 240,
             initialExpandLevel: 3,
@@ -146,8 +171,9 @@ export function MindMapTab({ session }: MindMapTabProps) {
         }
 
         const { root } = transformerRef.current.transform(draftMarkdown)
+        setRoot(mapTopic(root))
         await markmapRef.current.setData(root)
-        await markmapRef.current.fit()
+        if (!cancelled) fitMap(svg, markmapRef.current)
         if (!cancelled) setRenderError(null)
       } catch (error) {
         if (!cancelled) {
@@ -160,6 +186,7 @@ export function MindMapTab({ session }: MindMapTabProps) {
   }, [draftMarkdown])
 
   useEffect(() => () => {
+    markmapRef.current?.svg.interrupt()
     markmapRef.current?.destroy()
     markmapRef.current = null
   }, [])
@@ -167,6 +194,7 @@ export function MindMapTab({ session }: MindMapTabProps) {
   // Render mind map in fullscreen SVG
   useEffect(() => {
     if (!isFullscreen) {
+      fullscreenMarkmapRef.current?.svg.interrupt()
       fullscreenMarkmapRef.current?.destroy()
       fullscreenMarkmapRef.current = null
       fullscreenTransformerRef.current = null
@@ -192,7 +220,9 @@ export function MindMapTab({ session }: MindMapTabProps) {
           svg.setAttribute('height', String(Math.max(1, Math.round(height))))
           fullscreenTransformerRef.current = new Transformer()
           fullscreenMarkmapRef.current = Markmap.create(svg, {
-            autoFit: true,
+            color: () => 'hsl(var(--primary))',
+            autoFit: false,
+            duration: 0,
             fitRatio: 0.95,
             maxWidth: 300,
             initialExpandLevel: 4,
@@ -204,7 +234,7 @@ export function MindMapTab({ session }: MindMapTabProps) {
 
         const { root } = fullscreenTransformerRef.current.transform(draftMarkdown)
         await fullscreenMarkmapRef.current.setData(root)
-        await fullscreenMarkmapRef.current.fit()
+        if (!cancelled) fitMap(svg, fullscreenMarkmapRef.current)
       } catch {
         // Fullscreen render errors are non-critical
       }
@@ -212,6 +242,7 @@ export function MindMapTab({ session }: MindMapTabProps) {
 
     return () => {
       cancelled = true
+      fullscreenMarkmapRef.current?.svg.interrupt()
       fullscreenMarkmapRef.current?.destroy()
       fullscreenMarkmapRef.current = null
       fullscreenTransformerRef.current = null
@@ -287,8 +318,8 @@ export function MindMapTab({ session }: MindMapTabProps) {
   const handleExportSvg = () => {
     if (!svgRef.current) return
     setActionError(null)
-    exportMindMapSvg(svgRef.current, exportBaseName)
-    setShowExportMenu(false)
+    try { exportMindMapSvg(svgRef.current, exportBaseName) } catch (error) { setActionError((error as Error).message) }
+
   }
 
   const handleExportPng = async () => {
@@ -296,197 +327,56 @@ export function MindMapTab({ session }: MindMapTabProps) {
     try {
       setActionError(null)
       await exportMindMapPng(svgRef.current, exportBaseName)
-      setShowExportMenu(false)
+
     } catch (error) {
       console.error('[MindMapTab] export PNG failed:', error)
       setActionError(error instanceof Error ? error.message : 'Export PNG failed')
     }
   }
 
+  const generateButton = <button className="ins-button" disabled={!aiConfigured || !hasTranscript || generating || saving || isDirty} onClick={() => void handleGenerate()}>
+    {generating ? <Loader2 size={14} className="animate-spin"/> : <RefreshCw size={14}/>}
+    {generating ? t.preview.mindMapGenerating : hasMindMap ? t.preview.mindMapRegenerate : t.preview.mindMapGenerate}
+  </button>
   return (
-    <div className="review-map flex h-full min-h-0 flex-col overflow-y-auto">
-      {dialog}
-      {/* Toolbar */}
-      <div className="review-map-toolbar flex shrink-0 flex-wrap items-center gap-2 border-b border-border bg-muted/20 px-3 py-2 sm:px-5">
-        <details className="basis-full text-xs text-muted-foreground">
-          <summary className="cursor-pointer py-1">导图来源与状态</summary>
-          <TextSourceBanner session={session} /><AiStaleNotice session={session} result={session.mindMap} />
-        </details>
-        <button
-          onClick={() => void handleGenerate()}
-          disabled={!aiConfigured || !hasTranscript || generating || saving || isDirty}
-          className={`inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-colors ${
-            !aiConfigured || !hasTranscript
-              ? 'cursor-not-allowed border border-border bg-muted text-muted-foreground'
-              : generating
-                ? 'border border-primary/30 bg-primary/10 text-primary'
-                : 'border border-primary/30 bg-primary text-primary-foreground hover:bg-primary/90'
-          }`}
-        >
-          {generating ? (
-            <>
-              <Loader2 className="w-4 h-4 animate-spin" />
-              {t.preview.mindMapGenerating}
-            </>
-          ) : (
-            <>
-              <RefreshCw className="w-4 h-4" />
-              {hasMindMap ? t.preview.mindMapRegenerate : t.preview.mindMapGenerate}
-            </>
-          )}
-        </button>
-
-        <div className="h-5 w-px bg-border" />
-
-        <button
-          onClick={() => setShowEditor(!showEditor)}
-          className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-background px-3 py-2 text-sm font-medium text-foreground transition-colors hover:bg-accent"
-        >
-          {showEditor ? <PanelLeftClose className="w-4 h-4" /> : <PanelLeftOpen className="w-4 h-4" />}
-          {t.preview.mindMapMarkdown}
-        </button>
-
-        {hasMindMap && <button type="button" className="rounded border border-border px-2 py-1.5 text-sm" aria-pressed={showOutline} onClick={() => {
-          setShowOutline(value => !value)
-          if (showOutline) requestAnimationFrame(() => void markmapRef.current?.fit())
-        }}>{showOutline ? '查看导图' : '查看大纲'}</button>}
-        {isDirty && <button type="button" disabled={saving} className="rounded px-2 py-1.5 text-sm text-muted-foreground" onClick={() => void confirm('放弃尚未保存的导图修改？').then(confirmed => { if (confirmed) setDraftMarkdown() })}>放弃修改</button>}
-        {hasMindMap && isDirty && (
-          <button
-            disabled={saving}
-            onClick={() => void handleSave()}
-            className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-background px-3 py-2 text-sm font-medium text-foreground transition-colors hover:border-primary/30 hover:bg-primary/5 hover:text-primary"
-          >
-            <Save className="w-4 h-4" />
-            {t.preview.mindMapSave}
-          </button>
-        )}
-
-        {hasMindMap && (
-          <>
-            <button
-              onClick={() => void handleCopy()}
-              aria-label={t.preview.mindMapCopyMarkdown}
-              title={t.preview.mindMapCopyMarkdown}
-              className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-background px-3 py-2 text-sm font-medium text-foreground transition-colors hover:bg-accent"
-            >
-              <Copy className="w-4 h-4" />
-              <span className="review-map-optional-label">{t.preview.mindMapCopyMarkdown}</span>
-            </button>
-
-            <div className="relative">
-              <button
-                onClick={() => setShowExportMenu(!showExportMenu)}
-                aria-label={t.common.export}
-                title={t.common.export}
-                aria-expanded={showExportMenu}
-                className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-background px-3 py-2 text-sm font-medium text-foreground transition-colors hover:bg-accent"
-              >
-                <Download className="w-4 h-4" />
-                <span className="review-map-optional-label">{t.common.export}</span>
-                <ChevronDown className="w-3.5 h-3.5" />
-              </button>
-              {showExportMenu && (
-                <>
-                  <div className="fixed inset-0 z-40" onClick={() => setShowExportMenu(false)} />
-                  <div className="absolute left-0 top-full z-50 mt-1 w-32 rounded-lg border border-border bg-card p-1 shadow-lg">
-                    <button
-                      onClick={handleExportSvg}
-                      className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm text-foreground transition-colors hover:bg-accent"
-                    >
-                      SVG
-                    </button>
-                    <button
-                      onClick={() => void handleExportPng()}
-                      className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm text-foreground transition-colors hover:bg-accent"
-                    >
-                      PNG
-                    </button>
-                  </div>
-                </>
-              )}
-            </div>
-          </>
-        )}
-
-        {hasMindMap && (
-          <>
-            <div className="h-5 w-px bg-border" />
-            <button
-              ref={fullscreenTrigger}
-              aria-label="全屏查看导图"
-              onClick={() => setIsFullscreen(true)}
-              className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-background px-3 py-2 text-sm font-medium text-foreground transition-colors hover:bg-accent"
-            >
-              <Maximize2 className="w-4 h-4" />
-            </button>
-          </>
-        )}
-
-        {!aiConfigured && (
-          <p className="ml-2 text-xs text-muted-foreground">{t.preview.aiNotConfigured}{' '}
-              <button data-settings-entry="review-ai" type="button" className="text-primary underline" onClick={() => useUIStore.getState().openSettings('aiPostProcess')}>{t.common.settings}</button></p>
-        )}
-        {!hasTranscript && (
-          <p className="ml-2 text-xs text-muted-foreground">{t.preview.mindMapNoTranscript}</p>
-        )}
-        {session.mindMap?.status === 'error' && session.mindMap.error && (
-          <p className="ml-2 text-xs text-destructive">{session.mindMap.error}</p>
-        )}
-      </div>
-
-      {actionError && (
-        <div className="mx-5 mt-3 rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-xs text-destructive">
-          {actionError}
-        </div>
-      )}
-
-      {/* Content area */}
-      <div className="review-map-layout flex min-h-40 flex-1 overflow-hidden">
-        {/* Editor panel (collapsible) */}
-        {showEditor && (
-          <div className="review-map-editor flex w-72 shrink-0 flex-col overflow-hidden border-r border-border p-3">
-            <div className="mb-2 inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-              <FileText className="w-3.5 h-3.5" />
-              {t.preview.mindMapMarkdown}
-            </div>
-            <textarea
-              aria-label={t.preview.mindMapMarkdown}
-              value={draftMarkdown}
-              onChange={(event) => setDraftMarkdown(event.target.value)}
-              placeholder={t.preview.mindMapMarkdownPlaceholder}
-              className="flex-1 w-full rounded-lg border border-input bg-background px-3 py-3 text-sm leading-relaxed ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 resize-none"
-            />
+    <div className="review-pane-scroll">{dialog}<div className="ins-pages review-pane">
+      <div className="review-source"><TextSourceBanner session={session}/><AiStaleNotice session={session} result={session.mindMap}/></div>
+      <section className="ins-panel review-live-map">
+        <header className="ins-head"><h2><Network size={16}/>{t.preview.discussionMap}</h2>
+          {hasMindMap ? <div className="ins-view" role="group" aria-label={t.preview.tabMindMap}>
+            <button aria-pressed={!showOutline} onClick={() => setShowOutline(false)}><Network size={13}/>{t.preview.mapView}</button>
+            <button aria-pressed={showOutline} onClick={() => setShowOutline(true)}><List size={14}/>{t.preview.outlineView}</button>
+          </div> : generateButton}
+        </header>
+        {!aiConfigured && <p className="review-hint">{t.preview.aiNotConfigured} <button data-settings-entry="review-ai" className="text-primary underline" onClick={() => useUIStore.getState().openSettings('aiPostProcess')}>{t.common.settings}</button></p>}
+        {!hasTranscript && <p className="review-hint">{t.preview.mindMapNoTranscript}</p>}
+        {session.mindMap?.status === 'error' && <p role="alert" className="review-map-notice text-destructive">{session.mindMap.error}</p>}
+        {hasMindMap ? <div className="relative">
+          <div className={'markmap-container review-map-canvas' + (pan && !showOutline ? '' : ' review-map-measure')} aria-hidden={!pan || showOutline}>
+            <svg className="h-full w-full" ref={svgRef}/>
           </div>
-        )}
-
-        {/* Mind map preview (takes remaining space) */}
-        <div className="relative min-h-24 min-w-0 flex-1 overflow-hidden bg-background/40 dark:bg-muted/20 markmap-container">
-          {hasMindMap ? (
-            <>
-              <svg ref={svgRef} aria-hidden={showOutline} className={'h-full w-full ' + (showOutline ? 'invisible' : '')} />
-              {showOutline && <div className="absolute inset-0 overflow-auto p-5"><MarkdownRenderer content={draftMarkdown} /></div>}
-            </>
-          ) : (
-            <div className="flex h-full flex-col items-center justify-center gap-3 px-6 text-center">
-              <div className="flex h-14 w-14 items-center justify-center rounded-full border border-primary/20 bg-primary/10 text-primary">
-                <Network className="h-7 w-7" />
-              </div>
-              <div className="space-y-1">
-                <p className="text-sm font-medium text-foreground">{t.preview.mindMapEmpty}</p>
-                <p className="text-xs text-muted-foreground">{t.preview.mindMapEmptyHint}</p>
-              </div>
-            </div>
-          )}
-
-          {renderError && (
-            <div className="absolute inset-x-3 bottom-3 rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-xs text-destructive">
-              {renderError}
-            </div>
-          )}
-        </div>
-      </div>
-
+          {(!pan || showOutline) && root && <MeetingMapTree key={draftMarkdown} root={root} outline={showOutline} version={version} onCitation={onCitation}/>}
+          {!root && !renderError && <p role="status" className="p-4"><Loader2 className="h-4 w-4 animate-spin"/></p>}
+        </div> : <div className="ins-chat-empty"><Network size={22}/><p>{t.preview.mindMapEmpty}</p><small>{t.preview.mindMapEmptyHint}</small></div>}
+        {renderError && <p role="alert" className="review-map-notice text-destructive">{renderError}</p>}
+        <div className="ins-map-tools"><div className="ins-actions">
+          <button className="ins-button" aria-expanded={showEditor} onClick={() => setShowEditor(!showEditor)}><Pencil size={13}/>{t.preview.mindMapMarkdown}{isDirty && ' *'}</button>
+          {hasMindMap && <button ref={fullscreenTrigger} className="ins-button" aria-label="全屏查看导图" onClick={() => setIsFullscreen(true)}><Maximize2 size={13}/>{t.preview.fullscreenMap}</button>}
+        </div>{hasMindMap && <button className="ins-button ins-more" aria-expanded={more} onClick={() => setMore(!more)}><ChevronDown size={13}/>{t.preview.moreTools}</button>}</div>
+        {more && hasMindMap && <div className="ins-actions ins-map-extra">
+          <button className="ins-button" aria-pressed={pan && !showOutline} onClick={() => { setPan(showOutline || !pan); setShowOutline(false) }}>{pan && !showOutline ? t.preview.mapView : t.preview.panMap}</button>
+          <button className="ins-button" onClick={() => void handleCopy()}><Copy size={13}/>{t.preview.mindMapCopyMarkdown}</button>
+          <button className="ins-button" disabled={!root || !!renderError} onClick={handleExportSvg}><Download size={13}/>SVG</button>
+          <button className="ins-button" disabled={!root || !!renderError} onClick={() => void handleExportPng()}><Download size={13}/>PNG</button>
+          {generateButton}
+        </div>}
+        {showEditor && <div className="ins-map-editor space-y-2">
+          <textarea aria-label={t.preview.mindMapMarkdown} value={draftMarkdown} onChange={e => setDraftMarkdown(e.target.value)} placeholder={t.preview.mindMapMarkdownPlaceholder} rows={8} className="block w-full rounded-md border border-input bg-background p-2 text-sm"/>
+          <div className="ins-actions"><button disabled={saving || !isDirty || !hasMindMap} className="ins-button" onClick={() => void handleSave()}><Save size={13}/>{t.preview.mindMapSave}</button>
+          <button disabled={saving || !isDirty} className="ins-button" onClick={() => void confirm('放弃尚未保存的导图修改？').then(ok => { if (ok) setDraftMarkdown() })}>{t.common.cancel}</button></div>
+        </div>}
+        {actionError && <p role="alert" className="review-map-notice text-destructive">{actionError}</p>}
+      </section></div>
       {/* Fullscreen overlay */}
       {isFullscreen && createPortal(
         <div role="dialog" aria-modal="true" aria-label={t.preview.mindMapTitle} className="fixed inset-0 z-[100] flex flex-col bg-background">

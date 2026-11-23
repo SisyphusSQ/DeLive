@@ -1,13 +1,17 @@
+import { useMemo } from 'react'
+import { selectedReviewVersion, timestamp } from '../../utils/reviewVersions'
+import { findReviewPassage, type ReviewCitation } from '../../utils/reviewPassage'
+import { CorrectionTab } from './CorrectionTab'
 import { resolveInputText } from '../../services/aiSessionContext'
 import { MarkdownRenderer } from './MarkdownRenderer'
 import { AiStaleNotice } from './AiStaleNotice'
 import {
   Sparkles,
   Loader2,
-  Type,
+  FileText,
   ListTodo,
-  Tags,
-  BookOpenText,
+  ArrowUpRight,
+  ListTree,
 } from 'lucide-react'
 import type { TranscriptSession } from '../../types'
 import { useUIStore } from '../../stores/uiStore'
@@ -19,9 +23,10 @@ import { TextSourceBanner } from './TextSourceBanner'
 
 interface AiTabProps {
   session: TranscriptSession
+  onCitation?: (source: ReviewCitation) => void
 }
 
-export function AiTab({ session }: AiTabProps) {
+export function AiTab({ session, onCitation }: AiTabProps) {
   const { t } = useUIStore()
   const settings = useSettingsStore((state) => state.settings)
   const generateSessionPostProcess = useSessionStore((state) => state.generateSessionPostProcess)
@@ -68,175 +73,50 @@ export function AiTab({ session }: AiTabProps) {
     updateSessionTags(session.id, Array.from(nextTagIds))
   }
 
-  return (
-    <div className="flex-1 space-y-5 overflow-y-auto px-2 pb-4">
-      <div className="space-y-4 border-b border-border/60 pb-4">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div className="space-y-1">
-            <div className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-primary">
-              <Sparkles className="w-3.5 h-3.5" />
-              {t.preview.aiBriefing}
-            </div>
-            <TextSourceBanner session={session} /><AiStaleNotice session={session} result={session.postProcess} />
-            {!aiConfigured && (
-              <p className="text-xs text-muted-foreground">{t.preview.aiNotConfigured}{' '}
-              <button data-settings-entry="review-ai" type="button" className="text-primary underline" onClick={() => useUIStore.getState().openSettings('aiPostProcess')}>{t.common.settings}</button></p>
-            )}
-            {postProcess?.status === 'error' && postProcess.error && (
-              <p className="text-xs text-destructive">{postProcess.error}</p>
-            )}
-          </div>
-          <button
-            onClick={() => void handleGenerateAiBriefing()}
-            disabled={!aiConfigured || aiGenerating || !(resolveInputText(session, 'auto') || session.images?.length)}
-            className={`inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-colors ${
-              !aiConfigured || !(resolveInputText(session, 'auto') || session.images?.length)
-                ? 'cursor-not-allowed border border-border bg-muted text-muted-foreground'
-                : aiGenerating
-                  ? 'border border-primary/30 bg-primary/10 text-primary'
-                  : 'border border-primary/30 bg-primary text-primary-foreground hover:bg-primary/90'
-            }`}
-          >
-            {aiGenerating ? (
-              <>
-                <Loader2 className="w-4 h-4 animate-spin" />
-                {t.preview.aiGenerating}
-              </>
-            ) : (
-              <>
-                <Sparkles className="w-4 h-4" />
-                {hasAiContent ? t.preview.aiRegenerate : t.preview.aiGenerate}
-              </>
-            )}
-          </button>
-        </div>
-
-        {hasAiContent && (
-          <div className="grid gap-4">
-            {postProcess?.summary && (
-              <div className="space-y-2">
-                <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                  {t.preview.aiSummary}
-                </div>
-                <MarkdownRenderer content={postProcess.summary} />
-              </div>
-            )}
-
-            {postProcess?.titleSuggestion && (
-              <div className="space-y-2">
-                <div className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                  <Type className="w-3.5 h-3.5" />
-                  {t.preview.aiTitleSuggestion}
-                </div>
-                <div className="flex flex-col gap-2 rounded-lg border border-border bg-background/70 px-3 py-3 sm:flex-row sm:items-center sm:justify-between">
-                  <div className="text-sm font-medium text-foreground">{postProcess.titleSuggestion}</div>
-                  <button
-                    onClick={handleApplySuggestedTitle}
-                    disabled={session.title.trim() === postProcess.titleSuggestion.trim()}
-                    className={`inline-flex items-center justify-center rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
-                      session.title.trim() === postProcess.titleSuggestion.trim()
-                        ? 'cursor-not-allowed border border-border bg-muted text-muted-foreground'
-                        : 'border border-primary/30 bg-primary/10 text-primary hover:bg-primary/20'
-                    }`}
-                  >
-                    {t.preview.aiApplyTitle}
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {postProcess?.actionItems && postProcess.actionItems.length > 0 && (
-              <div className="space-y-2">
-                <div className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                  <ListTodo className="w-3.5 h-3.5" />
-                  {t.preview.aiActionItems}
-                </div>
-                <div className="space-y-2">
-                  {postProcess.actionItems.map((item, index) => (
-                    <div
-                      key={`${item}-${index}`}
-                      className="rounded-lg border border-border bg-background/70 px-3 py-2 text-sm text-foreground"
-                    >
-                      <MarkdownRenderer content={item} />
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {((postProcess?.keywords && postProcess.keywords.length > 0) || (postProcess?.tagSuggestions && postProcess.tagSuggestions.length > 0)) && (
-              <div className="space-y-2">
-                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                  <div className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                    <Tags className="w-3.5 h-3.5" />
-                    {t.preview.aiKeywords}
-                  </div>
-                  {postProcess?.tagSuggestions && postProcess.tagSuggestions.length > 0 && (
-                    <button
-                      onClick={handleApplySuggestedTags}
-                      className="inline-flex items-center justify-center rounded-md border border-primary/30 bg-primary/10 px-3 py-1.5 text-xs font-medium text-primary transition-colors hover:bg-primary/20"
-                    >
-                      {t.preview.aiApplyTags}
-                    </button>
-                  )}
-                </div>
-                {postProcess?.tagSuggestions && postProcess.tagSuggestions.length > 0 && (
-                  <div className="space-y-2">
-                    <div className="text-xs font-medium text-muted-foreground">{t.preview.aiTagSuggestions}</div>
-                    <div className="flex flex-wrap gap-2">
-                      {postProcess.tagSuggestions.map((tag) => (
-                        <span
-                          key={tag}
-                          className="rounded-full border border-success/30 bg-success/10 px-3 py-1 text-xs font-medium text-success dark:border-success/20 dark:bg-success/10 dark:text-success"
-                        >
-                          {tag}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                )}
-                {postProcess?.keywords && postProcess.keywords.length > 0 && (
-                  <div className="space-y-2">
-                    <div className="text-xs font-medium text-muted-foreground">{t.preview.aiKeywords}</div>
-                    <div className="flex flex-wrap gap-2">
-                      {postProcess.keywords.map((keyword) => (
-                        <span
-                          key={keyword}
-                          className="rounded-full border border-primary/20 bg-primary/10 px-3 py-1 text-xs font-medium text-primary"
-                        >
-                          {keyword}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
-
-            {postProcess?.chapters && postProcess.chapters.length > 0 && (
-              <div className="space-y-2">
-                <div className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                  <BookOpenText className="w-3.5 h-3.5" />
-                  {t.preview.aiChapters}
-                </div>
-                <div className="space-y-2">
-                  {postProcess.chapters.map((chapter, index) => (
-                    <div
-                      key={`${chapter.title}-${index}`}
-                      className="rounded-lg border border-border bg-background/70 px-3 py-3"
-                    >
-                      <div className="text-sm font-medium text-foreground">{chapter.title}</div>
-                      {chapter.summary && (
-                        <MarkdownRenderer content={chapter.summary} className="text-xs" />
-                      )}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-        )}
+  const adopted = useMemo(() => selectedReviewVersion(session), [session])
+  const actions = postProcess?.actionItems ?? []
+  const done = postProcess?.completedActionItems ?? []
+  function toggleAction(item: string) {
+    const store = useSessionStore.getState()
+    const current = store.sessions.find(s => s.id === session.id)?.postProcess
+    if (!current?.actionItems?.includes(item)) return
+    const checked = current.completedActionItems ?? []
+    store.updateSessionPostProcess(session.id, { completedActionItems: checked.includes(item) ? checked.filter(text => text !== item) : [...checked, item] })
+  }
+  return <div className="review-pane-scroll"><div className="ins-pages review-pane">
+    <div className="review-source"><TextSourceBanner session={session}/><AiStaleNotice session={session} result={postProcess}/></div>
+    <section className="ins-panel">
+      <header className="ins-head"><h2><FileText size={16}/>{t.preview.aiSummary}</h2>
+        <button className="ins-button" onClick={() => void handleGenerateAiBriefing()} disabled={!aiConfigured || aiGenerating || !(resolveInputText(session,'auto') || session.images?.length)}>
+          {aiGenerating ? <Loader2 size={14} className="animate-spin"/> : <Sparkles size={14}/>}
+          {aiGenerating ? t.preview.aiGenerating : hasAiContent ? t.preview.aiRegenerate : t.preview.aiGenerate}
+        </button>
+      </header>
+      <div className="ins-overview">
+        {!aiConfigured && <p className="review-hint">{t.preview.aiNotConfigured} <button data-settings-entry="review-ai" className="text-primary underline" onClick={() => useUIStore.getState().openSettings('aiPostProcess')}>{t.common.settings}</button></p>}
+        {postProcess?.status === 'error' && <p role="alert" className="text-destructive">{postProcess.error}</p>}
+        {postProcess?.summary ? <MarkdownRenderer content={postProcess.summary}/> : !hasAiContent && <p className="review-hint">{t.preview.noSummary}</p>}
+        {!!postProcess?.keywords?.length && <div className="ins-keywords">{postProcess.keywords.map(word => <span key={word}>{word}</span>)}</div>}
       </div>
-    </div>
-  )
+      {!!postProcess?.chapters?.length && <div className="ins-decisions"><h3>{t.preview.discussionPoints}</h3><ul>{postProcess.chapters.map((chapter,i) => {
+        const ref = { quote: chapter.summary || chapter.title, startMs: chapter.startMs }
+        const primaryMatch = findReviewPassage(adopted, ref)
+        const source = primaryMatch ? ref : { quote: chapter.title }
+        const match = primaryMatch ?? findReviewPassage(adopted, source)
+        return <li key={i}><div><h4>{chapter.title}</h4>{chapter.summary && <MarkdownRenderer content={chapter.summary}/>}</div>
+          {onCitation && match && <button className="ins-cite" onClick={() => onCitation(source)}>{match.startMs === undefined ? t.preview.viewPassage : timestamp(match.startMs).slice(0,-4)}<ArrowUpRight size={12}/></button>}
+        </li>
+      })}</ul></div>}
+    </section>
+    {!!actions.length && <section className="ins-panel"><header className="ins-head"><h2><ListTodo size={16}/>{t.preview.aiActionItems}</h2><span className="ins-count" aria-live="polite">{t.preview.itemsDone} {actions.filter(item => done.includes(item)).length} / {actions.length}</span></header>
+      <div className="ins-checklist">{actions.map((item,i) => <div className="review-task-item" key={i}><input type="checkbox" aria-label={item} checked={done.includes(item)} disabled={aiGenerating} onChange={() => toggleAction(item)}/><MarkdownRenderer content={item}/></div>)}</div>
+    </section>}
+    <section className="ins-panel ins-utilities"><header className="ins-head"><h2><ListTree size={16}/>{t.preview.organizeTools}</h2></header>
+      {(postProcess?.titleSuggestion || postProcess?.tagSuggestions?.length) ? <details><summary>{t.preview.meetingSuggestions}</summary><div className="review-utility-body">
+        {postProcess.titleSuggestion && <div><strong>{t.preview.aiTitleSuggestion}</strong><p>{postProcess.titleSuggestion}</p><button className="ins-button" onClick={handleApplySuggestedTitle} disabled={postProcess.titleSuggestion.trim() === session.title.trim()}>{t.preview.aiApplyTitle}</button></div>}
+        {!!postProcess.tagSuggestions?.length && <div><strong>{t.preview.aiTagSuggestions}</strong><p>{postProcess.tagSuggestions.join(' · ')}</p><button className="ins-button" onClick={handleApplySuggestedTags}>{t.preview.aiApplyTags}</button></div>}
+      </div></details> : null}
+      <details><summary>{t.preview.summarySectionCorrection}</summary><CorrectionTab session={session}/></details>
+    </section>
+  </div></div>
 }

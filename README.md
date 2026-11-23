@@ -1,4 +1,4 @@
-> [DeLive SQ 2.3.0-sq.1 prerelease](https://github.com/SisyphusSQ/DeLive/releases/tag/v2.3.0-sq.1) provides Developer ID signed macOS Apple Silicon (arm64) DMG/ZIP files, without notarization or in-app updates. Data is separate from upstream and is not automatically migrated. The website, badges and other download links below belong to upstream; see the [SQ build and release notes](docs/zh/development/build.md) for installation and permission recovery.
+> [DeLive SQ 2.3.0-sq.6 prerelease](https://github.com/SisyphusSQ/DeLive/releases/tag/v2.3.0-sq.6) provides Developer ID signed macOS Apple Silicon (arm64) DMG/ZIP files, without notarization or in-app updates. Data is separate from upstream and is not automatically migrated. The website, badges and other download links below belong to upstream; see the [SQ build and release notes](docs/zh/development/build.md) for installation and permission recovery.
 
 <div align="center">
 

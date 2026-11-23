@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { ImagePlus, X } from 'lucide-react'
+import { ReviewToolPanel } from '../../components/review/ReviewToolPanel'
+import { job } from './fixtures'
 import { ActionDialog } from '../../components/ActionDialog'
 import { Select } from '../../components/ui/Select'
 
@@ -45,7 +47,7 @@ export interface PreviewTaskWorkflow {
   onOpen?: () => void
   onSubmit?: () => void
 }
-export function PreviewTasks({ state, onState, onCorrect, workflow }: { state: PreviewState; onState: (state: PreviewState) => void; onCorrect: () => void; workflow?: PreviewTaskWorkflow }) {
+export function PreviewTasks({ state, onState, onCorrect, workflow, result }: { state: PreviewState; onState: (state: PreviewState) => void; onCorrect: () => void; workflow?: PreviewTaskWorkflow; result?: { onView: () => void; locked: boolean } }) {
   const [confirm, setConfirm] = useState<'submit' | 'stop' | ''>('')
   const [notice, setNotice] = useState('')
   const taskState = (['credentials', 'storage', ...fileTaskStates] as PreviewState[]).includes(state)
@@ -65,19 +67,49 @@ export function PreviewTasks({ state, onState, onCorrect, workflow }: { state: P
     taskFailed: '示例错误：服务端转写失败。查看任务详情后，再决定是否重新提交。', cleanupFailed: '会后稿已保存，但临时副本删除未确认。访问到期不代表文件已删除。',
     cancelled: '已停止本机跟踪并清理临时副本。服务端已受理的任务与计费无法撤销。', deletedSource: '转写已完成，但来源会议已删除。不会自动恢复已删除会议。',
   }
-  return <details className="note-disclosure" open={taskState || undefined}><summary>{workflow?.taskList ? '转写任务' : '会后转写与校正'}{taskState && <span>{previewStates[state]}</span>}</summary><div className="note-panel-content">
-    {canCorrect && <p>已有会后稿可直接生成校正版，无需再次上传或识别。</p>}
-    {(canCorrect || canSubmit) && <div className="note-tools">{canCorrect && <button className="note-text-button" onClick={onCorrect}>生成校正版</button>}{canSubmit && <button className="note-text-button" disabled={blocksPreviewSubmission(state) || (!workflow && ['credentials', 'storage'].includes(state))} onClick={confirmStart}>{state === 'credentials' ? '配置火山凭据' : state === 'storage' ? '配置私有存储' : !workflow || workflow.hasResult ? '重新转写原音' : '会后转写'}</button>}</div>}
-    {taskState && <div className="note-task-state" role="status"><strong>{previewStates[state]}</strong><p>{details[state]}</p>{workflow?.sourceDeleted && state !== 'deletedSource' && <p>来源会议已删除，仍可处理原任务。</p>}{state === 'uploading' && <progress aria-label="临时音频上传进度" value={12} max={32} />}
-      <div className="note-tools">{!workflow && ['credentials', 'storage'].includes(state) && <button className="note-text-button" onClick={() => setNotice('正式入口：设置 → 文件转写。分别配置火山凭据和私有临时存储，返回此会议后需手动提交。')}>前往文件转写配置</button>}
+  const submitButton = canSubmit && <button className="note-text-button" disabled={blocksPreviewSubmission(state) || (!workflow && ['credentials', 'storage'].includes(state))} onClick={confirmStart}>{state === 'credentials' ? '配置火山凭据' : state === 'storage' ? '配置私有存储' : !workflow || workflow.hasResult ? '重新转写原音' : '会后转写'}</button>
+  const taskActions = <div className="note-tools">{!workflow && ['credentials', 'storage'].includes(state) && <button className="note-text-button" onClick={() => setNotice('正式入口：设置 → 文件转写。分别配置火山凭据和私有临时存储，返回此会议后需手动提交。')}>前往文件转写配置</button>}
       {['unknown', 'queued', 'processing'].includes(state) && <button className="note-text-button" onClick={() => onState(state === 'unknown' ? 'processing' : 'awaitingSave')}>查询 / 继续查询</button>}
       {['preparing', 'uploading', 'submitting', 'unknown', 'queued', 'processing'].includes(state) && <button className="note-text-button" onClick={() => setConfirm('stop')}>停止并清理</button>}
       {state === 'awaitingSave' && <button className="note-primary" onClick={() => onState('completed')}>重试保存 / 本地合并</button>}
       {state === 'cleanupFailed' && <button className="note-text-button" onClick={() => { onState('completed'); setNotice('示例临时副本已清理确认') }}>重试清理</button>}
-      {sourceAvailable && (state === 'completed' || state === 'cleanupFailed') && (workflow?.onOpen || canCorrect) && <button className="note-text-button" onClick={workflow?.onOpen ?? onCorrect}>{workflow?.fileOnly ? '打开会后稿' : '打开校正版'}</button>}</div>
+      {!result && sourceAvailable && (state === 'completed' || state === 'cleanupFailed') && (workflow?.onOpen || canCorrect) && <button className="note-text-button" onClick={workflow?.onOpen ?? onCorrect}>{workflow?.fileOnly ? '打开会后稿' : '打开校正版'}</button>}</div>
+  const confirmation = <ActionDialog open={!!confirm} title={confirm === 'submit' ? '重新转写原音？' : '停止本地任务并清理？'} description={confirm === 'submit' ? '将同步混音的临时副本上传到火山，可能计费。已有会后稿可以直接本地校正，无需重新识别。此预览只模拟状态，不上传。' : '将停止本机跟踪并清理临时副本，不能撤销服务端已接受的任务和计费。本地原音与稿件保留。'} onClose={() => setConfirm('')} actions={[{ label: '取消', onClick: () => setConfirm('') }, { label: confirm === 'submit' ? '预览提交状态' : '预览停止并清理', variant: confirm === 'submit' ? 'primary' : 'danger', onClick: () => { if (confirm === 'submit' && workflow?.onSubmit) workflow.onSubmit(); else onState(confirm === 'submit' ? 'uploading' : 'cancelled'); setConfirm('') } }]} />
+  if (result) {
+    const saved = state === 'completed' || state === 'cleanupFailed' || !taskState
+    const clean = state === 'completed' || state === 'cancelled' || !taskState
+    const status = saved ? '会后稿已保存' : previewStates[state]
+    return <ReviewToolPanel title="会后转写" collapsedSummary={status} action={submitButton}>
+      <div className="tool-result">
+        <div><strong className={saved ? 'tool-saved' : ''}>{status}</strong>
+          <p>{saved ? new Date(job.createdAt).toLocaleString('zh-CN', { month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' }) + ' 创建的任务' : details[state]}</p>
+        </div>
+        {saved && <div className="tool-result-actions">
+          <button disabled={result.locked} onClick={result.onView}>查看此稿</button>
+          <button disabled={result.locked} onClick={onCorrect}>生成校正版</button>
+        </div>}
+      </div>
+      {state === 'cleanupFailed' && <p role="status">{details[state]}</p>}
+      {state === 'uploading' && <progress aria-label="音频上传进度" value={12} max={32} />}
+      {taskState && taskActions}
+      <details className="tool-task-details" open>
+        <summary>任务详情</summary>
+        <dl><dt>转写服务</dt><dd>火山标准文件转写 2.0</dd><dt>音频时长</dt><dd>{Math.round(job.durationMs / 60000)} 分钟</dd>
+          <dt>临时副本</dt><dd>{clean ? '已清理确认' : '尚未确认清理'}</dd><dt>本地原音</dt><dd>{sourceAvailable ? '已保留' : '来源会议已删除'}</dd>
+          <dt>任务 ID</dt><dd>{job.id}</dd></dl>
+      </details>
+      {notice && <p role="status">{notice}</p>}
+      {confirmation}
+    </ReviewToolPanel>
+  }
+  return <details className="note-disclosure" open={taskState || undefined}><summary>{workflow?.taskList ? '转写任务' : '会后转写与校正'}{taskState && <span>{previewStates[state]}</span>}</summary><div className="note-panel-content">
+    {canCorrect && <p>已有会后稿可直接生成校正版，无需再次上传或识别。</p>}
+    {(canCorrect || canSubmit) && <div className="note-tools">{canCorrect && <button className="note-text-button" onClick={onCorrect}>生成校正版</button>}{submitButton}</div>}
+    {taskState && <div className="note-task-state" role="status"><strong>{previewStates[state]}</strong><p>{details[state]}</p>{workflow?.sourceDeleted && state !== 'deletedSource' && <p>来源会议已删除，仍可处理原任务。</p>}{state === 'uploading' && <progress aria-label="临时音频上传进度" value={12} max={32} />}
+      {taskActions}
       <details><summary>任务详情</summary><p>来源：火山标准文件转写 2.0 · 合成任务 demo-task</p>{workflow?.source && <p>音频来源：{workflow.source}</p>}<p>临时副本：{state === 'cleanupFailed' ? '清理未确认' : state === 'completed' || state === 'cancelled' ? '已清理确认' : '尚未确认清理'} · 原音本地保留</p></details>
     </div>}{notice && <p role="status">{notice}</p>}
-  </div><ActionDialog open={!!confirm} title={confirm === 'submit' ? '重新转写原音？' : '停止本地任务并清理？'} description={confirm === 'submit' ? '将同步混音的临时副本上传到火山，可能计费。已有会后稿可以直接本地校正，无需重新识别。此预览只模拟状态，不上传。' : '将停止本机跟踪并清理临时副本，不能撤销服务端已接受的任务和计费。本地原音与稿件保留。'} onClose={() => setConfirm('')} actions={[{ label: '取消', onClick: () => setConfirm('') }, { label: confirm === 'submit' ? '预览提交状态' : '预览停止并清理', variant: confirm === 'submit' ? 'primary' : 'danger', onClick: () => { if (confirm === 'submit' && workflow?.onSubmit) workflow.onSubmit(); else onState(confirm === 'submit' ? 'uploading' : 'cancelled'); setConfirm('') } }]} /></details>
+  </div>{confirmation}</details>
 }
 
 function ImageDrawing({ caption }: { caption: string }) {

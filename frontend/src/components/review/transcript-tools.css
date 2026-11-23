@@ -1,0 +1,68 @@
+.review-tool-panel {
+  container: review-tools / inline-size;
+  margin-top: 12px;
+  border: 1px solid hsl(var(--border));
+  border-radius: 10px;
+  background: hsl(var(--card));
+}
+.review-tool-panel > header {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  min-height: 44px; padding: 6px 14px;
+  border-radius: 9px;
+  background: hsl(var(--muted) / .72);
+}
+.review-tool-panel:has([aria-expanded="true"]) > header { border-radius: 9px 9px 0 0; }
+.review-tool-panel h2 button, .tool-edit, .tool-result-actions, .transcript-find label, .transcript-find > div {
+  display: flex; align-items: center; gap: 8px;
+}
+.review-tool-panel h2 button { font-weight: 650; font-size: 14px; padding: 4px 0; }
+.review-tool-panel h2 svg { color: hsl(var(--muted-foreground)); }
+.review-tool-panel h2 [aria-expanded="false"] svg { transform: rotate(-90deg); }
+.tool-edit, .tool-result-actions button { min-height: 30px; padding: 4px 10px; border-radius: 6px; font-size: 12px; font-weight: 550; }
+.tool-edit { background: hsl(var(--primary)); color: hsl(var(--primary-foreground)); }
+.tool-edit:hover { background: hsl(var(--primary) / .9); }
+.review-tool-panel header > .note-text-button { font-size: 12px; }
+.review-tool-body { padding: 12px 15px; border-top: 1px solid hsl(var(--border)); }
+.review-tool-body[hidden], .review-tool-body .note-tools:empty { display: none; }
+.tool-fields { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.tool-fields label { display: grid; align-content: start; gap: 4px; font-size: 12px; color: hsl(var(--muted-foreground)); }
+.tool-fields [role="combobox"], .transcript-find label {
+  border: 1px solid hsl(var(--border)); border-radius: 6px;
+  background: hsl(var(--background)); color: hsl(var(--foreground));
+}
+.tool-fields [role="combobox"] { min-height: 32px; padding: 4px 9px; font-size: 13px; }
+.tool-adoption, .tool-result { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 12px; }
+.tool-adoption, .tool-task-details { margin-top: 10px; padding-top: 9px; border-top: 1px solid hsl(var(--border) / .7); }
+.tool-adoption, .tool-result p, .tool-task-details { color: hsl(var(--muted-foreground)); font-size: 12px; }
+.tool-adoption strong, .tool-task-details dd { color: hsl(var(--foreground)); }
+.tool-link { color: hsl(var(--primary)); font-weight: 550; }
+.tool-result { justify-content: space-between; }
+.tool-result strong { font-size: 14px; font-weight: 600; }
+.tool-saved::before {
+  content: ''; display: inline-block; width: 7px; height: 7px; margin-right: 7px;
+  vertical-align: 2px; border-radius: 50%; background: hsl(var(--success, 155 45% 38%));
+}
+.tool-result-actions { flex-wrap: wrap; }
+.tool-result-actions button { border: 1px solid hsl(var(--border)); background: hsl(var(--card)); }
+.tool-result-actions button:hover, .transcript-find button:hover { background: hsl(var(--muted)); }
+.tool-task-details summary { cursor: pointer; width: fit-content; }
+.tool-task-details dl { margin: 8px 0 0 13px; display: grid; grid-template-columns: auto 1fr auto 1fr; gap: 4px 10px; }
+.tool-task-details dd { margin: 0; overflow-wrap: anywhere; }
+.transcript-find {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px 14px; flex-wrap: wrap;
+  padding: 12px 0; margin-bottom: 12px; border-top: 1px solid hsl(var(--border));
+}
+.transcript-find h2 { font-size: 15px; font-weight: 650; }
+.transcript-find > div { flex-wrap: wrap; gap: 4px; min-width: 0; }
+.transcript-find label { gap: 6px; padding: 4px 8px; color: hsl(var(--muted-foreground)); }
+.transcript-find label:focus-within { outline: 2px solid hsl(var(--primary)); }
+.transcript-find label input { width: 9em; max-width: 100%; font-size: 12px; background: transparent; color: hsl(var(--foreground)); outline: 0; }
+.transcript-find [role="status"] { font-size: 12px; color: hsl(var(--muted-foreground)); }
+.transcript-find button { padding: 4px; border-radius: 5px; }
+@container review-tools (max-width: 430px) {
+  .tool-fields { grid-template-columns: 1fr 1fr; gap: 7px; }
+  .tool-fields label:first-child { grid-column: 1 / -1; }
+  .tool-task-details dl { grid-template-columns: auto 1fr; }
+  .tool-result-actions { row-gap: 4px; }
+}
+.tool-collapsed-summary { flex: 1; text-align: left; font-size: 12px; color: hsl(var(--muted-foreground)); }

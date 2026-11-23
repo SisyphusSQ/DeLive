@@ -1,0 +1,79 @@
+.history-directory {
+  display: flex; flex-direction: column; flex: none; width: clamp(222px, 23vw, 284px);
+  min-height: 0; color: hsl(var(--foreground)); background: hsl(var(--muted) / .32);
+  border-right: 1px solid hsl(var(--border) / .8);
+}
+.directory-header { flex: none; padding: 19px 16px 12px; }
+.directory-title, .directory-tools, .directory-meta, .directory-group, .directory-popup-title {
+  display: flex; align-items: center;
+}
+.directory-title { justify-content: space-between; margin-bottom: 12px; }
+.directory-title h2 { font-size: 18px; font-weight: 650; letter-spacing: -.025em; }
+.directory-title > span { color: hsl(var(--muted-foreground)); font-size: 12px; font-variant-numeric: tabular-nums; }
+.directory-tools { gap: 6px; }
+.directory-search, .directory-filter {
+  min-height: 34px; border: 1px solid hsl(var(--border)); border-radius: 7px;
+  color: hsl(var(--muted-foreground)); background: hsl(var(--card));
+  display: inline-flex; align-items: center;
+}
+.directory-search { flex: 1; gap: 7px; padding: 0 9px; min-width: 0; }
+.directory-search svg { flex: none; }
+.directory-search input { background: transparent; min-width: 0; width: 100%; font-size: 13px; color: hsl(var(--foreground)); }
+.directory-search:focus-within { outline: 2px solid hsl(var(--primary)); }
+.grouped-review .directory-search input:focus-visible { outline: none; }
+.directory-filter { padding: 0 9px; gap: 4px; font-size: 12px; }
+.directory-filter:is(:hover, [aria-expanded="true"], [data-active="true"]) { color: hsl(var(--primary)); background: hsl(var(--primary) / .08); }
+.directory-list { overflow-y: auto; min-height: 0; padding: 0 9px 14px; scrollbar-width: thin; scrollbar-color: hsl(var(--border)) transparent; }
+.directory-list section + section { margin-top: 11px; }
+.directory-group { width: 100%; gap: 6px; padding: 5px 8px; font-size: 12px; font-weight: 600; color: hsl(var(--muted-foreground)); text-align: left; }
+.directory-group small { margin-left: auto; font-size: 11px; font-weight: 400; font-variant-numeric: tabular-nums; }
+.directory-group[aria-expanded="false"] svg { transform: rotate(-90deg); }
+.directory-list h3 > span { padding-left: 26px; }
+.directory-row { position: relative; margin: 1px 0; border-radius: 8px; }
+.directory-row:is(:hover, :focus-within, [data-open="true"]) { background: hsl(var(--foreground) / .04); }
+.directory-row[data-selected="true"] { background: hsl(var(--primary) / .09); }
+.directory-record { display: block; width: 100%; padding: 9px 33px 9px 12px; text-align: left; border-radius: inherit; }
+.directory-record strong, .directory-excerpt { display: -webkit-box; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere; }
+.directory-record strong { -webkit-line-clamp: 2; font-weight: 450; font-size: 14px; line-height: 1.45; }
+.directory-row[data-selected="true"] strong { color: hsl(var(--foreground)); font-weight: 650; }
+.directory-meta { gap: 6px; margin-top: 4px; font-size: 12px; line-height: 1.4; color: hsl(var(--muted-foreground)); }
+.directory-meta time { flex: none; font-variant-numeric: tabular-nums; }
+.directory-excerpt { -webkit-line-clamp: 2; margin-top: 5px; font-size: 12px; line-height: 1.55; color: hsl(var(--muted-foreground)); }
+.directory-more { position: absolute; right: 5px; top: 6px; width: 25px; height: 25px; opacity: 0; display: grid; place-items: center; border-radius: 5px; color: hsl(var(--muted-foreground)); }
+.directory-row:is(:hover, :focus-within, [data-open="true"]) .directory-more { opacity: 1; }
+.directory-more:is(:hover, [aria-expanded="true"]) { background: hsl(var(--foreground) / .065); color: hsl(var(--foreground)); }
+.directory-empty { padding: 20px 10px; color: hsl(var(--muted-foreground)); font-size: 13px; }
+.directory-empty button, .directory-clear { margin-top: 8px; color: hsl(var(--primary)); }
+.directory-popup {
+  position: fixed; z-index: 180; min-width: 164px; max-width: calc(100vw - 16px); max-height: calc(100dvh - 16px); overflow: auto;
+  border: 1px solid hsl(var(--border)); border-radius: 9px;
+  background: hsl(var(--popover)); color: hsl(var(--popover-foreground));
+  box-shadow: 0 8px 28px hsl(var(--foreground) / .13); font-size: 13px;
+}
+.directory-menu { display: grid; padding: 4px; }
+.directory-menu button { padding: 7px 9px; display: flex; align-items: center; gap: 9px; text-align: left; border-radius: 5px; }
+.directory-menu button:hover, .directory-choices label:hover { background: hsl(var(--muted)); }
+.directory-menu svg { width: 14px; height: 14px; }
+.directory-menu .directory-danger { margin-top: 3px; border-top: 1px solid hsl(var(--border)); border-radius: 0; color: hsl(var(--destructive)); }
+.directory-popup :is(button,input):focus-visible { outline: 2px solid hsl(var(--primary)); outline-offset: -2px; }
+.directory-choices { padding: 7px; }
+.directory-popup-title { justify-content: space-between; gap: 12px; padding: 2px 5px 6px; }
+.directory-popup-title button { padding: 3px; }
+.directory-choices label { position: relative; display: flex; align-items: center; gap: 8px; padding: 5px 7px; border-radius: 5px; cursor: pointer; }
+.directory-choices input { width: 15px; height: 15px; accent-color: hsl(var(--primary)); }
+.directory-clear { border-top: 1px solid hsl(var(--border)); width: 100%; padding: 7px 5px 1px; text-align: left; }
+.directory-rename { width: 225px; display: grid; gap: 10px; padding: 12px; }
+.directory-rename input { display: block; background: hsl(var(--background)); border: 1px solid hsl(var(--border)); border-radius: 5px; width: 100%; padding: 5px 7px; margin-top: 5px; }
+.directory-rename > div { display: flex; justify-content: flex-end; gap: 10px; }
+.directory-rename button[type="submit"] { font-weight: 600; color: hsl(var(--primary)); }
+@media (hover: none) { .directory-more { opacity: 1; } }
+@container (max-width: 600px) {
+  .history-directory { width: 100%; max-height: min(30%, 196px); border: 0; border-bottom: 1px solid hsl(var(--border)); }
+  .directory-header { display: flex; align-items: center; gap: 10px; padding: 6px 12px; }
+  .directory-title { margin: 0; gap: 5px; } .directory-title h2 { font-size: 14px; }
+  .directory-title > span { white-space: nowrap; font-size: 11px; }
+  .directory-tools { flex: 1; min-width: 0; }
+  .directory-search, .directory-filter { min-height: 29px; }
+  .directory-record { padding-block: 5px; }
+  .directory-meta { margin-top: 1px; }
+}

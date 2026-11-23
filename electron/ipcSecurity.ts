@@ -68,9 +68,12 @@ export function isAllowedNavigationUrl(url: string): boolean {
 }
 
 export function buildCSP(isDev: boolean): string {
+  // Vite injects this React Refresh bootstrap into the development index. Only that
+  // exact script is permitted. Recheck the digest when updating @vitejs/plugin-react.
+  const devScripts = isDev ? " 'unsafe-eval' 'sha256-Z2/iFzh9VMlVkEOar1f/oSHWwQk3ve1qk/C2WdsC4Xk='" : ''
   const directives = [
     "default-src 'self'",
-    `script-src 'self'${isDev ? " 'unsafe-eval'" : ''}`,
+    `script-src 'self'${devScripts}`,
     "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
     "font-src 'self' https://fonts.gstatic.com",
     "img-src 'self' data: blob:",

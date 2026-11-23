@@ -1,0 +1,15 @@
+@import '../../components/review/transcript-tools.css';
+.grouped-review .notebook-scroll { scroll-behavior: auto; }
+.grouped-review .notebook-paper { max-width: 960px; padding: 24px clamp(16px, 3vw, 38px) 32px; }
+.grouped-review .note-heading h1 { margin: 0 0 5px; line-height: 1.4; }
+.grouped-review .note-heading .note-eyebrow { display: none; }
+.grouped-review .notebook-tabs { margin-top: 18px; }
+.grouped-review .notebook-tabs button { padding-bottom: 9px; }
+.grouped-review .note-transcript { margin-top: 12px; }
+.grouped-review mark { background: hsl(var(--primary) / .18); color: inherit; }
+.grouped-review .note-paragraph:focus { outline: 2px solid hsl(var(--primary) / .6); outline-offset: 2px; }
+.grouped-review .notebook-player { min-height: 58px; padding-block: 8px; }
+@media (max-width: 800px) {
+  .grouped-review .notebook-topbar { min-height: 40px; }
+  .grouped-review .notebook-paper { padding-top: 15px; }
+}
