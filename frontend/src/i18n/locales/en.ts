@@ -318,6 +318,14 @@ export const en: Translations = {
 
   // History
   history: {
+    meetingList: 'Meetings',
+    filter: 'Filter',
+    filterTags: 'Filter by tags',
+    activeFilters: 'Active filters',
+    removeFilter: (name: string) => `Remove filter ${name}`,
+    clearSearchAndFilters: 'Clear search and filters',
+    extraTags: (names: string) => `Other tags: ${names}`,
+    deleteFailed: (reason: string) => `Could not delete the session or clean up its files: ${reason}. Cleanup will retry on restart.`,
     recentWeek: 'Last 7 days',
     more: 'More actions',
     title: 'History',

@@ -12,7 +12,7 @@ export function DirectoryPopover({ anchor, title, onClose, children }: { anchor:
     const panel = ref.current!
     function position() {
       const rect = anchor.getBoundingClientRect()
-      const list = anchor.closest('.directory-list')?.getBoundingClientRect()
+      const list = anchor.closest('.directory-list, .review-home-page')?.getBoundingClientRect()
       if (list && (rect.bottom <= list.top || rect.top >= list.bottom)) {
         dismiss.current()
         return
