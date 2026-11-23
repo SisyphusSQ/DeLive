@@ -1,6 +1,12 @@
 # AI Review Desk
 
-The Review Desk is a full-page workspace for exploring completed transcription sessions. It opens from the History view and provides six tabs with an animated sliding tab bar: **Transcript**, **AI Correction**, **Overview**, **AI Analysis**, **Chat**, and **Mind Map**.
+Select **Review** to find a meeting and open its **Transcript**, **Summary**, **Chat**, or **Mind Map**.
+
+## Find a meeting
+
+Search by title or content, filter by tag, or select a day with recordings in the activity heatmap. These filters can be combined and cleared individually. The heatmap starts expanded and always counts all recordings.
+
+The meeting directory groups records by date. Each row shows the time, topic, and up to two tags. Hover over `+N` to see the remaining tags. Use the row menu to rename a meeting, manage its tags, export TXT, or delete it. Returning from a meeting restores the filters and list position.
 
 ## Overview Tab
 

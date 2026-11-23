@@ -317,6 +317,14 @@ export const zh = {
 
   // 历史记录
   history: {
+    meetingList: '会议列表',
+    filter: '筛选',
+    filterTags: '按标签筛选',
+    activeFilters: '已启用筛选',
+    removeFilter: (name: string) => `移除筛选 ${name}`,
+    clearSearchAndFilters: '清除搜索和筛选',
+    extraTags: (names: string) => `其他标签 ${names}`,
+    deleteFailed: (reason: string) => `删除会话或清理素材失败：${reason}。未清理素材将在重启时重试。`,
     recentWeek: '近 7 天',
     more: '更多操作',
     title: '历史记录',

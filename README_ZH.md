@@ -1,4 +1,4 @@
-> [DeLive SQ 2.3.0-sq.6 预发布版](https://github.com/SisyphusSQ/DeLive/releases/tag/v2.3.0-sq.6) 提供版本说明与对应源码。macOS Apple Silicon 安装包仅在本地保留。构建和手动安装方式见 [SQ 构建说明](docs/zh/development/build.md)。下方官网与徽章属于上游项目。
+> [DeLive SQ 2.3.0-sq.7 预发布版](https://github.com/SisyphusSQ/DeLive/releases/tag/v2.3.0-sq.7) 提供版本说明与对应源码。macOS Apple Silicon 安装包仅在本地保留。构建和手动安装方式见 [SQ 构建说明](docs/zh/development/build.md)。下方官网与徽章属于上游项目。
 
 <div align="center">
 

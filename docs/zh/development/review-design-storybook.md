@@ -13,6 +13,7 @@
 在仓库根目录运行 `npm run storybook`，仅监听 `127.0.0.1:6006`。
 
 - [笔记式回顾页](http://127.0.0.1:6006/?path=/story/delive-%E5%9B%9E%E9%A1%BE%E9%A1%B5--proposal)
+- [回顾首页 · 会议目录](http://127.0.0.1:6006/?path=/story/delive-%E5%9B%9E%E9%A1%BE%E9%A1%B5--home-directory)在 19 条合成会议上直接渲染正式组件，可比较标签与热力图日期联动，或打开会议再返回目录。
 - [摘要](http://127.0.0.1:6006/?path=/story/delive-%E5%9B%9E%E9%A1%BE%E9%A1%B5--summary)
 - [对话](http://127.0.0.1:6006/?path=/story/delive-%E5%9B%9E%E9%A1%BE%E9%A1%B5--chat)
 - [思维导图](http://127.0.0.1:6006/?path=/story/delive-%E5%9B%9E%E9%A1%BE%E9%A1%B5--mind-map)

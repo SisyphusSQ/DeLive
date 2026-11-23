@@ -1,0 +1,14 @@
+.review-home-shell {
+  display: flex;
+  height: 100%;
+  min-width: 0;
+  flex-direction: column;
+  transition: margin-left 200ms;
+}
+
+.review-home-main { flex: 1; min-height: 0; }
+.review-home-story .design-disclaimer { display: inline; font-size: 11px; }
+
+@media (prefers-reduced-motion: reduce) {
+  .review-home-shell { transition: none; }
+}

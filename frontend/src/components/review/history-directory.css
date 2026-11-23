@@ -37,6 +37,7 @@
 .directory-record strong { -webkit-line-clamp: 2; font-weight: 450; font-size: 14px; line-height: 1.45; }
 .directory-row[data-selected="true"] strong { color: hsl(var(--foreground)); font-weight: 650; }
 .directory-meta { gap: 6px; margin-top: 4px; font-size: 12px; line-height: 1.4; color: hsl(var(--muted-foreground)); }
+.directory-stamp { display: inline-flex; align-items: center; min-width: 0; gap: 6px; overflow-wrap: anywhere; }
 .directory-meta time { flex: none; font-variant-numeric: tabular-nums; }
 .directory-excerpt { -webkit-line-clamp: 2; margin-top: 5px; font-size: 12px; line-height: 1.55; color: hsl(var(--muted-foreground)); }
 .directory-more { position: absolute; right: 5px; top: 6px; width: 25px; height: 25px; opacity: 0; display: grid; place-items: center; border-radius: 5px; color: hsl(var(--muted-foreground)); }

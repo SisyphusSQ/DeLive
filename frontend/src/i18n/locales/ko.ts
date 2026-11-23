@@ -318,6 +318,14 @@ export const ko: Translations = {
 
   // History
   history: {
+    meetingList: '회의 목록',
+    filter: '필터',
+    filterTags: '태그로 필터링',
+    activeFilters: '활성 필터',
+    removeFilter: (name: string) => `필터 제거 ${name}`,
+    clearSearchAndFilters: '검색 및 필터 지우기',
+    extraTags: (names: string) => `기타 태그: ${names}`,
+    deleteFailed: (reason: string) => `세션을 삭제하거나 파일을 정리하지 못했습니다: ${reason}. 재시작 시 정리를 다시 시도합니다.`,
     recentWeek: '최근 7일',
     more: '추가 작업',
     title: '기록',

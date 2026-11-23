@@ -56,6 +56,22 @@ it('搜索及标签筛选均能找到主题录音，并显示命中数／总数'
   }
 })
 
+it.each(['full', 'rail'] as const)('%s 日期筛选按录制日精确匹配，可和正文及标签叠加', variant => {
+  const sessions = [
+    { id: 'match', date: '2026-11-20', title: '同日命中', tagIds: ['tag-a'], transcript: '项目回放' },
+    { id: 'wrong-date', date: '2026-11-19', title: '异日会议', tagIds: ['tag-a'], transcript: '2026-11-20 项目回放' },
+    { id: 'wrong-tag', date: '2026-11-20', title: '其他标签', tagIds: ['tag-b'], transcript: '项目回放' },
+    { id: 'wrong-text', date: '2026-11-20', title: '其他正文', tagIds: ['tag-a'], transcript: '会议摘要' },
+  ].map(session => normalizeTranscriptSession(session))
+  Object.assign(useSessionStore.getInitialState(), { sessions })
+  Object.assign(useTagStore.getInitialState(), { searchQuery: '项目回放', selectedTagIds: ['tag-a'] })
+  const html = renderToStaticMarkup(createElement(HistoryPanel, { variant, date: '2026-11-20' }))
+  expect(html).toContain('1/4 条')
+  expect(html).toContain('title="同日命中"')
+  expect(html).not.toMatch(/title="(?:异日会议|其他标签|其他正文)"/)
+  expect(html).toContain('<mark>项目回放</mark>')
+})
+
 it.each([false, true])('页头姓名入口按采用稿的名单显示：%s', hasSpeakers => {
   const speakers = [{ id: 'speaker-1', label: '说话人 1' }]
   const session = normalizeTranscriptSession({
