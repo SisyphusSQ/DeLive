@@ -14,17 +14,8 @@ function Product({ view = 'live', section = 'provider', updates = false }: { vie
   useEffect(() => {
     let active = true
     void (async () => {
-      await preparePreview()
+      await preparePreview({ updates })
       document.title = 'DeLive · 正式组件隔离验收'
-      // Real product components, isolated browser storage and blocked desktop/network operations.
-      window.electronAPI = { ...window.electronAPI, onApiGetSessions: () => () => {}, onApiGetSessionDetail: () => () => {}, onApiSearchSessions: () => () => {}, onApiGetTopics: () => () => {}, onApiGetTags: () => () => {}, onApiGetRecordingStatus: () => () => {}, apiUpdateOpenApiConfig: () => {}, getAppVersion: async () => '2.3.0-sq.2' } as typeof window.electronAPI
-      const updateListeners = new Set<(info: { version: string }) => void>()
-      Object.assign(window.electronAPI!, {
-        supportsAutoUpdate: updates,
-        onCheckingForUpdate: () => () => {}, onUpdateAvailable: () => () => {}, onUpdateDownloaded: () => () => {}, onUpdateError: () => () => {}, onDownloadProgress: () => () => {},
-        onUpdateNotAvailable: (callback: (info: { version: string }) => void) => { updateListeners.add(callback); return () => updateListeners.delete(callback) },
-        checkForUpdates: async () => { updateListeners.forEach(callback => callback({ version: '2.3.0-sq.2' })); return { success: true, version: '2.3.0-sq.2' } },
-      })
       saveSettings({ ...getDefaultSettings(), aiPostProcess: { enabled: false }, autoCheckUpdate: false })
       saveTopics([{ id: 'product-topic', name: '产品与设计', emoji: '💡', description: '持续整理设计讨论与会议记录。', createdAt: 1, updatedAt: 1 }])
       await saveSessions(meetings.map(meeting => ({ ...meeting, topicId: 'product-topic' })))

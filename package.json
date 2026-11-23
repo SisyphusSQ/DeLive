@@ -1,6 +1,6 @@
 {
   "name": "delive-sq",
-  "version": "2.3.0-sq.4",
+  "version": "2.3.0-sq.5",
   "description": "DeLive",
   "private": true,
   "main": "dist-electron/electron/main.js",

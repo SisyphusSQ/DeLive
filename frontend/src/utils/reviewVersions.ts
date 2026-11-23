@@ -27,23 +27,41 @@ export function reviewVersions(session: TranscriptSession): TranscriptVersion[] 
   })
   return versions
 }
-export function selectedReviewVersion(session: TranscriptSession): TranscriptVersion {
-  const versions=reviewVersions(session)
+export function selectedReviewVersion(session: TranscriptSession, versions = reviewVersions(session)): TranscriptVersion {
   return versions.find(v=>v.id===session.selectedVersionId) ?? versions.find(v=>v.text.trim()) ?? versions[0]
 }
 export function editedVersion(source: TranscriptVersion, draft: TranscriptVersion, note: string): TranscriptVersion {
+  // Full proofreading presents one editable row for unsegmented text. Older saved drafts use ":0".
+  const [row] = draft.segments
+  if (!source.segments.length && draft.segments.length === 1 && row.text === source.text &&
+      (row.id === source.id + ':text' || row.id === source.id + ':0') &&
+      row.startMs === undefined && row.endMs === undefined && !row.speakerId && row.isFinal === undefined) {
+    draft = { ...draft, segments: [] }
+  }
+  const sameWords = draft.segments.length === source.segments.length &&
+    draft.segments.every((segment, i) => segment.text === source.segments[i].text)
+  const unchangedSpans = sameWords && draft.segments.every((segment, i) => {
+    const before = source.segments[i]
+    return segment.id === before.id && segment.startMs === before.startMs &&
+      segment.endMs === before.endMs && segment.isFinal === before.isFinal
+  })
   const speakerIds=new Set(draft.speakers.map(s=>s.id))
-  for(const s of draft.segments){
-    if(s.speakerId && !speakerIds.has(s.speakerId))throw new Error('片段说话人不在当前稿件中')
+  for (const [index, s] of draft.segments.entries()) {
+    if (s.speakerId && !speakerIds.has(s.speakerId)) {
+      const existingUnknown = unchangedSpans && source.segments[index].speakerId === s.speakerId &&
+        !source.speakers.some(speaker => speaker.id === s.speakerId)
+      if (!existingUnknown) throw new Error('片段说话人不在当前稿件中')
+    }
+    if (unchangedSpans) continue
     if((s.startMs===undefined)!==(s.endMs===undefined))throw new Error('开始和结束时间必须同时填写，或同时留空')
     if(s.startMs!==undefined && (!Number.isFinite(s.startMs)||s.startMs<0||!Number.isFinite(s.endMs)||s.endMs!<=s.startMs))throw new Error('片段时间必须有限且结束晚于开始')
   }
-  return { ...structuredClone(draft),id:'edit-'+crypto.randomUUID(),kind:'edited',parentVersionId:source.id,
-    createdAt:Date.now(),text:draft.segments.length?draft.segments.map(s=>s.text).join('\n'):draft.text,
+  return { ...structuredClone({ ...draft, response: undefined }),id:'edit-'+crypto.randomUUID(),kind:'edited',parentVersionId:source.id,
+    createdAt:Date.now(),text:!draft.segments.length ? draft.text : sameWords ? source.text : draft.segments.map(s=>s.text).join('\n'),
     response:undefined,editNote:note,
     merge: draft.merge ? { ...structuredClone(draft.merge), groups: draft.merge.groups.map(group => {
       const previous=source.merge?.groups.find(g=>g.id===group.id)
-      if(previous && JSON.stringify(previous)!==JSON.stringify(group))return group
+      if(unchangedSpans || (previous && JSON.stringify(previous)!==JSON.stringify(group)))return group
       const before = source.segments.filter(s => group.outputIds.includes(s.id ?? ''))
       const after = draft.segments.filter(s => group.outputIds.includes(s.id ?? ''))
       return JSON.stringify(before) === JSON.stringify(after) ? group : { ...group, outputIds: after.map(s => s.id!), status: 'confirmed', decision: 'edited' }
@@ -69,6 +87,28 @@ export function appendRevision(session: TranscriptSession, revision: TranscriptV
   if(!versions.some(v=>v.id===revision.parentVersionId))throw new Error('原版本不存在，请重新打开会话')
   if(versions.some(v=>v.id===revision.id))return session
   return {...session,versions:[...versions,revision],selectedVersionId:revision.id}
+}
+export function revisionPatch(session: TranscriptSession, revision: TranscriptVersion, parent: TranscriptVersion, adopt = false): Partial<TranscriptSession> {
+  const latest = reviewVersions(session).find(value => value.id === parent.id)
+  if (!latest || JSON.stringify(latest) !== JSON.stringify(parent)) throw new Error('来源稿件已变化，请重新打开后确认；原稿与草稿保留')
+  if (adopt && selectedReviewVersion(session).id !== parent.id) throw new Error('采用稿已切换，请核对当前稿件后再保存')
+  const { versions } = appendRevision(session, revision, parent)
+  return adopt ? { versions, selectedVersionId: revision.id } : { versions }
+}
+
+/** Legacy overview names are reusable only when the full ID identifies a known recognition run. */
+export function legacySpeakerNames(session: TranscriptSession, version: TranscriptVersion) {
+  const scopes = [
+    ...(session.versions ?? []).filter(v => v.kind === 'post-meeting' && v.sourceJobId && v.id === 'file-' + v.sourceJobId).map(v => v.id),
+    ...(session.realtime ?? []).map(snapshot => snapshot.id),
+  ]
+  const ids = new Set(version.speakers.map(s => s.id))
+  return new Map((session.speakers ?? []).flatMap(speaker => {
+    const name = speaker.displayName?.trim()
+    if (!name || name === speaker.id || name === speaker.label || !ids.has(speaker.id) ||
+      !scopes.some(scope => speaker.id.startsWith(scope + ':speaker:'))) return []
+    return [[speaker.id, name] as const]
+  }))
 }
 export function timestamp(ms: number, separator=':'): string {
   const value=Math.max(0,Math.round(ms))

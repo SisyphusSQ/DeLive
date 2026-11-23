@@ -1,5 +1,5 @@
 import { describe,it,expect } from 'vitest'
-import { reviewVersions,selectedReviewVersion,editedVersion,appendRevision,mapSpeakers,reviewExport,canExportTimed } from './reviewVersions'
+import { reviewVersions,selectedReviewVersion,editedVersion,appendRevision,mapSpeakers,reviewExport,canExportTimed,legacySpeakerNames,revisionPatch } from './reviewVersions'
 import { normalizeTranscriptSession } from './sessionSchema'
 import { addPostMeetingVersion } from './transcriptVersions'
 import { fileVersion } from '../../../shared/volcFileContract'
@@ -82,4 +82,74 @@ it('阅读分段不跨身份、未知归属、重叠或长间隔，导出不删�
   for (const segment of version.segments) expect(output).toContain(segment.text)
   expect(output).toContain('[00:00:00]')
   expect(reviewExport(session, 'srt')).toContain('00:00:01,000')
+})
+
+describe('说话人快捷修订', () => {
+  it.each([':text', ':0'])('纯文字校对草稿 %s 只改姓名时保留原分句结构，显式归属时保留新分句', suffix => {
+    const source = { ...post(), segments: [], text: '第一段。　第二段。' }
+    const row = { id: source.id + suffix, text: source.text }
+    const speakers = source.speakers.map(s => ({ ...s, displayName: '新姓名' }))
+    const rename = editedVersion(source, { ...source, segments: [row], speakers }, '校对姓名')
+    expect(rename.segments).toEqual([])
+    expect(rename.text).toBe(source.text)
+    const assigned = { ...row, speakerId: speakers[0].id }
+    expect(editedVersion(source, { ...source, segments: [assigned] }, '修改归属').segments).toEqual([assigned])
+  })
+
+  it('按完整识别来源恢复旧摘要姓名，采用后正文与所有分句逐项保留', () => {
+    const source = post()
+    const named = source.speakers.map((s, i) => ({ ...s, displayName: i ? '小周' : '小林' }))
+    const session = normalizeTranscriptSession({ ...base(), speakers: named, versions: [source], selectedVersionId: source.id })
+    const version = selectedReviewVersion(session)
+    const previous = legacySpeakerNames(session, version)
+    expect([...previous.values()]).toEqual(['小林', '小周'])
+    expect(legacySpeakerNames(session, { ...version, speakers: [{ id: 'other:speaker:1', label: '说话人 1' }] }).size).toBe(0)
+    expect(legacySpeakerNames({ ...session, versions: [] }, version).size).toBe(0)
+    const rename = editedVersion(version, { ...version, speakers: named }, '改名')
+    expect(rename.text).toBe(version.text)
+    expect(rename.segments).toEqual(version.segments)
+    expect(mapSpeakers(version, { ...version, id: 'named', speakers: named }, { [named[0].id]: named[0].id }).text).toBe(version.text)
+    const adopted = normalizeTranscriptSession({ ...session, ...revisionPatch(session, rename, version, true) })
+    for (const format of ['txt', 'md', 'srt', 'vtt'] as const) expect(reviewExport(adopted, format)).toContain('小林')
+    expect(selectedReviewVersion(adopted).id).toBe(rename.id)
+    expect(adopted.versions?.find(v => v.id === version.id)?.speakers[0].displayName).toBeUndefined()
+    expect(() => revisionPatch(adopted, rename, version, true)).toThrow('采用稿已切换')
+    expect(revisionPatch(adopted, rename, version)).not.toHaveProperty('selectedVersionId')
+  })
+
+  it('旧稿含未登记身份时允许改名，仍拒绝新写入的无效归属', () => {
+    const source = post()
+    source.segments[1].speakerId = 'legacy-unknown'
+    const speakers = source.speakers.map(s => ({ ...s, displayName: '新姓名' }))
+    expect(editedVersion(source, { ...source, speakers }, '改名').segments).toEqual(source.segments)
+    const segments = source.segments.map(s => ({ ...s, speakerId: 'legacy-unknown' }))
+    expect(() => editedVersion(source, { ...source, segments }, '归属')).toThrow('说话人')
+  })
+
+  it('纠正一句的归属保留正文、时间与待确认记录', () => {
+    const source = post(), [a, b] = source.segments
+    source.merge = { strategy: 1, key: 'k', baseVersionId: 'b', currentVersionId: 'b', postVersionId: source.id,
+      groups: [{ id: 'g', status: 'pending', reason: '听原音', baseIds: [], postIds: [], currentIds: [], outputIds: [b.id!] }] }
+    const revision = editedVersion(source, { ...source, segments: [a, { ...b, speakerId: a.speakerId }] }, '归属')
+    expect(revision.text).toBe(source.text)
+    expect(revision.segments).toEqual([a, { ...b, speakerId: a.speakerId }])
+    expect(revision.merge).toEqual(source.merge)
+    expect(source.segments[1].speakerId).not.toBe(a.speakerId)
+  })
+})
+
+it('仅修改长会的两个姓名，保留空分句和 23,371 字的原始排版', () => {
+  const ids = Array.from({ length: 1357 }, (_, i) => i < 821 ? '1' : '2')
+  const utterances = ids.map((speaker, i) => ({
+    speaker, startMs: i * 1000, endMs: (i + 1) * 1000,
+    text: i < 9 ? '' : '字'.repeat(i < 9 + 455 ? 18 : 17),
+  }))
+  const text = utterances.map(s => s.text).join('')
+  expect(text).toHaveLength(23371)
+  const v = fileVersion('long', { durationMs: 1357000, text, utterances }, '200')
+  const names = v.speakers.map((s, i) => ({ ...s, displayName: i ? '乙' : '甲' }))
+  const result = editedVersion(v, { ...v, speakers: names }, '改名')
+  expect(result.text).toBe(text)
+  expect(result.segments).toEqual(v.segments)
+  expect(names.map(s => result.segments.filter(p => p.speakerId === s.id && p.text).length)).toEqual([812, 536])
 })
