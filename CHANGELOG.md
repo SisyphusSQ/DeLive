@@ -29,7 +29,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### 发行与验收
 
-- 提供 macOS Apple Silicon 的 DMG 与 ZIP，使用 Developer ID 签名，未进行 Apple 公证，采用手动下载安装。
+- GitHub 预发布页提供版本说明与标签对应的源码。本机保留 macOS Apple Silicon 的 DMG 和 ZIP，使用 Developer ID 签名，未进行 Apple 公证。
 - 开发阶段已通过 512 项前端测试，并在 Electron 开发版使用示例和真实会议核对回顾界面。此次验收覆盖已有会议资料的阅读与操作，未重新调用外部 AI 生成或付费转写。
 
 ---
