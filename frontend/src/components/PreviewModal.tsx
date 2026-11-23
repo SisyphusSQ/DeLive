@@ -146,7 +146,7 @@ export function PreviewModal({
   const tabContent = (() => {
     switch (activeTab) {
       case 'summary':
-        return <SummaryTab session={session} />
+        return <SummaryTab key={session.id} session={session} />
       case 'chat':
         return <ChatTab session={session} onCitation={quote => {
           setCitation({ quote })
@@ -164,6 +164,7 @@ export function PreviewModal({
     <>
       <SessionImageViewer session={session} />
       <SessionHeader
+        viewingTranscript={activeTab === 'transcript'}
         session={session}
         onClose={onClose}
         sidebarCollapsed={sidebarCollapsed}

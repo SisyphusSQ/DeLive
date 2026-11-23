@@ -1,19 +1,24 @@
 import { useConfirmation } from '../../hooks/useConfirmation'
-import { memo, useState } from 'react'
+import { memo, useMemo, useState } from 'react'
 import { X, Download, PanelLeftClose, PanelLeftOpen } from 'lucide-react'
 import type { TranscriptSession } from '../../types'
-import { canExportTimed, downloadReview, selectedReviewVersion, versionLabel, reviewStatus } from '../../utils/reviewVersions'
+import { canExportTimed, downloadReview, reviewVersions, selectedReviewVersion, versionLabel, reviewStatus } from '../../utils/reviewVersions'
 import { useSessionStore } from '../../stores/sessionStore'
 import { cancelAiTasks } from '../../services/aiTransport'
+import { SpeakerRosterButton } from './SpeakerRosterButton'
 import { Button } from '../ui'
 import { Select } from '../ui/Select'
 import { useTopicStore } from '../../stores/topicStore'
 import { useUIStore } from '../../stores/uiStore'
 
-interface SessionHeaderProps { session:TranscriptSession;onClose:()=>void;sidebarCollapsed?:boolean;onToggleSidebar?:()=>void }
-export const SessionHeader = memo(function SessionHeader({session,onClose,sidebarCollapsed,onToggleSidebar}:SessionHeaderProps) {
+interface SessionHeaderProps { viewingTranscript?: boolean;session:TranscriptSession;onClose:()=>void;sidebarCollapsed?:boolean;onToggleSidebar?:()=>void }
+export const SessionHeader = memo(function SessionHeader({session,viewingTranscript = true,onClose,sidebarCollapsed,onToggleSidebar}:SessionHeaderProps) {
   const current=useSessionStore(s=>s.sessions.find(item=>item.id===session.id))??session
-  const version=selectedReviewVersion(current),[open,setOpen]=useState(false),[error,setError]=useState('')
+  const versions = useMemo(() => reviewVersions(current), [current])
+  const version = selectedReviewVersion(current, versions)
+  const viewedId = useUIStore(s => viewingTranscript ? s.reviewVersionId : null)
+  const viewed = versions.find(v => v.id === viewedId) ?? version
+  const [open,setOpen]=useState(false),[error,setError]=useState('')
   const { t } = useUIStore()
   const topics = useTopicStore(state => state.topics)
   const [topicError, setTopicError] = useState('')
@@ -51,6 +56,7 @@ export const SessionHeader = memo(function SessionHeader({session,onClose,sideba
               {topics.map(topic => <option key={topic.id} value={topic.id}>{topic.emoji} {topic.name}</option>)}
             </Select>
             {current.topicId && <button onClick={() => void changeTopic('')} className="rounded px-2 py-1.5 text-muted-foreground hover:bg-muted">{t.topics.removeFromTopic}</button>}
+            <SpeakerRosterButton key={current.id} session={current} version={viewed} adopted={viewed.id === version.id} viewingTranscript={viewingTranscript} />
             {!topics.length && <span className="text-muted-foreground">{t.topics.noTopicsHint}</span>}
           </div>
           {topicError && <p role="alert" className="mt-1 text-xs text-destructive">{topicError}</p>}

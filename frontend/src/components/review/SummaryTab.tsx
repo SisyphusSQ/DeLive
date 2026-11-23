@@ -4,11 +4,9 @@ import {
   ChevronRight,
   Sparkles,
   SpellCheck,
-  FolderOpen,
 } from 'lucide-react'
 import type { TranscriptSession } from '../../types'
 import { useUIStore } from '../../stores/uiStore'
-import { OverviewTab } from './OverviewTab'
 import { AiTab } from './AiTab'
 import { CorrectionTab } from './CorrectionTab'
 
@@ -16,10 +14,9 @@ interface SummaryTabProps {
   session: TranscriptSession
 }
 
-type SectionId = 'overview' | 'ai' | 'correction'
+type SectionId = 'ai' | 'correction'
 
 const SECTION_CONFIG: { id: SectionId; icon: typeof Sparkles; labelKey: string }[] = [
-  { id: 'overview', icon: FolderOpen, labelKey: 'summarySectionOverview' },
   { id: 'ai', icon: Sparkles, labelKey: 'summarySectionAi' },
   { id: 'correction', icon: SpellCheck, labelKey: 'summarySectionCorrection' },
 ]
@@ -46,8 +43,7 @@ export function SummaryTab({ session }: SummaryTabProps) {
   return (
     <div className="flex-1 overflow-y-auto">
       <div className="mx-auto max-w-[52rem] divide-y divide-border px-3 sm:px-6">
-        {[SECTION_CONFIG[1], SECTION_CONFIG[2], SECTION_CONFIG[0]].map(({ id, icon: Icon, labelKey }) => {
-          if (id === 'overview' && !session.speakers?.length) return null
+        {SECTION_CONFIG.map(({ id, icon: Icon, labelKey }) => {
           const isExpanded = expandedSections.has(id)
           const label = (p[labelKey] as string) || labelKey
 
@@ -70,11 +66,6 @@ export function SummaryTab({ session }: SummaryTabProps) {
 
               {isExpanded && (
                 <div className="pb-2">
-                  {id === 'overview' && (
-                    <div className="[&>div]:!overflow-visible [&>div]:!flex-none">
-                      <OverviewTab session={session} />
-                    </div>
-                  )}
                   {id === 'ai' && (
                     <div className="[&>div]:!overflow-visible [&>div]:!flex-none">
                       <AiTab session={session} />

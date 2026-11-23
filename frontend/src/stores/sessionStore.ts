@@ -99,7 +99,6 @@ export interface SessionState {
   sessions: TranscriptSession[]
   loadSessions: () => Promise<void>
   updateSessionTitle: (id: string, title: string) => void
-  updateSessionSpeakers: (sessionId: string, speakers: TranscriptSpeaker[]) => void
   updateSessionPostProcess: (sessionId: string, patch: Partial<TranscriptPostProcess>) => void
   updateSessionMindMap: (sessionId: string, patch: Partial<TranscriptMindMap>) => void
   generateSessionMindMap: (sessionId: string) => Promise<TranscriptMindMap>
@@ -416,26 +415,6 @@ export const useSessionStore = create<SessionState>((set, get) => {
       )
       set({
         sessions: nextSessions,
-        recoverySession: nextState.recoverySession,
-      })
-    },
-    updateSessionSpeakers: (sessionId, speakers) => {
-      const { currentSessionId, currentSpeakers, recoverySession } = get()
-      const nextState = applySessionMetadataUpdate(
-        get().sessions,
-        sessionId,
-        { speakers },
-        {
-          currentSessionId,
-          recoverySession,
-          currentSpeakers,
-          currentPostProcess: get().currentPostProcess,
-        },
-      )
-      const sessions = sessionRepository.updateMetadata(sessionId, { speakers })
-      set({
-        sessions,
-        currentSpeakers: nextState.currentSpeakers,
         recoverySession: nextState.recoverySession,
       })
     },

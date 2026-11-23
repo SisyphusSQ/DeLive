@@ -80,6 +80,6 @@ export function Select({ children, value, onChange, disabled, className = '', id
         <Check className={`h-3.5 w-3.5 shrink-0 ${i === selected ? '' : 'invisible'}`} /><span className="min-w-0 break-words">{option.label}</span>
       </div>)}
       {!options.length && <p className="px-3 py-2 text-sm text-muted-foreground">暂无选项</p>}
-    </div>, document.body)}
+    </div>, button.current?.closest('dialog[open]') ?? document.body)}
   </>
 }

@@ -20,7 +20,7 @@ vi.hoisted(() => {
 
 import { getTranslations } from '../i18n'
 import { HistoryPanel } from './HistoryPanel'
-import { SummaryTab } from './review/SummaryTab'
+import { SessionHeader } from './review/SessionHeader'
 import { useSessionStore } from '../stores/sessionStore'
 import { useTopicStore } from '../stores/topicStore'
 import { useTagStore } from '../stores/tagStore'
@@ -56,9 +56,30 @@ it('搜索及标签筛选均能找到主题录音，并显示命中数／总数'
   }
 })
 
-it.each([false, true])('主题入口移出摘要后，会话概览只在有说话人时出现：%s', hasSpeakers => {
-  const session = { ...useSessionStore.getState().sessions[0], speakers: hasSpeakers ? [{ id: 'speaker-1', label: '说话人 1' }] : [] }
-  const html = renderToStaticMarkup(createElement(SummaryTab, { session }))
-  if (hasSpeakers) expect(html).toContain('会话概览')
-  else expect(html).not.toContain('会话概览')
+it.each([false, true])('页头姓名入口按采用稿的名单显示：%s', hasSpeakers => {
+  const speakers = [{ id: 'speaker-1', label: '说话人 1' }]
+  const session = normalizeTranscriptSession({
+    id: 'speaker-test', speakers: hasSpeakers ? [] : speakers,
+    versions: [{ id: 'adopted', kind: 'edited', createdAt: 1, text: '采用稿', segments: [], speakers: hasSpeakers ? speakers : [] }],
+    selectedVersionId: 'adopted',
+  })
+  const html = renderToStaticMarkup(createElement(SessionHeader, { session, onClose: () => {} }))
+  expect(html.includes('编辑说话人（1人）')).toBe(hasSpeakers)
+})
+
+it('查看历史稿时，逐字稿页头使用历史名单，摘要页头使用采用稿名单', () => {
+  const speakers = [1, 2, 3].map(i => ({ id: String(i), label: '说话人 ' + i }))
+  const session = normalizeTranscriptSession({
+    id: 'two-versions', selectedVersionId: 'adopted',
+    versions: [
+      { id: 'history', kind: 'legacy', createdAt: 1, text: '历史稿', segments: [], speakers: speakers.slice(0, 2) },
+      { id: 'adopted', kind: 'edited', createdAt: 2, text: '采用稿', segments: [], speakers },
+    ],
+  })
+  Object.assign(useUIStore.getInitialState(), { reviewSessionId: session.id, reviewVersionId: 'history' })
+  const renderHeader = (viewingTranscript: boolean) => renderToStaticMarkup(
+    createElement(SessionHeader, { session, viewingTranscript, onClose: () => {} }),
+  )
+  expect(renderHeader(true)).toContain('编辑说话人（2人）')
+  expect(renderHeader(false)).toContain('编辑说话人（3人）')
 })

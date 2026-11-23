@@ -1,3 +1,4 @@
+import { installPreviewBridge } from '../product/previewBridge'
 import { useUIStore } from '../../stores/uiStore'
 import { getTranslations } from '../../i18n'
 import { useSessionStore } from '../../stores/sessionStore'
@@ -7,24 +8,10 @@ import { useTagStore } from '../../stores/tagStore'
 import { useReviewDraftStore } from '../../stores/reviewDraftStore'
 import { saveSessions } from '../../utils/sessionStorage'
 import { sessionRepository } from '../../utils/sessionRepository'
-import { meeting, meetings, corrected, job, manifest, silentBlock } from './fixtures'
+import { meeting, meetings, corrected, job } from './fixtures'
 
-const blocked = async () => { throw new Error('设计预览不连接真实服务，也不修改桌面数据') }
-
-export async function preparePreview() {
-  if (window.electronAPI?.isElectron) throw new Error('请在独立浏览器 Storybook 中打开设计预览')
-  window.electronAPI = {
-    platform: 'darwin',
-    recording: {
-      read: async () => manifest, readBlock: async () => silentBlock(),
-      settings: async () => ({ directory: '合成原音目录', quotaBytes: 8 * 1024 ** 3, bytes: 146 * 1024 ** 2 }),
-      list: async () => [manifest], configure: blocked, remove: blocked,
-    },
-    fileTasks: {
-      settings: async () => ({ configured: true }), list: async () => [job],
-      start: blocked, query: blocked, configure: blocked, cleanup: blocked, cancel: blocked,
-    },
-  } as unknown as typeof window.electronAPI
+export async function preparePreview(options?: { updates: boolean }) {
+  installPreviewBridge(options)
   await saveSessions(structuredClone(meetings))
   const loaded = await sessionRepository.loadForLaunch()
   useSessionStore.setState({ sessions: loaded.sessions })

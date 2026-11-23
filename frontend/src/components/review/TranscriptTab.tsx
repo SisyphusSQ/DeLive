@@ -1,6 +1,6 @@
 import { Select } from '../ui/Select'
 import { useEffect, useMemo, useRef, useState, type SetStateAction } from 'react'
-import { Pencil } from 'lucide-react'
+import { Pencil, UserRoundPen } from 'lucide-react'
 import { Button } from '../ui'
 import { useUIStore } from '../../stores/uiStore'
 import { useReviewDraftStore } from '../../stores/reviewDraftStore'
@@ -8,14 +8,15 @@ import { useConfirmation } from '../../hooks/useConfirmation'
 import { useFileTaskStore } from '../../stores/fileTaskStore'
 import { RecordingFileActions } from '../RecordingFileActions'
 import { FileTaskRow } from '../FileTaskRow'
+import { SpeakerEditor, type SpeakerTarget } from './SpeakerEditor'
 import { MergeReview } from './MergeReview'
-import { needsTranscriptRecovery, transcriptRecoverySources, versionSegments } from '../../utils/transcriptMerge'
+import { needsTranscriptRecovery, transcriptRecoverySources } from '../../utils/transcriptMerge'
 import { recoverReconciledVersion } from '../../utils/volcFileApi'
 import type { TranscriptSession } from '../../types'
 import type { TranscriptVersion } from '../../../../shared/fileTranscription'
 import { useSessionStore } from '../../stores/sessionStore'
 import { sessionRepository } from '../../utils/sessionRepository'
-import { appendRevision, editedVersion, mapSpeakers, reviewVersions, selectedReviewVersion, timestamp, versionLabel, readingParagraphs, reviewStatus } from '../../utils/reviewVersions'
+import { revisionPatch, editedVersion, mapSpeakers, reviewVersions, selectedReviewVersion, timestamp, versionLabel, readingParagraphs, reviewStatus } from '../../utils/reviewVersions'
 import type { useRecordingPlayback } from '../../hooks/useRecordingPlayback'
 import { SessionImages } from '../SessionImages'
 
@@ -32,8 +33,10 @@ export function TranscriptTab(props: TranscriptTabProps) {
   return <ReviewTranscript key={props.session.id} {...props} />
 }
 function ReviewTranscript({ session, playback, citation, onCitationHandled }: TranscriptTabProps) {
+  const speakerText = useUIStore(s => s.t.speakerEdit)
+  const [speakerTarget, setSpeakerTarget] = useState<SpeakerTarget>()
   const versions = useMemo(() => reviewVersions(session), [session])
-  const adopted = useMemo(() => selectedReviewVersion(session), [session])
+  const adopted = useMemo(() => selectedReviewVersion(session, versions), [session, versions])
   const viewedId=useUIStore(s=>s.reviewVersionId)
   const setViewedId=(id:string)=>useUIStore.setState({reviewVersionId:id})
   const {confirm,dialog}=useConfirmation()
@@ -121,11 +124,7 @@ function ReviewTranscript({ session, playback, citation, onCitationHandled }: Tr
     await action(async()=>{setViewedId(id);setDraft(undefined);setFilter('');setPairs({});setMappingSource('');playback.pause()})
   }
   const saveRevision=async(revision:TranscriptVersion,parent:TranscriptVersion)=>{
-    await persist(current=>{
-      const latest = reviewVersions(current).find(value => value.id === parent.id)
-      if (!latest || JSON.stringify(latest) !== JSON.stringify(parent)) throw new Error('来源稿件已变化，请重新打开后确认；原稿与草稿保留')
-      const next=appendRevision(current,revision,parent);return {versions:next.versions}
-    })
+    await persist(current => revisionPatch(current, revision, parent))
     if(edit)useReviewDraftStore.getState().clear(session.id,edit)
     const ui=useUIStore.getState()
     if(ui.reviewSessionId===session.id && ui.reviewVersionId===viewedId && !useReviewDraftStore.getState().drafts[session.id]) {
@@ -133,7 +132,7 @@ function ReviewTranscript({ session, playback, citation, onCitationHandled }: Tr
     }
   }
   const startEdit=()=>{
-    const copy={...structuredClone(version),segments:versionSegments(version)}
+    const copy=structuredClone(version)
     if(!copy.segments.length && copy.text)copy.segments=[{id:copy.id+':text',text:copy.text}]
     setViewedId(version.id)
     useReviewDraftStore.getState().put(session.id,{source:structuredClone(version),value:copy});setError('')
@@ -148,10 +147,22 @@ function ReviewTranscript({ session, playback, citation, onCitationHandled }: Tr
       {paragraphs.map(group => {
         const first = group[0].segment
         const label = names.get(first.speakerId ?? '') || '未知说话人'
+        const displayLabel = !compare && value.kind === 'post-meeting' ? label.replace(/ · 会后稿$/, '') : label
+        const editable = !secondary && !edit && !busy && session.status !== 'recording'
         return <article key={first.id ?? group[0].index} className="review-passage mb-4 min-w-0">
           <div className="review-passage-meta mb-1 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-            <span className="font-semibold text-foreground">{!compare && value.kind === 'post-meeting' ? label.replace(/ · 会后稿$/, '') : label}</span>
+            {editable && first.speakerId && names.has(first.speakerId)
+              ? <button type="button" title={speakerText.rename} className="inline-flex items-center gap-1 rounded font-semibold text-foreground hover:text-primary focus-visible:ring-2"
+                  onClick={() => setSpeakerTarget({ kind: 'names', source: value, adopt: value.id === adopted.id, speakerId: first.speakerId })}>
+                  {displayLabel}<Pencil size={11} className="text-muted-foreground" aria-hidden="true"/>
+                </button>
+              : <span className="font-semibold text-foreground">{displayLabel}</span>}
             <span>{first.startMs === undefined ? '无时间戳' : compare ? timestamp(first.startMs) : timestamp(first.startMs).slice(0, -4)}</span>
+            {editable && <button type="button" title={speakerText.assign} aria-label={speakerText.assign}
+              className="ml-auto inline-flex min-h-6 items-center gap-1 rounded px-1.5 py-0.5 text-muted-foreground hover:bg-muted hover:text-primary focus-visible:ring-2"
+              onClick={() => setSpeakerTarget({ kind: 'sentence', source: value, adopt: value.id === adopted.id, indices: group.filter(s => s.segment.text.trim()).map(s => s.index) })}>
+              <UserRoundPen size={13} aria-hidden="true"/>{speakerText.attribution}
+            </button>}
           </div>
           <p className="whitespace-pre-wrap break-words text-[15px] leading-[1.9]">
             {group.map(({ segment, index }) => {
@@ -172,6 +183,13 @@ function ReviewTranscript({ session, playback, citation, onCitationHandled }: Tr
   }
 
   return <div ref={readingRef} className="review-reading min-h-0 min-w-0 flex-1 overflow-y-auto" aria-label="稿件阅读区">{dialog}
+    {speakerTarget && <SpeakerEditor session={session} target={speakerTarget} onClose={() => setSpeakerTarget(undefined)} onSaved={revision => {
+      const ui = useUIStore.getState()
+      if (ui.reviewSessionId === session.id && ui.reviewVersionId === viewedId) setViewedId(revision.id)
+      setSpeakerTarget(undefined)
+      setPairs({})
+      setMappingSource('')
+    }} />}
     <div className={'review-reading-content mx-auto space-y-3 px-3 py-3 sm:px-6 sm:py-4 ' + (compare ? 'max-w-6xl' : 'max-w-[52rem]')}>
     {draftError&&<p role="alert" className="text-sm text-destructive">{draftError}</p>}
     <section aria-label="稿件版本" className="review-version-toolbar space-y-2 border-b border-border/60 pb-3">
