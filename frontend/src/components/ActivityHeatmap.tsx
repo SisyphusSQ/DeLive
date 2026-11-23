@@ -1,5 +1,6 @@
 import { addDays, format, startOfDay } from 'date-fns'
-import { useId, useMemo } from 'react'
+import { useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import type { TranscriptSession } from '../types'
 import { useUIStore } from '../stores/uiStore'
 
@@ -11,6 +12,48 @@ function intensity(count: number) {
   return count < 3 ? count : count < 5 ? 3 : 4
 }
 
+interface DayDetails {
+  anchor: HTMLElement
+  date: string
+  summary: string
+}
+
+function HeatmapTooltip({ details, dismiss }: { details: DayDetails; dismiss: () => void }) {
+  const tooltip = useRef<HTMLDivElement>(null)
+
+  useLayoutEffect(() => {
+    const element = tooltip.current!
+    const anchor = details.anchor.getBoundingClientRect()
+    const page = details.anchor.closest('.review-home-page')?.getBoundingClientRect()
+    const { offsetWidth: width, offsetHeight: height } = element
+    const margin = 8
+    const gap = 6
+    const left = anchor.left + (anchor.width - width) / 2
+    const above = anchor.top - height - gap
+    const minTop = Math.max(0, page?.top ?? 0) + margin
+    const maxTop = Math.min(window.innerHeight, page?.bottom ?? window.innerHeight) - height - margin
+    element.style.left = `${Math.max(margin, Math.min(left, window.innerWidth - width - margin))}px`
+    element.style.top = `${Math.max(minTop, Math.min(above >= minTop ? above : anchor.bottom + gap, maxTop))}px`
+  }, [details])
+
+  useEffect(() => {
+    const escape = (event: KeyboardEvent) => { if (event.key === 'Escape') dismiss() }
+    window.addEventListener('scroll', dismiss, true)
+    window.addEventListener('resize', dismiss)
+    document.addEventListener('keydown', escape)
+    return () => {
+      window.removeEventListener('scroll', dismiss, true)
+      window.removeEventListener('resize', dismiss)
+      document.removeEventListener('keydown', escape)
+    }
+  }, [dismiss])
+
+  return createPortal(<div ref={tooltip} role="tooltip" className="review-home-heatmap-tooltip">
+    <p>{details.date}</p>
+    <p>{details.summary}</p>
+  </div>, document.body)
+}
+
 export function ActivityHeatmap({ sessions, onDateClick, activeDate, id }: {
   sessions: TranscriptSession[]
   onDateClick: (date: string) => void
@@ -19,6 +62,8 @@ export function ActivityHeatmap({ sessions, onDateClick, activeDate, id }: {
 }) {
   const { language, t } = useUIStore()
   const labelId = useId()
+  const [details, setDetails] = useState<DayDetails | null>(null)
+  const dismiss = useCallback(() => setDetails(null), [])
   const todayKey = format(new Date(), 'yyyy-MM-dd')
   const monthLabel = useMemo(() => new Intl.DateTimeFormat(language, { month: 'short' }), [language])
   const dayLabel = useMemo(() => new Intl.DateTimeFormat(language, { dateStyle: 'long' }), [language])
@@ -75,16 +120,22 @@ export function ActivityHeatmap({ sessions, onDateClick, activeDate, id }: {
           if (key > todayKey) return null
           const entry = counts.get(key)
           const style = { gridColumn: Math.floor(index / DAYS_IN_WEEK) + 2, gridRow: index % DAYS_IN_WEEK + 2 }
-          if (!entry) return <span className="review-home-day" aria-hidden="true" key={key} style={style} />
-          const label = dayLabel.format(date) + ' · ' + entry.count + ' ' + t.heatmap.recording +
-            (entry.duration > 0 ? ' · ' + durationLabel(entry.duration) : '')
+          const summary = entry ? entry.count + ' ' + t.heatmap.recording +
+            (entry.duration > 0 ? ' · ' + durationLabel(entry.duration) : '') : t.heatmap.noRecordings
+          const showDetails = (cell: HTMLElement) => setDetails({ anchor: cell, date: dayLabel.format(date), summary })
+          if (!entry) return <span className="review-home-day" aria-hidden="true" key={key} style={style}
+            onMouseEnter={event => showDetails(event.currentTarget)} onMouseLeave={dismiss} />
           return <button type="button" key={key} className="review-home-day" style={style} data-level={intensity(entry.count)} data-date={key}
-            aria-label={label} title={label} aria-pressed={key === activeDate} onClick={() => onDateClick(key)} />
+            aria-label={dayLabel.format(date) + ' · ' + summary} aria-pressed={key === activeDate}
+            onMouseEnter={event => showDetails(event.currentTarget)} onMouseLeave={dismiss}
+            onFocus={event => { if (event.currentTarget.matches(':focus-visible')) showDetails(event.currentTarget) }} onBlur={dismiss}
+            onClick={() => { dismiss(); onDateClick(key) }} />
         })}
       </div>
     </div>
     <div className="review-home-legend" aria-hidden="true">
       {t.heatmap.less}{LEVELS.map(level => <span key={level} className="review-home-day" data-level={level} />)}{t.heatmap.more}
     </div>
+    {details && <HeatmapTooltip details={details} dismiss={dismiss} />}
   </section>
 }
