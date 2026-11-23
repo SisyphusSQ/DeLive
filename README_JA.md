@@ -1,4 +1,4 @@
-> [DeLive SQ 2.3.0-sq.7 プレリリース](https://github.com/SisyphusSQ/DeLive/releases/tag/v2.3.0-sq.7) ではリリースノートとソースコードを公開しています。macOS Apple Silicon 用のインストーラーはローカルで保管しています。ビルドと手動インストールの手順は [SQ ビルドガイド](docs/zh/development/build.md) を参照してください。以下の公式サイトとバッジは上流プロジェクトのものです。
+> [DeLive SQ 2.3.0-sq.8 プレリリース](https://github.com/SisyphusSQ/DeLive/releases/tag/v2.3.0-sq.8) ではリリースノートとソースコードを公開しています。macOS Apple Silicon 用のインストーラーはローカルで保管しています。ビルドと手動インストールの手順は [SQ ビルドガイド](docs/zh/development/build.md) を参照してください。以下の公式サイトとバッジは上流プロジェクトのものです。
 
 <div align="center">
 

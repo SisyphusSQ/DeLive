@@ -91,7 +91,24 @@
 .review-home-day[data-level="2"] { background: hsl(var(--primary) / .43); }
 .review-home-day[data-level="3"] { background: hsl(var(--primary) / .68); }
 .review-home-day[data-level="4"] { background: hsl(var(--primary)); }
-.review-home-day:is(:hover, [aria-pressed="true"]):is(button) { outline: 1px solid hsl(var(--primary)); outline-offset: 1px; z-index: 1; }
+.review-home-calendar .review-home-day:is(:hover, :focus-visible, [aria-pressed="true"]) { outline: 1px solid hsl(var(--primary)); outline-offset: 1px; z-index: 1; }
+.review-home-heatmap-tooltip {
+  position: fixed;
+  z-index: 100;
+  pointer-events: none;
+  width: max-content;
+  max-width: calc(100vw - 16px);
+  padding: 7px 10px;
+  border: 1px solid hsl(var(--border));
+  border-radius: 7px;
+  background: hsl(var(--popover));
+  color: hsl(var(--popover-foreground));
+  box-shadow: 0 6px 18px hsl(var(--foreground) / .13);
+  font-size: 12px;
+  line-height: 1.5;
+}
+.review-home-heatmap-tooltip p:first-child { font-weight: 600; }
+.review-home-heatmap-tooltip p + p { color: hsl(var(--muted-foreground)); }
 .review-home-legend { display: flex; align-items: center; justify-content: flex-end; gap: 4px; margin-top: 6px; font-size: 10px; color: hsl(var(--muted-foreground)); }
 .review-home-legend .review-home-day { width: 9px; }
 

@@ -1,4 +1,4 @@
-> [DeLive SQ 2.3.0-sq.7 prerelease](https://github.com/SisyphusSQ/DeLive/releases/tag/v2.3.0-sq.7) includes the release notes and tagged source. The macOS Apple Silicon packages are distributed locally. For build and installation instructions, see the [SQ build guide](docs/zh/development/build.md). The website and badges below refer to upstream.
+> [DeLive SQ 2.3.0-sq.8 prerelease](https://github.com/SisyphusSQ/DeLive/releases/tag/v2.3.0-sq.8) includes the release notes and tagged source. The macOS Apple Silicon packages are distributed locally. For build and installation instructions, see the [SQ build guide](docs/zh/development/build.md). The website and badges below refer to upstream.
 
 <div align="center">
 

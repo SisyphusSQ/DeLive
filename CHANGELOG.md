@@ -13,6 +13,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.3.0-sq.8] - 2026-11-23
+
+### 修复
+
+- 恢复回顾首页热力图的应用内悬停提示。有录音的日期显示日期、录音次数和当天总时长，空白格显示「无录制」。
+- 键盘聚焦有录音的日期也可查看详情，按 Escape 关闭提示。点击日期仍可筛选会议，提示会避开工作台顶栏。
+
+### 发行与验收
+
+- 已用 Storybook 及独立数据目录的 macOS Electron 开发版验证悬停、空白格和日期筛选。开发阶段已有 514 项前端测试通过。
+- GitHub 预发布提供版本说明和标签对应源码。macOS Apple Silicon 的 DMG 和 ZIP 在本机保留，使用 Developer ID 签名，未经 Apple 公证。
+
+---
+
 ## [2.3.0-sq.7] - 2026-11-23
 
 ### 回顾首页
