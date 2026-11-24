@@ -193,3 +193,7 @@ curl http://localhost:23456/api/v1/status
 ## IPC Timeout
 
 API requests that require data from the renderer process have a **5-second timeout**. If the renderer does not respond in time, the API returns empty/default data with a `200` status.
+
+### GET /sessions/:id/export
+
+Returns the adopted transcript as UTF-8 text. `format=md|txt|srt|vtt`, `purpose=reading|proofreading`, `allowPending=true`. Defaults to a Markdown reading copy. Pending review returns 409. Missing subtitle timestamps return 422.

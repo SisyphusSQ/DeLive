@@ -58,7 +58,6 @@ Current suite: **373 tests across 44 files**.
 
 - **React components** — no `.test.tsx` files (node environment, no jsdom)
 - **Electron main process** — not under Vitest
-- **MCP server** — separate package, not in CI
 - **Integration tests** — no end-to-end API testing
 
 ## Writing Tests

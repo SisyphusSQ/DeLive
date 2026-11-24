@@ -144,7 +144,7 @@ export const en: Translations = {
     aiTextSourceCorrected: 'Always Corrected',
     aiTextSourceCorrectedDesc: 'Prefer corrected text, fall back to original if unavailable',
     openApiTitle: 'Open API',
-    openApiDesc: 'Allow external programs (MCP servers, scripts, etc.) to access DeLive data via local API',
+    openApiDesc: 'Allow external REST and WebSocket clients to read DeLive data. The bundled CLI works with this setting off.',
     openApiEnable: 'Enable Open API',
     openApiEnableDesc: 'When enabled, the local REST API and WebSocket will accept external requests',
     openApiToken: 'Access Token',

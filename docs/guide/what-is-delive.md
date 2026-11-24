@@ -38,7 +38,7 @@ DeLive exposes its data through a local API:
 
 - **REST API** — 8 endpoints for sessions, topics, tags, and recording status
 - **WebSocket** — Real-time transcript streaming at `/ws/live`
-- **MCP Server** — Standalone stdio server for Claude Desktop, Cursor, and other AI agents
+- [Bundled CLI](../api/cli) for meeting search and adopted transcript export.
 - **Agent Skill** — Structured guidance for AI agents to use DeLive's capabilities
 - **Agent Skills** — Install the DeLive Skill and any agent can transcribe in one call, returning transcript, summary, mind map & keywords
 

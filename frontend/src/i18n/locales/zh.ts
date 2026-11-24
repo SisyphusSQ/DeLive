@@ -143,7 +143,7 @@ export const zh = {
     aiTextSourceCorrected: '始终纠错后',
     aiTextSourceCorrectedDesc: '优先使用纠错后文本，无纠错时回退原始',
     openApiTitle: '开放 API',
-    openApiDesc: '允许外部程序（MCP 服务器、脚本等）通过本地接口访问 DeLive 数据',
+    openApiDesc: '允许外部程序通过 REST 和 WebSocket 读取 DeLive 数据。关闭此项仍可使用随包 CLI。',
     openApiEnable: '启用开放 API',
     openApiEnableDesc: '开启后，本地 REST API 和 WebSocket 将接受外部请求',
     openApiToken: '访问令牌 (Token)',

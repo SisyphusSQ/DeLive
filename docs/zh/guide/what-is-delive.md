@@ -38,7 +38,7 @@ DeLive 通过本地 API 暴露数据：
 
 - **REST API** — 8 个端点，覆盖会话、主题、标签和录制状态
 - **WebSocket** — 在 `/ws/live` 进行实时转录推流
-- **MCP 服务器** — 独立 stdio 服务器，供 Claude Desktop、Cursor 等 AI Agent 使用
+- [命令行工具](../api/cli)可搜索会议和导出采用稿。
 - **Agent Skill** — 为 AI Agent 提供结构化使用指南
 - **Agent Skills** — 安装 DeLive Skill 后，任意 Agent 一键转录，返回转录文本、摘要、思维导图与关键词
 

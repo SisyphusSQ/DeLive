@@ -143,6 +143,12 @@ const electronAPI: ElectronAPI = {
   apiRespondSessions: (requestId: number, sessions: SessionSummary[]) => {
     ipcRenderer.send('api-respond-sessions', requestId, sessions)
   },
+  onApiReviewExport: callback => {
+    const listener = (_event: Electron.IpcRendererEvent, ...args: Parameters<typeof callback>) => callback(...args)
+    ipcRenderer.on('api-review-export', listener)
+    return () => ipcRenderer.removeListener('api-review-export', listener)
+  },
+  apiRespondReviewExport: (requestId, result) => ipcRenderer.send('api-respond-review-export', requestId, result),
   onApiGetSessionDetail: (callback: (event: unknown, requestId: number, sessionId: string) => void) => {
     const listener = (event: Electron.IpcRendererEvent, requestId: number, sessionId: string) => callback(event, requestId, sessionId)
     ipcRenderer.on('api-get-session-detail', listener)

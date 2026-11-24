@@ -179,3 +179,7 @@ curl http://localhost:23456/api/v1/status
 ## IPC 超时
 
 需要从渲染进程获取数据的 API 请求有 **5 秒超时**。如果渲染进程未及时响应，API 返回空/默认数据，状态码 `200`。
+
+### GET /sessions/:id/export
+
+返回当前采用稿的 UTF-8 正文。 `format=md|txt|srt|vtt`, `purpose=reading|proofreading`, `allowPending=true`. 默认 Markdown 阅读稿。待确认返回 409，字幕缺少逐句时间返回 422。

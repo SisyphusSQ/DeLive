@@ -1,3 +1,4 @@
+import { reviewVersions, selectedReviewVersion, reviewExport, canExportTimed } from '../utils/reviewVersions'
 import { useEffect } from 'react'
 import { useSessionStore } from '../stores/sessionStore'
 import { getTags, getTopics } from '../utils/settingsStorage'
@@ -8,7 +9,7 @@ import type {
 } from '../../../shared/electronApi'
 import type { TranscriptSession } from '../types'
 
-function toSessionSummary(session: TranscriptSession): SessionSummary {
+export function toSessionSummary(session: TranscriptSession): SessionSummary {
   return {
     id: session.id,
     title: session.title,
@@ -27,8 +28,12 @@ function toSessionSummary(session: TranscriptSession): SessionSummary {
   }
 }
 
-function toSessionDetail(session: TranscriptSession): SessionDetail {
+export function toSessionDetail(session: TranscriptSession): SessionDetail {
+  const versions = reviewVersions(session)
   return {
+    adoptedVersionId: selectedReviewVersion(session, versions).id,
+    versions: versions.map(({ id, kind, createdAt }) => ({ id, kind, createdAt })),
+    images: session.images ?? [],
     id: session.id,
     title: session.title,
     date: session.date,
@@ -95,10 +100,10 @@ function toSessionDetail(session: TranscriptSession): SessionDetail {
   }
 }
 
-export function useApiIpcResponder(): void {
+export function useApiIpcResponder(ready: boolean): void {
   useEffect(() => {
     const api = window.electronAPI
-    if (!api) return
+    if (!api || !ready) return
 
     const store = useSessionStore
     let prevSessionId = store.getState().currentSessionId
@@ -123,6 +128,20 @@ export function useApiIpcResponder(): void {
         api.apiRespondSessions(requestId, sessions.map(toSessionSummary))
       }),
     )
+
+    cleanups.push(api.onApiReviewExport((requestId, sessionId, options) => {
+      const session = store.getState().sessions.find(item => item.id === sessionId)
+      if (!session) return api.apiRespondReviewExport(requestId, { status: 404, error: 'Session not found' })
+      const version = selectedReviewVersion(session)
+      if (!options.allowPending && version.merge?.groups.some(group => group.status === 'pending')) {
+        return api.apiRespondReviewExport(requestId, { status: 409, error: 'Review has pending sections. Pass --allow-pending to export them.' })
+      }
+      if ((options.format === 'srt' || options.format === 'vtt') && !canExportTimed(version)) {
+        return api.apiRespondReviewExport(requestId, { status: 422, error: 'Subtitle export requires valid timestamps for every segment.' })
+      }
+      const content = reviewExport(session, options.format, options.purpose)
+      api.apiRespondReviewExport(requestId, { status: 200, content })
+    }))
 
     cleanups.push(
       api.onApiGetSessionDetail((_event, requestId, sessionId) => {
@@ -169,5 +188,5 @@ export function useApiIpcResponder(): void {
     return () => {
       cleanups.forEach(fn => fn())
     }
-  }, [])
+  }, [ready])
 }

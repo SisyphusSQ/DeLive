@@ -366,8 +366,8 @@
           <div class="icon-comic bg-[#00d4aa] mb-4">
             <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M2 12h20"/><path d="M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z"/></svg>
           </div>
-          <h3 class="font-sans text-xl md:text-2xl tracking-wide uppercase mb-2" data-i18n="f.api.title">Open API & MCP!</h3>
-          <p class="font-bold text-sm" data-i18n="f.api.desc">REST API, WebSocket streaming, MCP server for Claude Desktop and Cursor.</p>
+          <h3 class="font-sans text-xl md:text-2xl tracking-wide uppercase mb-2" data-i18n="f.api.title">Open API & CLI!</h3>
+          <p class="font-bold text-sm" data-i18n="f.api.desc">REST API, WebSocket streaming, bundled CLI for meeting search and export.</p>
         </div>
 
         <!-- File Transcription -->
@@ -504,22 +504,6 @@
         </div>
       </div>
 
-      <!-- MCP Integration -->
-      <div class="grid md:grid-cols-2 gap-8 md:gap-12 items-center reveal">
-        <div>
-          <div class="pow-badge bg-[#6E29F5] text-white mb-4" data-i18n="showcase.mcp.badge">Developer</div>
-          <h3 class="font-sans text-2xl md:text-4xl tracking-wide uppercase mb-4" data-i18n="showcase.mcp.title">MCP Integration</h3>
-          <p class="font-bold text-sm md:text-base mb-6" data-i18n="showcase.mcp.desc">External AI tools access DeLive transcription data via the Model Context Protocol. Works with Claude Desktop and Cursor.</p>
-          <ul class="space-y-3 font-bold text-sm">
-            <li class="flex items-center gap-3"><span class="check-comic"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg></span> <span data-i18n="showcase.mcp.f1">Claude Desktop & Cursor</span></li>
-            <li class="flex items-center gap-3"><span class="check-comic"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg></span> <span data-i18n="showcase.mcp.f2">REST API + WebSocket</span></li>
-            <li class="flex items-center gap-3"><span class="check-comic"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg></span> <span data-i18n="showcase.mcp.f3">8 API endpoints</span></li>
-          </ul>
-        </div>
-        <div class="screenshot-comic">
-          <img src="images/screenshot-mcp-integration.png" alt="MCP Integration" class="w-full block" loading="lazy" />
-        </div>
-      </div>
     </div>
   </section>
 
@@ -530,7 +514,7 @@
       <div class="text-center mb-10 md:mb-16 reveal">
         <div class="pow-badge mb-4" data-i18n="integrations.label">Ecosystem</div>
         <h2 class="font-sans text-3xl md:text-5xl tracking-wide uppercase" data-i18n="integrations.title">Works with your stack!</h2>
-        <p class="font-bold text-sm md:text-base mt-3 max-w-xl mx-auto" data-i18n="integrations.desc">Twelve ASR providers, any OpenAI-compatible AI model, and MCP integration.</p>
+        <p class="font-bold text-sm md:text-base mt-3 max-w-xl mx-auto" data-i18n="integrations.desc">Twelve ASR providers, any OpenAI-compatible AI model, and CLI integration.</p>
       </div>
 
       <div class="marquee-wrap mb-10 md:mb-16 reveal">
@@ -798,7 +782,7 @@
         'f.local.title':'Local-First!','f.local.desc':'IndexedDB storage, Electron safeStorage encryption, context isolation. Your data stays.',
         'f.ai.title':'AI Review Desk!','f.ai.desc':'Summary, action items, keywords, chapters. Multi-thread chat. Mind maps via Markmap.',
         'f.caption.title':'Floating Captions!','f.caption.desc':'Always-on-top draggable subtitle window. Source, translated, bilingual modes. Fully customizable font, color, shadow and background.',
-        'f.api.title':'Open API & MCP!','f.api.desc':'REST API, WebSocket streaming, MCP server for Claude Desktop and Cursor.',
+        'f.api.title':'Open API & CLI!','f.api.desc':'REST API, WebSocket streaming, bundled CLI for meeting search and export.',
         'f.themes.title':'Eight Themes!','f.themes.desc':'Violet, Cyan, Rose, Green, Amber, Pink, Slate, and Orange — light and dark modes. Command Palette.',
         'f.file.title':'File Transcription!','f.file.desc':'Upload audio/video files. Ten cloud ASR engines. Speaker diarization and word-level timestamps.',
         'f.backup.title':'Cloud Backup!','f.backup.desc':'WebDAV + S3-compatible. Nutstore, Nextcloud, Alist, Amazon S3, MinIO. Auto-create directories.',
@@ -822,11 +806,8 @@
         'showcase.caption.badge':'Always-on-top','showcase.caption.title':'Caption Overlay',
         'showcase.caption.desc':'A draggable floating subtitle window that stays on top of all apps. Supports source, translated, and bilingual modes.',
         'showcase.caption.f1':'Draggable & resizable','showcase.caption.f2':'Custom font, color & background','showcase.caption.f3':'Bilingual mode',
-        'showcase.mcp.badge':'Developer','showcase.mcp.title':'MCP Integration',
-        'showcase.mcp.desc':'External AI tools access DeLive transcription data via the Model Context Protocol. Works with Claude Desktop and Cursor.',
-        'showcase.mcp.f1':'Claude Desktop & Cursor','showcase.mcp.f2':'REST API + WebSocket','showcase.mcp.f3':'8 API endpoints',
         'integrations.label':'Ecosystem','integrations.title':'Works with your stack!',
-        'integrations.desc':'Twelve ASR providers, any OpenAI-compatible AI model, and MCP integration.',
+        'integrations.desc':'Twelve ASR providers, any OpenAI-compatible AI model, and CLI integration.',
         'stats.api':'API Endpoints','stats.lang':'Languages','stats.tests':'Tests Passing',
         'download.label':'Get Started','download.title':'Download DeLive!','download.desc':'Free and open source. Windows, macOS, Linux.',
         'download.win':'Windows','download.mac':'macOS','download.mac.intel':'Intel Mac →',
@@ -852,7 +833,7 @@
         'f.local.title':'本地优先！','f.local.desc':'IndexedDB 存储，Electron safeStorage 加密。数据永不离开设备。',
         'f.ai.title':'AI 回顾工作台！','f.ai.desc':'总结、待办、关键词、章节。多线程对话。Markmap 思维导图。',
         'f.caption.title':'浮动字幕！','f.caption.desc':'始终置顶、可拖拽。原文、翻译、双语模式。完全自定义字体、颜色、阴影和背景。',
-        'f.api.title':'Open API & MCP！','f.api.desc':'REST API、WebSocket 推流、MCP Server。',
+        'f.api.title':'Open API & CLI！','f.api.desc':'REST API、WebSocket 推流、CLI。',
         'f.themes.title':'八种主题！','f.themes.desc':'紫罗兰、青蓝、玫瑰、绿色、琥珀、樱粉、石板灰、橙韵 — 亮色和暗色模式。命令面板。',
         'f.file.title':'文件转录！','f.file.desc':'上传音频/视频文件，十种云端 ASR 引擎离线转录。支持说话人分离和词级时间戳。',
         'f.backup.title':'云端备份！','f.backup.desc':'WebDAV + S3 兼容。坚果云、Nextcloud、Alist、Amazon S3、MinIO。自动创建目录。',
@@ -876,11 +857,8 @@
         'showcase.caption.badge':'始终置顶','showcase.caption.title':'浮动字幕',
         'showcase.caption.desc':'可拖拽的浮动字幕窗口，始终置顶显示。支持原文、翻译和双语模式。',
         'showcase.caption.f1':'可拖拽、可调整大小','showcase.caption.f2':'自定义字体、颜色和背景','showcase.caption.f3':'双语模式',
-        'showcase.mcp.badge':'开发者','showcase.mcp.title':'MCP 集成',
-        'showcase.mcp.desc':'外部 AI 工具通过 MCP 协议访问 DeLive 转录数据。支持 Claude Desktop 和 Cursor。',
-        'showcase.mcp.f1':'Claude Desktop & Cursor','showcase.mcp.f2':'REST API + WebSocket','showcase.mcp.f3':'8 个 API 端点',
         'integrations.label':'生态系统','integrations.title':'与你的技术栈集成！',
-        'integrations.desc':'十二大 ASR 引擎、任何 OpenAI 兼容 AI 模型、MCP 集成。',
+        'integrations.desc':'十二大 ASR 引擎、任何 OpenAI 兼容 AI 模型、CLI 集成。',
         'stats.api':'API 端点','stats.lang':'语言支持','stats.tests':'测试通过',
         'download.label':'开始使用','download.title':'下载 DeLive！','download.desc':'免费开源。Windows、macOS、Linux。',
         'download.win':'Windows','download.mac':'macOS','download.mac.intel':'Intel Mac →',

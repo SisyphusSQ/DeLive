@@ -58,7 +58,6 @@ cd frontend && npx vitest
 
 - **React 组件** — 无 `.test.tsx` 文件（node 环境，无 jsdom）
 - **Electron 主进程** — 录音资产和文件任务核心由 Vitest 验证，桌面 IPC/UI 由独立集成脚本验证
-- **MCP 服务器** — 独立包，不在 CI 中
 - **真实云端集成** — 未执行火山和对象存储真实调用，见 TOO-686
 
 ## 编写测试

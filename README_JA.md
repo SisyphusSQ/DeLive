@@ -1,4 +1,4 @@
-> [DeLive SQ 2.3.0-sq.8 プレリリース](https://github.com/SisyphusSQ/DeLive/releases/tag/v2.3.0-sq.8) ではリリースノートとソースコードを公開しています。macOS Apple Silicon 用のインストーラーはローカルで保管しています。ビルドと手動インストールの手順は [SQ ビルドガイド](docs/zh/development/build.md) を参照してください。以下の公式サイトとバッジは上流プロジェクトのものです。
+> [DeLive SQ 2.3.0-sq.9 プレリリース](https://github.com/SisyphusSQ/DeLive/releases/tag/v2.3.0-sq.9) ではリリースノートとソースコードを公開しています。macOS Apple Silicon 用のインストーラーはローカルで保管しています。ビルドと手動インストールの手順は [SQ ビルドガイド](docs/zh/development/build.md) を参照してください。以下の公式サイトとバッジは上流プロジェクトのものです。
 
 <div align="center">
 
@@ -52,10 +52,10 @@ https://github.com/user-attachments/assets/d363c237-e112-4f47-b72e-252aef45e6b4
 
 #
 
-| リアルタイム文字起こし | MCP 連携 |
-|:---:|:---:|
-| 4 種の ASR プロバイダーに対応 | 外部 AI ツールから MCP 経由で利用 |
-| <img width="300" src="assets/screenshot-live.png" alt="リアルタイム文字起こし" /> | <img width="300" src="assets/screenshot-mcp-integration.png" alt="MCP 連携" /> |
+| リアルタイム文字起こし |
+|:---:|
+| 4 種の ASR プロバイダーに対応 |
+| <img width="300" src="assets/screenshot-live.png" alt="リアルタイム文字起こし" /> |
 
 | AI 概要 | AI 校正 | AI チャット |
 |:---:|:---:|:---:|
@@ -74,7 +74,7 @@ https://github.com/user-attachments/assets/d363c237-e112-4f47-b72e-252aef45e6b4
 - **AI 振り返りワークスペース** — 校正（クイック修正 / 確認して修正）、要約、Q&A、チャット、マインドマップ
 - **トピック管理** — セッションをプロジェクト単位で整理
 - **ローカルファースト** — セッション、タグ、トピック、設定をローカル保存。S3/WebDAV バックアップは任意
-- **Open API & MCP** — ローカル REST API、リアルタイム WebSocket、AI エージェント向け MCP サーバー
+- **Open API & CLI** — ローカル REST API、リアルタイム WebSocket、AI エージェント向け CLI
 - **多言語 UI** — English、简体中文、한국어
 - **クロスプラットフォーム** — Windows、macOS、Linux
 
@@ -215,7 +215,7 @@ DeLive/
 ├── frontend/          # React レンダラー、プロバイダー、Store、UI コンポーネント、テスト
 ├── shared/            # 共有 TypeScript 契約とプロキシヘルパー
 ├── server/            # デバッグ用スタンドアロンプロキシサーバー
-├── mcp/               # AI エージェント向け MCP サーバー（Claude、Cursor など）
+├── cli/               # DeLive CLI
 ├── skills/            # エージェントスキル定義
 ├── scripts/           # アイコン生成、ランタイム準備、リリースノート
 ├── docs/              # VitePress ドキュメントサイトのソース
@@ -237,11 +237,11 @@ DeLive/
 | 永続化 | IndexedDB、localStorage、Electron safeStorage |
 | パッケージング | electron-builder + GitHub Actions |
 
-## 🌐 Open API & MCP
+## 🌐 Open API & CLI
 
-DeLive は、ローカル REST API、リアルタイム WebSocket、MCP サーバーを通じて文字起こしデータを外部ツールから利用できます。これらはデフォルトで無効で、必要に応じて Bearer Token 認証を設定できます。
+DeLive SQ の起動中は、同じ OS ユーザーが同梱の CLI から会議を参照できます。外部 REST API と WebSocket を利用するには、Open API を有効にして Bearer Token を設定してください。
 
-> 📖 API リファレンス：[REST](https://docs.delive.me/api/rest) · [WebSocket](https://docs.delive.me/api/websocket) · [MCP サーバー](https://docs.delive.me/api/mcp) · [認証](https://docs.delive.me/api/authentication) · [Agent Skill](https://docs.delive.me/api/agent-skill)
+> 📖 API リファレンス：[REST](https://docs.delive.me/api/rest) · [WebSocket](https://docs.delive.me/api/websocket) · [CLI](docs/api/cli.md) · [認証](https://docs.delive.me/api/authentication) · [Agent Skill](https://docs.delive.me/api/agent-skill)
 
 ## ⚠️ 注意事項
 

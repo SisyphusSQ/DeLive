@@ -144,7 +144,7 @@ export const ko: Translations = {
     aiTextSourceCorrected: '항상 교정본',
     aiTextSourceCorrectedDesc: '교정본을 우선 사용하고, 없으면 원본으로 대체합니다',
     openApiTitle: '개방형 API',
-    openApiDesc: '외부 프로그램(MCP 서버, 스크립트 등)이 로컬 API로 DeLive 데이터에 접근하도록 허용합니다',
+    openApiDesc: '외부 프로그램이 REST 및 WebSocket을 통해 DeLive 데이터를 읽도록 허용합니다. 이 설정이 꺼져 있어도 기본 제공 CLI를 사용할 수 있습니다.',
     openApiEnable: '개방형 API 사용',
     openApiEnableDesc: '사용하면 로컬 REST API와 WebSocket이 외부 요청을 받습니다',
     openApiToken: '액세스 토큰',

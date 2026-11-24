@@ -99,7 +99,20 @@ export interface SessionSummary {
   transcriptLength: number
 }
 
+export interface ReviewExportOptions {
+  format: 'txt' | 'md' | 'srt' | 'vtt'
+  purpose: 'reading' | 'proofreading'
+  allowPending: boolean
+}
+
+export type ReviewExportResult =
+  | { status: 200; content: string }
+  | { status: 404 | 409 | 422; error: string }
+
 export interface SessionDetail {
+  adoptedVersionId: string
+  versions: { id: string; kind: string; createdAt: number }[]
+  images: import('./sessionImages').SessionImage[]
   id: string
   title: string
   date: string
@@ -264,6 +277,8 @@ export interface ElectronAPI {
 
   onApiGetSessions: (callback: (event: unknown, requestId: number) => void) => () => void
   apiRespondSessions: (requestId: number, sessions: SessionSummary[]) => void
+  onApiReviewExport: (callback: (requestId: number, sessionId: string, options: ReviewExportOptions) => void) => () => void
+  apiRespondReviewExport: (requestId: number, result: ReviewExportResult) => void
   onApiGetSessionDetail: (callback: (event: unknown, requestId: number, sessionId: string) => void) => () => void
   apiRespondSessionDetail: (requestId: number, session: SessionDetail | null) => void
   onApiSearchSessions: (callback: (event: unknown, requestId: number, query: string) => void) => () => void

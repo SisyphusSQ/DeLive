@@ -45,7 +45,7 @@ DeLive/
 │   └── volcProxyCore.ts         # 火山引擎代理协议
 │
 ├── server/                      # 独立代理（仅调试）
-├── mcp/                         # AI Agent 用 MCP 服务器
+├── cli/                         # 随桌面应用分发的命令行程序
 ├── skills/                      # Agent Skill 定义
 ├── scripts/                     # 构建和发布辅助脚本
 ├── docs/                        # VitePress 文档（本站）

@@ -6,6 +6,8 @@ import { isLoopbackHostHeader } from '../shared/localApiGuard'
 import { isTrustedSender } from './ipcSecurity'
 import { registerUpgradeRoute } from './volcProxy'
 import {
+  LibraryUnavailable,
+  requestReviewExport,
   requestSessions,
   requestSessionDetail,
   requestSearchSessions,
@@ -125,8 +127,8 @@ export function attachApiServer({ server }: ApiServerOptions): void {
   const existingListeners = server.listeners('request').slice()
   server.removeAllListeners('request')
 
-  server.on('request', async (req: IncomingMessage, res: ServerResponse) => {
-    const { pathname, params } = parseUrl(req)
+  server.on('request', (req: IncomingMessage, res: ServerResponse) => {
+    const { pathname } = parseUrl(req)
 
     if (!pathname.startsWith('/api/')) {
       if (existingListeners.length === 0) {
@@ -145,119 +147,150 @@ export function attachApiServer({ server }: ApiServerOptions): void {
       return
     }
 
-    try {
-      if (pathname === '/api/v1/health' && req.method === 'GET') {
-        jsonResponse(res, 200, {
-          status: 'ok',
-          version: app.getVersion(),
-          apiEnabled: openApiConfig.enabled,
-          timestamp: new Date().toISOString(),
-          liveClients: getLiveClients().size,
-        })
-        return
-      }
-
-      if (!checkAuth(req, res)) return
-
-      if (pathname === '/api/v1/sessions' && req.method === 'GET') {
-        const search = params.get('search')
-        const limit = parseInt(params.get('limit') || '50', 10)
-        const offset = parseInt(params.get('offset') || '0', 10)
-
-        let sessions
-        if (search && search.trim()) {
-          sessions = await requestSearchSessions(search.trim())
-        } else {
-          sessions = await requestSessions()
-        }
-
-        const topicId = params.get('topicId')
-        const status = params.get('status')
-
-        let filtered = sessions
-        if (topicId) filtered = filtered.filter(s => s.topicId === topicId)
-        if (status) filtered = filtered.filter(s => s.status === status)
-
-        const total = filtered.length
-        const paged = filtered.slice(offset, offset + limit)
-
-        jsonResponse(res, 200, { sessions: paged, total, limit, offset })
-        return
-      }
-
-      const sessionDetailMatch = pathname.match(/^\/api\/v1\/sessions\/([^/]+)$/)
-      if (sessionDetailMatch && req.method === 'GET') {
-        const sessionId = decodeURIComponent(sessionDetailMatch[1])
-        const session = await requestSessionDetail(sessionId)
-        if (!session) {
-          jsonResponse(res, 404, { error: 'Session not found' })
-          return
-        }
-        jsonResponse(res, 200, session)
-        return
-      }
-
-      const transcriptMatch = pathname.match(/^\/api\/v1\/sessions\/([^/]+)\/transcript$/)
-      if (transcriptMatch && req.method === 'GET') {
-        const sessionId = decodeURIComponent(transcriptMatch[1])
-        const session = await requestSessionDetail(sessionId)
-        if (!session) {
-          jsonResponse(res, 404, { error: 'Session not found' })
-          return
-        }
-        jsonResponse(res, 200, {
-          sessionId: session.id,
-          transcript: session.transcript,
-          correctedTranscript: session.correction?.correctedText || null,
-        })
-        return
-      }
-
-      const summaryMatch = pathname.match(/^\/api\/v1\/sessions\/([^/]+)\/summary$/)
-      if (summaryMatch && req.method === 'GET') {
-        const sessionId = decodeURIComponent(summaryMatch[1])
-        const session = await requestSessionDetail(sessionId)
-        if (!session) {
-          jsonResponse(res, 404, { error: 'Session not found' })
-          return
-        }
-        jsonResponse(res, 200, {
-          sessionId: session.id,
-          postProcess: session.postProcess,
-          mindMap: session.mindMap,
-        })
-        return
-      }
-
-      if (pathname === '/api/v1/topics' && req.method === 'GET') {
-        const topics = await requestTopics()
-        jsonResponse(res, 200, { topics })
-        return
-      }
-
-      if (pathname === '/api/v1/tags' && req.method === 'GET') {
-        const tags = await requestTags()
-        jsonResponse(res, 200, { tags })
-        return
-      }
-
-      if (pathname === '/api/v1/status' && req.method === 'GET') {
-        const status = await requestRecordingStatus()
-        jsonResponse(res, 200, {
-          ...status,
-          version: app.getVersion(),
-          liveClients: getLiveClients().size,
-        })
-        return
-      }
-
-      jsonResponse(res, 404, { error: 'Not found' })
-    } catch (error) {
-      console.error('[API] Request error:', error)
-      jsonResponse(res, 500, { error: 'Internal server error' })
-    }
+    const publicHealthCheck = req.method === 'GET' && pathname === '/api/v1/health'
+    if (!publicHealthCheck && !checkAuth(req, res)) return
+    void handleMeetingRequest(req, res)
   })
 
   console.log('🌐 REST API endpoints mounted at /api/v1/')
   console.log('📡 Live transcript WebSocket available at /ws/live')
+}
+
+// Only the private CLI listener and the authenticated public API dispatch here.
+export async function handleMeetingRequest(req: IncomingMessage, res: ServerResponse): Promise<void> {
+  try {
+    const { pathname, params } = parseUrl(req)
+    if (pathname === '/api/v1/health' && req.method === 'GET') {
+      jsonResponse(res, 200, {
+        status: 'ok',
+        version: app.getVersion(),
+        apiEnabled: openApiConfig.enabled,
+        timestamp: new Date().toISOString(),
+        liveClients: getLiveClients().size,
+      })
+      return
+    }
+
+    if (pathname === '/api/v1/sessions' && req.method === 'GET') {
+      const search = params.get('search')
+      const limit = parseInt(params.get('limit') || '50', 10)
+      const offset = parseInt(params.get('offset') || '0', 10)
+
+      let sessions
+      if (search && search.trim()) {
+        sessions = await requestSearchSessions(search.trim())
+      } else {
+        sessions = await requestSessions()
+      }
+
+      const topicId = params.get('topicId')
+      const status = params.get('status')
+
+      let filtered = sessions
+      if (topicId) filtered = filtered.filter(s => s.topicId === topicId)
+      if (status) filtered = filtered.filter(s => s.status === status)
+
+      const total = filtered.length
+      const paged = filtered.slice(offset, offset + limit)
+
+      jsonResponse(res, 200, { sessions: paged, total, limit, offset })
+      return
+    }
+
+    const sessionDetailMatch = pathname.match(/^\/api\/v1\/sessions\/([^/]+)$/)
+    if (sessionDetailMatch && req.method === 'GET') {
+      const sessionId = decodeURIComponent(sessionDetailMatch[1])
+      const session = await requestSessionDetail(sessionId)
+      if (!session) {
+        jsonResponse(res, 404, { error: 'Session not found' })
+        return
+      }
+      jsonResponse(res, 200, session)
+      return
+    }
+
+    const exportMatch = pathname.match(/^\/api\/v1\/sessions\/([^/]+)\/export$/)
+    if (exportMatch && req.method === 'GET') {
+      const format = params.get('format') ?? 'md'
+      const purpose = params.get('purpose') ?? 'reading'
+      if ((format !== 'md' && format !== 'txt' && format !== 'srt' && format !== 'vtt') ||
+          (purpose !== 'reading' && purpose !== 'proofreading')) {
+        jsonResponse(res, 400, { error: 'Unknown export format or purpose' })
+        return
+      }
+      const result = await requestReviewExport(decodeURIComponent(exportMatch[1]), {
+        format, purpose, allowPending: params.get('allowPending') === 'true',
+      })
+      if (result.status === 200) {
+        res.writeHead(200, { 'Content-Type': 'text/plain; charset=utf-8' })
+        res.end(result.content)
+      } else {
+        jsonResponse(res, result.status, { error: result.error })
+      }
+      return
+    }
+
+    const transcriptMatch = pathname.match(/^\/api\/v1\/sessions\/([^/]+)\/transcript$/)
+    if (transcriptMatch && req.method === 'GET') {
+      const sessionId = decodeURIComponent(transcriptMatch[1])
+      const session = await requestSessionDetail(sessionId)
+      if (!session) {
+        jsonResponse(res, 404, { error: 'Session not found' })
+        return
+      }
+      jsonResponse(res, 200, {
+        sessionId: session.id,
+        transcript: session.transcript,
+        correctedTranscript: session.correction?.correctedText || null,
+      })
+      return
+    }
+
+    const summaryMatch = pathname.match(/^\/api\/v1\/sessions\/([^/]+)\/summary$/)
+    if (summaryMatch && req.method === 'GET') {
+      const sessionId = decodeURIComponent(summaryMatch[1])
+      const session = await requestSessionDetail(sessionId)
+      if (!session) {
+        jsonResponse(res, 404, { error: 'Session not found' })
+        return
+      }
+      jsonResponse(res, 200, {
+        sessionId: session.id,
+        postProcess: session.postProcess,
+        mindMap: session.mindMap,
+      })
+      return
+    }
+
+    if (pathname === '/api/v1/topics' && req.method === 'GET') {
+      const topics = await requestTopics()
+      jsonResponse(res, 200, { topics })
+      return
+    }
+
+    if (pathname === '/api/v1/tags' && req.method === 'GET') {
+      const tags = await requestTags()
+      jsonResponse(res, 200, { tags })
+      return
+    }
+
+    if (pathname === '/api/v1/status' && req.method === 'GET') {
+      const status = await requestRecordingStatus()
+      jsonResponse(res, 200, {
+        ...status,
+        version: app.getVersion(),
+        liveClients: getLiveClients().size,
+      })
+      return
+    }
+
+    jsonResponse(res, 404, { error: 'Not found' })
+  } catch (error) {
+    if (error instanceof LibraryUnavailable) {
+      jsonResponse(res, 503, { error: error.message })
+      return
+    }
+    console.error('[API] Request error:', error)
+    jsonResponse(res, 500, { error: 'Internal server error' })
+  }
 }

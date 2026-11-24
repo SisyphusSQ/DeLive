@@ -94,11 +94,26 @@ jobs:
         run: npm ci
         working-directory: ./server
 
+      - uses: actions/setup-go@v5
+        with:
+          go-version: 'stable'
+          cache: false
+
       - name: Build and Package
         env:
           # CI has no signing certificate; these artifacts require fresh macOS consent after updates.
           DELIVE_ALLOW_ADHOC: '1'
         run: npm run build && npx electron-builder --${{ matrix.platform }} --publish never
+
+      - name: Run the bundled CLI
+        shell: bash
+        run: |
+          cli=$(find release -type f \( -path '*/[Rr]esources/bin/delive' -o -path '*/resources/bin/delive.exe' \) -print -quit)
+          if [[ "$RUNNER_OS" == "Linux" ]]; then
+            xvfb-run -a node scripts/test-bundled-cli.mjs "$cli"
+          else
+            node scripts/test-bundled-cli.mjs "$cli"
+          fi
 
       - name: Verify macOS code signing
         if: matrix.platform == 'mac'

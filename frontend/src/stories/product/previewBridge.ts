@@ -25,7 +25,7 @@ export function installPreviewBridge({ desktop = false, updates = false, jobs = 
       settings: async () => ({ configured: true }), list: async () => jobs,
       start: blocked, query: blocked, configure: blocked, cleanup: blocked, cancel: blocked,
     },
-    onApiGetSessions: subscribe, onApiGetSessionDetail: subscribe, onApiSearchSessions: subscribe,
+    onApiReviewExport: subscribe, onApiGetSessions: subscribe, onApiGetSessionDetail: subscribe, onApiSearchSessions: subscribe,
     onApiGetTopics: subscribe, onApiGetTags: subscribe, onApiGetRecordingStatus: subscribe,
     apiUpdateOpenApiConfig: () => {}, getAppVersion: async () => version, supportsAutoUpdate: updates,
     onCheckingForUpdate: subscribe, onUpdateAvailable: subscribe, onUpdateDownloaded: subscribe,

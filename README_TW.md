@@ -1,4 +1,4 @@
-> [DeLive SQ 2.3.0-sq.8 預發佈版](https://github.com/SisyphusSQ/DeLive/releases/tag/v2.3.0-sq.8) 提供版本說明與對應原始碼。macOS Apple Silicon 安裝包僅在本機保留。建置及手動安裝方式見 [SQ 建置說明](docs/zh/development/build.md)。下方官網與徽章屬於上游專案。
+> [DeLive SQ 2.3.0-sq.9 預發佈版](https://github.com/SisyphusSQ/DeLive/releases/tag/v2.3.0-sq.9) 提供版本說明與對應原始碼。macOS Apple Silicon 安裝包僅在本機保留。建置及手動安裝方式見 [SQ 建置說明](docs/zh/development/build.md)。下方官網與徽章屬於上游專案。
 
 <div align="center">
 
@@ -39,7 +39,7 @@ https://github.com/user-attachments/assets/d363c237-e112-4f47-b72e-252aef45e6b4
 
 </div>
 
-**章節**
+**舊版示範章節**
 
 1. 整體瀏覽
 2. 即時轉錄 + 多人辨識
@@ -52,10 +52,10 @@ https://github.com/user-attachments/assets/d363c237-e112-4f47-b72e-252aef45e6b4
 
 #
 
-| 即時轉錄 | MCP 整合 |
-|:---:|:---:|
-| 4 種 ASR 引擎即時轉錄 | 外部 AI 工具透過 MCP 協定存取 DeLive |
-| <img width="300" src="assets/screenshot-live.png" alt="即時轉錄" /> | <img width="300" src="assets/screenshot-mcp-integration.png" alt="MCP 整合" /> |
+| 即時轉錄 |
+|:---:|
+| 4 種 ASR 引擎即時轉錄 |
+| <img width="300" src="assets/screenshot-live.png" alt="即時轉錄" /> |
 
 | AI 概覽 | AI 糾錯 | AI 對話 |
 |:---:|:---:|:---:|
@@ -74,7 +74,7 @@ https://github.com/user-attachments/assets/d363c237-e112-4f47-b72e-252aef45e6b4
 - **AI 複盤工作台** — 糾錯（直接糾錯 / 先檢測後糾錯）、結構化 briefing、多執行緒對話、問答、思維導圖
 - **主題功能** — 將會話歸類到專案容器中
 - **本地優先** — 會話、標籤、主題、設定保存在本機；可選 S3/WebDAV 雲端備份
-- **開放 API 與 MCP** — 本地 REST API、即時 WebSocket、MCP 伺服器，供 AI Agent 使用
+- **開放 API 與 CLI** — 本地 REST API、即時 WebSocket、CLI，供 AI Agent 使用
 - **多語言介面** — 简体中文、English、한국어
 - **跨平台** — Windows、macOS、Linux
 
@@ -215,7 +215,7 @@ DeLive/
 ├── frontend/          # React 渲染層、Provider、Store、UI 元件、測試
 ├── shared/            # 共用 TypeScript 契約與代理 helper
 ├── server/            # 主要用於除錯的獨立代理伺服器
-├── mcp/               # MCP 伺服器，供 AI Agent 使用（Claude、Cursor 等）
+├── cli/               # DeLive CLI
 ├── skills/            # Agent Skill 定義
 ├── scripts/           # 圖示生成、runtime 預置、release notes
 ├── docs/              # VitePress 文檔站原始碼
@@ -237,11 +237,11 @@ DeLive/
 | 持久化 | IndexedDB、localStorage、Electron safeStorage |
 | 打包 | electron-builder + GitHub Actions |
 
-## 🌐 開放 API 與 MCP
+## 🌐 開放 API 與 CLI
 
-DeLive 透過本地 REST API、即時 WebSocket 和 MCP 伺服器對外開放轉錄資料——預設關閉，可選 Bearer Token 驗證。
+DeLive SQ 執行時，同一系統使用者可直接透過隨附的 CLI 讀取會議。外部 REST API 與即時 WebSocket 需啟用開放 API 並設定 Bearer Token。
 
-> 📖 完整 API 參考：[REST](https://docs.delive.me/zh/api/rest) · [WebSocket](https://docs.delive.me/zh/api/websocket) · [MCP 伺服器](https://docs.delive.me/zh/api/mcp) · [驗證](https://docs.delive.me/zh/api/authentication) · [Agent Skill](https://docs.delive.me/zh/api/agent-skill)
+> 📖 完整 API 參考：[REST](https://docs.delive.me/zh/api/rest) · [WebSocket](https://docs.delive.me/zh/api/websocket) · [CLI](docs/zh/api/cli.md) · [驗證](https://docs.delive.me/zh/api/authentication) · [Agent Skill](https://docs.delive.me/zh/api/agent-skill)
 
 ## ⚠️ 注意事項
 

@@ -124,7 +124,7 @@ export async function startVolcProxyServer(): Promise<{ server: Server; port: nu
 
   if (boundPort == null) {
     // All preferred ports are taken: let the OS pick a free one. The renderer
-    // reads the real port over IPC, so only external MCP/API clients need to
+    // reads the real port over IPC, so only external API clients need to
     // look up the new port in Settings.
     console.warn('[Proxy] 候选端口 (23456-23460) 均不可用，改用系统分配的空闲端口')
     await tryListen(server, 0)

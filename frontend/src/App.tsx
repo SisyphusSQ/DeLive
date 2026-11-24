@@ -84,7 +84,7 @@ function App() {
 
   useEffect(() => { if (credentialError) handleError(credentialError) }, [credentialError, handleError])
 
-  useApiIpcResponder()
+  useApiIpcResponder(isInitialized)
 
   // ASR — lifted to App so global shortcut can reach it
   const { startRecording, stopRecording, switchProvider, getMediaStream, getRecordingTime, reconnectTranscription } = useASR({
