@@ -28,8 +28,8 @@ features:
     title: Local-First & Secure
     details: Sessions in IndexedDB, secrets in Electron safeStorage, context isolation, trusted-window IPC, CSP injection, and navigation guards. Sessions are stored locally. Cloud transcription and remote AI send the required input to the selected service.
   - icon: 🌐
-    title: Open API & MCP Ecosystem
-    details: Local REST API (8 endpoints), real-time WebSocket streaming, standalone MCP server for Claude Desktop and Cursor, Agent Skill definition, and Agent Skills for one-call transcription inside any agent.
+    title: Open API & CLI
+    details: Search meetings and export adopted transcripts with the bundled CLI, local REST API and live WebSocket.
   - icon: 📁
     title: File Transcription
     details: Upload audio or video files and transcribe them with any of the four providers, from cloud engines to fully local whisper.cpp and FunASR / SenseVoice. Speaker diarization, word-level timestamps, and language detection where the provider supports them.
@@ -212,10 +212,6 @@ features:
     <div class="screenshot-card">
       <img src="/images/screenshot-live.png" alt="Live Transcription" />
       <div class="caption">Live Transcription</div>
-    </div>
-    <div class="screenshot-card">
-      <img src="/images/screenshot-mcp-integration.png" alt="MCP Integration" />
-      <div class="caption">MCP Integration</div>
     </div>
     <div class="screenshot-card">
       <img src="/images/screenshot-ai-overview.png" alt="AI Overview" />

@@ -25,7 +25,7 @@ export function isLoopbackHostHeader(host: string | undefined): boolean {
 
 /**
  * Origins allowed to open a WebSocket on the local server. Local tools (the
- * MCP server, scripts) send no Origin; DeLive's own windows send file://
+ * CLI, scripts) send no Origin; DeLive's own windows send file://
  * (packaged) or the Vite dev server. Any other origin is a web page and is
  * refused, including `null` (sandboxed iframes on any site send that).
  */

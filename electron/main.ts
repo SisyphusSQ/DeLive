@@ -1,3 +1,4 @@
+import { startCliServer } from './cliServer'
 import { registerFileTaskIpc } from './fileTranscription/fileTaskIpc'
 import { app, BrowserWindow, dialog, ipcMain, session, Tray, globalShortcut } from 'electron'
 import { registerRecordingIpc } from './recordingIpc'
@@ -112,6 +113,10 @@ if (!gotTheLock) {
       const detail = error instanceof Error ? error.message : String(error)
       dialog.showErrorBox('DeLive', getElectronStrings().proxyStartFailed(detail))
     }
+
+    void startCliServer(app.getPath('userData')).then(close => {
+      app.once('will-quit', close)
+    }).catch(error => console.error('[CLI] 本机命令入口启动失败', error))
 
     createWindow()
     tray = createAppTray({

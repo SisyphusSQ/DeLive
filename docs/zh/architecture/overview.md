@@ -39,7 +39,7 @@ flowchart TB
 
   subgraph ecosystem["🌍 外部生态"]
     direction LR
-    mcp["MCP 服务器 (stdio)"]
+    cli["DeLive CLI"]
     skill["Agent Skill 定义"]
     ws["WebSocket 客户端"]
   end
@@ -55,7 +55,7 @@ flowchart TB
   style runtime fill:#0c4a6e,stroke:#0ea5e9,color:#e2e8f0
   style providers fill:#312e81,stroke:#8b5cf6,color:#e2e8f0
   style persistence fill:#312e81,stroke:#8b5cf6,color:#e2e8f0
-  style mcp fill:#064e3b,stroke:#10b981,color:#e2e8f0
+  style cli fill:#064e3b,stroke:#10b981,color:#e2e8f0
   style skill fill:#064e3b,stroke:#10b981,color:#e2e8f0
   style ws fill:#064e3b,stroke:#10b981,color:#e2e8f0
 ```
@@ -147,9 +147,9 @@ flowchart TB
 
 端口 23456（被占用时依次尝试 23456–23460，再退回系统分配的空闲端口）在一个 `http.createServer()` 上托管火山 WebSocket 代理（`/ws/volc`）、REST API（`/api/v1/*`）和实时转录 WebSocket（`/ws/live`）。每个代理使用 `noServer: true` 模式并手动路由 `upgrade` 事件。
 
-### MCP 作为独立进程
+### DeLive CLI
 
-MCP 服务器是独立的 Node.js 脚本，未嵌入 Electron。Claude Desktop 将其作为子进程启动，通过 REST API 与 DeLive 通信。这种设计意味着 DeLive 和 MCP 服务器可以独立崩溃。
+原生命令行客户端随应用分发，通过当前系统用户的私有通道读取资料，与开放 API 共用会议查询和导出逻辑。
 
 ### Provider 注册机制
 

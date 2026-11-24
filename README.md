@@ -1,4 +1,4 @@
-> [DeLive SQ 2.3.0-sq.8 prerelease](https://github.com/SisyphusSQ/DeLive/releases/tag/v2.3.0-sq.8) includes the release notes and tagged source. The macOS Apple Silicon packages are distributed locally. For build and installation instructions, see the [SQ build guide](docs/zh/development/build.md). The website and badges below refer to upstream.
+> [DeLive SQ 2.3.0-sq.9 prerelease](https://github.com/SisyphusSQ/DeLive/releases/tag/v2.3.0-sq.9) includes the release notes and tagged source. The macOS Apple Silicon packages are distributed locally. For build and installation instructions, see the [SQ build guide](docs/zh/development/build.md). The website and badges below refer to upstream.
 
 <div align="center">
 
@@ -40,7 +40,7 @@ https://github.com/user-attachments/assets/d363c237-e112-4f47-b72e-252aef45e6b4
 
 </div>
 
-**Chapters**
+**Chapters in the earlier recording**
 
 1. Overview — workspace tour
 2. Real-time transcription and speaker diarization
@@ -53,10 +53,10 @@ https://github.com/user-attachments/assets/d363c237-e112-4f47-b72e-252aef45e6b4
 
 #
 
-| Live Transcription | MCP Integration |
-|:---:|:---:|
-| Real-time transcription with 4 ASR providers | External AI tools access DeLive via MCP protocol |
-| <img width="300" src="assets/screenshot-live.png" alt="Live Transcription" /> | <img width="300" src="assets/screenshot-mcp-integration.png" alt="MCP Integration" /> |
+| Live Transcription |
+|:---:|
+| Real-time transcription with 4 ASR providers |
+| <img width="300" src="assets/screenshot-live.png" alt="Live Transcription" /> |
 
 | AI Overview | AI Correction | AI Chat |
 |:---:|:---:|:---:|
@@ -75,7 +75,7 @@ https://github.com/user-attachments/assets/d363c237-e112-4f47-b72e-252aef45e6b4
 - **AI Review Desk** — transcript correction (Quick Fix / Review & Fix), structured briefings, multi-thread chat, Q&A, and mind maps
 - **Topics** — organize sessions into project-like containers
 - **Local-first** — sessions, tags, topics, and settings stored locally; optional S3/WebDAV cloud backup
-- **Open API & MCP** — local REST API, real-time WebSocket, MCP server for AI agents
+- **Open API & CLI** — local REST API, real-time WebSocket, bundled CLI for AI agents
 - **Multilingual UI** — English, Simplified Chinese, and Korean
 - **Cross-platform** — Windows, macOS, and Linux
 
@@ -238,7 +238,7 @@ DeLive/
 ├── frontend/          # React renderer app, providers, stores, UI components, tests
 ├── shared/            # Shared TypeScript contracts and provider proxy helpers
 ├── server/            # Standalone proxy server for debugging
-├── mcp/               # MCP server for AI agents (Claude, Cursor, etc.)
+├── cli/               # DeLive CLI
 ├── skills/            # Agent skill definitions
 ├── scripts/           # Icon generation, runtime staging, release notes
 ├── docs/              # VitePress documentation site source
@@ -260,11 +260,11 @@ DeLive/
 | Persistence | IndexedDB, localStorage, Electron safeStorage |
 | Packaging | electron-builder + GitHub Actions |
 
-## 🌐 Open API & MCP
+## 🌐 Open API & CLI
 
-DeLive exposes a local REST API, real-time WebSocket, and an MCP server for AI agents — all disabled by default, with optional Bearer token authentication.
+The bundled CLI works for the current OS user while DeLive SQ is running. The optional REST API and live WebSocket require Open API and a Bearer token.
 
-> 📖 Full API reference: [REST](https://docs.delive.me/api/rest) · [WebSocket](https://docs.delive.me/api/websocket) · [MCP Server](https://docs.delive.me/api/mcp) · [Authentication](https://docs.delive.me/api/authentication) · [Agent Skill](https://docs.delive.me/api/agent-skill)
+> 📖 Full API reference: [REST](https://docs.delive.me/api/rest) · [WebSocket](https://docs.delive.me/api/websocket) · [CLI](docs/api/cli.md) · [Authentication](https://docs.delive.me/api/authentication) · [Agent Skill](https://docs.delive.me/api/agent-skill)
 
 ## ⚠️ Notes
 

@@ -16,12 +16,7 @@ npm run install:all
 
 `install:all` 在三个目录中运行 `npm install`：根目录、`frontend/` 和 `server/`。
 
-::: info
-`mcp/` 目录有自己的 `package.json` 但 **不** 包含在 `install:all` 中。如需使用请单独安装：
-```bash
-cd mcp && npm install
-```
-:::
+打包桌面应用时需要 Go 1.22 或更高版本，以编译随包分发的 CLI。
 
 ## 开发
 

@@ -80,10 +80,7 @@ DeLive/
 ├── server/                      # Standalone proxy (debug only)
 │   └── src/index.ts             # Express server
 │
-├── mcp/                         # MCP server for AI agents
-│   ├── delive-mcp-server.js     # Standalone stdio MCP server
-│   ├── claude_desktop_config.json
-│   └── package.json
+├── cli/                         # Bundled native command line client
 │
 ├── skills/                      # Agent skill definitions
 │   └── delive-transcript-analyzer/

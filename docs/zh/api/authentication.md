@@ -17,7 +17,7 @@ DeLive 的 Open API 必须使用 Bearer Token 鉴权。服务器只监听 `127.0
 - **带网页 `Origin` 的 WebSocket 连接** → `/ws/live` 和各 Provider 代理都返回 `403`；只接受 DeLive 自己的窗口和不带 `Origin` 的本地客户端
 
 ::: info 升级说明
-2.3 之前的版本在令牌为空时不鉴权。如果你之前这样开启了 API，DeLive 启动时会自动生成令牌，请到设置里复制它，填到 MCP 或脚本配置中。
+2.3 之前的版本在令牌为空时不鉴权。如果你之前这样开启了 API，DeLive 启动时会自动生成令牌，请到设置里复制它，填到 HTTP 或 WebSocket 客户端配置中。
 :::
 
 ## REST API
@@ -45,23 +45,9 @@ const ws = new WebSocket('ws://localhost:23456/ws/live', {
 })
 ```
 
-## MCP 服务器
+## CLI
 
-MCP 服务器从 `DELIVE_API_TOKEN` 环境变量读取令牌：
-
-```json
-{
-  "mcpServers": {
-    "delive": {
-      "command": "node",
-      "args": ["/path/to/DeLive/mcp/delive-mcp-server.js"],
-      "env": {
-        "DELIVE_API_TOKEN": "dlv_your_token_here"
-      }
-    }
-  }
-}
-```
+随包 CLI 使用当前系统用户的私有通道，关闭开放 API 后仍可用，无需配置令牌。详见[使用说明](./cli)。
 
 ## 错误响应
 

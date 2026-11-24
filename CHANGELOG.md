@@ -13,6 +13,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.3.0-sq.9] - 2026-11-24
+
+### 命令行导出会议
+
+- 桌面应用内置 `delive`。应用运行时，同一系统用户可以搜索会议、查看稿件版本，把采用稿导出为 Markdown、TXT、SRT 或 VTT。阅读稿和校对稿沿用回顾页的导出规则。
+- 原 MCP 用户可从自己的客户端配置中移除旧 DeLive MCP 条目，改用应用自带的命令行程序。macOS 上直接运行 `"/Applications/DeLive SQ.app/Contents/Resources/bin/delive" meetings list --limit 10` 即可查看最近会议。CLI 无需登录、配置令牌或启用开放 API。外部 HTTP 和 WebSocket 客户端继续使用开放 API 开关和令牌鉴权。
+
+### 发行与验收
+
+- macOS arm64 开发包已验证真实会议导出与回顾页输出逐字节一致，开发阶段 514 项前端测试通过。Windows 和 Linux x64 CLI 已交叉编译，实机运行待验证。
+- GitHub 预发布提供版本说明与对应源码。macOS Apple Silicon 的 DMG 和 ZIP 在本机保留，采用 Developer ID 签名，未经 Apple 公证。
+
+---
+
 ## [2.3.0-sq.8] - 2026-11-23
 
 ### 修复

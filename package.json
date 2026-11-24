@@ -1,6 +1,6 @@
 {
   "name": "delive-sq",
-  "version": "2.3.0-sq.8",
+  "version": "2.3.0-sq.9",
   "description": "DeLive",
   "private": true,
   "main": "dist-electron/electron/main.js",
@@ -113,7 +113,7 @@
       ],
       "artifactName": "${productName}-${version}-${arch}.${ext}"
     },
-    "afterPack": "./scripts/fix-mac-signing.mjs",
+    "afterPack": "./scripts/package-cli.mjs",
     "mac": {
       "icon": "build/icon.icns",
       "identity": null,

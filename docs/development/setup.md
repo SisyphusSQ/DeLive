@@ -16,12 +16,7 @@ npm run install:all
 
 `install:all` runs `npm install` in three directories: root, `frontend/`, and `server/`.
 
-::: info
-The `mcp/` directory has its own `package.json` but is **not** included in `install:all`. Install it separately if needed:
-```bash
-cd mcp && npm install
-```
-:::
+Packaging requires Go 1.22 or newer to build the bundled CLI.
 
 ## Development
 

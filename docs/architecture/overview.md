@@ -39,7 +39,7 @@ flowchart TB
 
   subgraph ecosystem["🌍 External Ecosystem"]
     direction LR
-    mcp["MCP Server (stdio)"]
+    cli["DeLive CLI"]
     skill["Agent Skill Definition"]
     ws["WebSocket Clients"]
   end
@@ -55,7 +55,7 @@ flowchart TB
   style runtime fill:#0c4a6e,stroke:#0ea5e9,color:#e2e8f0
   style providers fill:#312e81,stroke:#8b5cf6,color:#e2e8f0
   style persistence fill:#312e81,stroke:#8b5cf6,color:#e2e8f0
-  style mcp fill:#064e3b,stroke:#10b981,color:#e2e8f0
+  style cli fill:#064e3b,stroke:#10b981,color:#e2e8f0
   style skill fill:#064e3b,stroke:#10b981,color:#e2e8f0
   style ws fill:#064e3b,stroke:#10b981,color:#e2e8f0
 ```
@@ -147,9 +147,9 @@ All session data lives in the Renderer's IndexedDB with an in-memory cache in `s
 
 Port 23456 (or the next free port in 23456–23460, then any free system port) hosts the Volcengine WebSocket proxy (`/ws/volc`), the REST API (`/api/v1/*`), and the live transcript WebSocket (`/ws/live`) on a single `http.createServer()`. Each proxy uses `noServer: true` mode with manual `upgrade` event routing.
 
-### MCP as Separate Process
+### DeLive CLI
 
-The MCP server is a standalone Node.js script, not embedded in Electron. Claude Desktop launches it as a child process. It communicates with DeLive via the REST API. This design means DeLive and the MCP server can crash independently.
+The native command line client ships with the app and reads meetings over a private connection for the current OS user, sharing the Open API’s read handlers.
 
 ### Provider Registry
 

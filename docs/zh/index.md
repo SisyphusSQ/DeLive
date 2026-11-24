@@ -28,8 +28,8 @@ features:
     title: 本地优先 & 安全
     details: 会话存储在 IndexedDB，密钥通过 safeStorage 加密，上下文隔离、可信窗口 IPC、CSP 注入、导航守卫。本地保存会话；调用远端转写或 AI 服务时，所需资料会发送给所选服务。
   - icon: 🌐
-    title: 开放 API 与 MCP 生态
-    details: 本地 REST API（8 个端点）、实时 WebSocket 流、独立 MCP 服务器（支持 Claude Desktop 和 Cursor）、Agent Skill 定义、Agent Skills 一键调用转录 — AI 集成一步到位。
+    title: 开放 API 与 CLI
+    details: 通过随应用分发的 CLI 搜索会议、导出采用稿，或使用本机 REST API 与实时 WebSocket。
   - icon: 📁
     title: 文件转录
     details: 上传音频/视频文件，可使用全部 4 种 Provider 转录，从云端引擎到完全本地的 whisper.cpp 与 FunASR / SenseVoice。说话人分离、词级时间戳和语言检测视 Provider 能力而定。
@@ -212,10 +212,6 @@ features:
     <div class="screenshot-card">
       <img src="/images/screenshot-live.png" alt="实时转录" />
       <div class="caption">实时转录</div>
-    </div>
-    <div class="screenshot-card">
-      <img src="/images/screenshot-mcp-integration.png" alt="MCP 集成" />
-      <div class="caption">MCP 集成</div>
     </div>
     <div class="screenshot-card">
       <img src="/images/screenshot-ai-overview.png" alt="AI 概览" />

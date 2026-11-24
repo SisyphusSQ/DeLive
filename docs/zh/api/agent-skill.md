@@ -12,26 +12,26 @@ Skill 定义了五种推荐工作流模式：
 
 ### 模式 1：会议摘要 → 邮件草稿
 
-1. `search_transcripts("weekly standup")`
-2. `get_session("<id>")`
+1. `delive meetings search "weekly standup"`
+2. `delive meetings show ID`
 3. 使用转录和 AI 摘要起草后续邮件
 
 ### 模式 2：讲座笔记 → 学习指南
 
-1. `search_transcripts("machine learning lecture")`
-2. `get_session_transcript("<id>")`
+1. `delive meetings search "machine learning lecture"`
+2. `delive meetings export ID --purpose proofreading`
 3. 提取关键概念，创建闪卡，或生成学习指南
 
 ### 模式 3：代码讨论 → 实现
 
-1. `search_transcripts("refactor database layer")`
-2. `get_session("<id>")`
+1. `delive meetings search "refactor database layer"`
+2. `delive meetings show ID`
 3. 提取技术决策和行动项
 4. 生成实现代码
 
 ### 模式 4：多会话分析
 
-1. `search_transcripts("project alpha")`
+1. `delive meetings search "project alpha"`
 2. 获取每个匹配的摘要
 3. 综合生成跨会话报告
 

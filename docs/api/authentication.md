@@ -17,7 +17,7 @@ DeLive's Open API requires a Bearer token. The server listens on `127.0.0.1` onl
 - **WebSocket with a web-page `Origin`** → `403` on `/ws/live` and the provider proxies; only DeLive's own windows and local clients that send no `Origin` are accepted
 
 ::: info Upgrading
-Versions before 2.3 accepted requests without a token when the token field was empty. If you had the API enabled that way, DeLive now generates a token on startup: copy it from Settings into your MCP or script configuration.
+Versions before 2.3 accepted requests without a token when the token field was empty. If you had the API enabled that way, DeLive now generates a token on startup: copy it from Settings into your HTTP or WebSocket client.
 :::
 
 ## REST API
@@ -45,23 +45,9 @@ const ws = new WebSocket('ws://localhost:23456/ws/live', {
 })
 ```
 
-## MCP Server
+## CLI
 
-The MCP server reads the token from the `DELIVE_API_TOKEN` environment variable:
-
-```json
-{
-  "mcpServers": {
-    "delive": {
-      "command": "node",
-      "args": ["/path/to/DeLive/mcp/delive-mcp-server.js"],
-      "env": {
-        "DELIVE_API_TOKEN": "dlv_your_token_here"
-      }
-    }
-  }
-}
-```
+The bundled CLI uses a private connection for the current OS user and works with Open API disabled. See the [CLI guide](./cli).
 
 ## Error Responses
 

@@ -12,26 +12,26 @@ The skill defines five recommended workflow patterns:
 
 ### Pattern 1: Meeting Summary → Email Draft
 
-1. `search_transcripts("weekly standup")`
-2. `get_session("<id>")`
+1. `delive meetings search "weekly standup"`
+2. `delive meetings show ID`
 3. Use the transcript and AI summary to draft a follow-up email
 
 ### Pattern 2: Lecture Notes → Study Guide
 
-1. `search_transcripts("machine learning lecture")`
-2. `get_session_transcript("<id>")`
+1. `delive meetings search "machine learning lecture"`
+2. `delive meetings export ID --purpose proofreading`
 3. Extract key concepts, create flashcards, or generate a study guide
 
 ### Pattern 3: Code Discussion → Implementation
 
-1. `search_transcripts("refactor database layer")`
-2. `get_session("<id>")`
+1. `delive meetings search "refactor database layer"`
+2. `delive meetings show ID`
 3. Extract technical decisions and action items
 4. Generate implementation code
 
 ### Pattern 4: Multi-Session Analysis
 
-1. `search_transcripts("project alpha")`
+1. `delive meetings search "project alpha"`
 2. Retrieve summaries for each match
 3. Synthesize a cross-session report
 

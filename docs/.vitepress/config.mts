@@ -77,7 +77,7 @@ export default withMermaid(
               {
                 text: 'AI Agent Integration',
                 items: [
-                  { text: 'MCP Server', link: '/api/mcp' },
+                  { text: 'DeLive CLI', link: '/api/cli' },
                   { text: 'Agent Skill', link: '/api/agent-skill' },
                 ],
               },
@@ -160,7 +160,7 @@ export default withMermaid(
               {
                 text: 'AI Agent 集成',
                 items: [
-                  { text: 'MCP 服务器', link: '/zh/api/mcp' },
+                  { text: 'DeLive CLI', link: '/zh/api/cli' },
                   { text: 'Agent Skill', link: '/zh/api/agent-skill' },
                 ],
               },
